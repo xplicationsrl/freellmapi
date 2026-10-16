@@ -49,6 +49,9 @@ for (const name of names) {
     registry.users[name] = { port: nextPort };
     usedPorts.add(nextPort);
   }
+  // The root sign-in page finds a user's instance by this email.
+  const email = wanted[name]?.admin?.email;
+  if (email) registry.users[name].email = email;
   const { port } = registry.users[name];
 
   // The encryption key is minted once; replacing it would orphan stored keys.

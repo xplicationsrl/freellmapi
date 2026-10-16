@@ -29,7 +29,69 @@ function reply(res, status, message) {
   res.end(JSON.stringify({ error: { message, type: 'routing_error' } }));
 }
 
+// The root dashboard is a shared sign-in page: it never offers first-run
+// setup, and its login is sent to whichever instance owns that email.
+const ROOT_STATUS = JSON.stringify({ needsSetup: false, authenticated: false, email: null, desktop: false });
+const MAX_LOGIN_BODY = 64 * 1024;
+
+function instanceForEmail(email) {
+  const wanted = String(email ?? '').trim().toLowerCase();
+  if (!wanted) return null;
+  for (const [name, user] of Object.entries(registry())) {
+    if (user.email && user.email.toLowerCase() === wanted) return { name, port: user.port };
+  }
+  return null;
+}
+
+function directoryLogin(req, res) {
+  const chunks = [];
+  let size = 0;
+  req.on('data', (chunk) => {
+    size += chunk.length;
+    if (size > MAX_LOGIN_BODY) req.destroy();
+    else chunks.push(chunk);
+  });
+  req.on('end', () => {
+    const body = Buffer.concat(chunks);
+    let email = null;
+    try { email = JSON.parse(body.toString('utf8')).email; } catch { /* instance rejects it */ }
+    // An unknown email still goes to an instance, so the reply is the same
+    // "Invalid email or password" and does not reveal which emails exist.
+    const target = instanceForEmail(email);
+    // Uncompressed, so the reply can be read and tagged with the instance.
+    const headers = { ...req.headers, 'content-length': String(body.length), 'accept-encoding': 'identity' };
+    const upstream = http.request(
+      { host: '127.0.0.1', port: target?.port ?? DEFAULT_PORT, method: 'POST', path: '/api/auth/login', headers },
+      (up) => {
+        const out = [];
+        up.on('data', (c) => out.push(c));
+        up.on('end', () => {
+          let payload = Buffer.concat(out);
+          const ok = (up.statusCode ?? 500) < 300;
+          if (ok && target) {
+            try { payload = Buffer.from(JSON.stringify({ ...JSON.parse(payload.toString('utf8')), instance: target.name })); } catch { /* pass through */ }
+          }
+          console.log(`POST /api/auth/login -> ${target ? target.name : 'none'} ${up.statusCode}`);
+          const outHeaders = { ...up.headers, 'content-length': String(payload.length) };
+          delete outHeaders['transfer-encoding'];
+          res.writeHead(up.statusCode ?? 502, outHeaders);
+          res.end(payload);
+        });
+      },
+    );
+    upstream.on('error', () => reply(res, 502, 'instance is not running'));
+    upstream.end(body);
+  });
+}
+
 const server = http.createServer((req, res) => {
+  const pathname = req.url.split('?')[0];
+  if (pathname === '/api/auth/status' && req.method === 'GET') {
+    res.writeHead(200, { 'content-type': 'application/json' });
+    return res.end(ROOT_STATUS);
+  }
+  if (pathname === '/api/auth/login' && req.method === 'POST') return directoryLogin(req, res);
+
   let port = DEFAULT_PORT;
   let target = req.url;
   const match = PREFIX_RE.exec(req.url.split('?')[0]);
@@ -43,6 +105,7 @@ const server = http.createServer((req, res) => {
   const upstream = http.request(
     { host: '127.0.0.1', port, method: req.method, path: target, headers: req.headers },
     (up) => {
+      console.log(`${req.method} ${req.url.split('?')[0]} -> :${port} ${up.statusCode}`);
       res.writeHead(up.statusCode ?? 502, up.headers);
       up.pipe(res);
     },

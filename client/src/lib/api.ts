@@ -4,14 +4,27 @@ const API_URL = (import.meta.env.VITE_API_URL ?? '').replace(/\/$/, '');
 
 // Per-user instances are served under /u/<name>/ on the same origin: the
 // dashboard, its API and the /v1 proxy all live behind that prefix.
-export const INSTANCE_PREFIX =
+// Signing in on the root page picks the instance by email; it is remembered
+// here and the address bar stays at the root.
+const INSTANCE_NAME_RE = /^[a-z0-9][a-z0-9-]{0,31}$/;
+const STORED_INSTANCE_KEY = 'freellmapi_instance';
+const PATH_PREFIX =
   /^\/u\/[a-z0-9-]+(?=\/|$)/.exec(globalThis.window?.location?.pathname ?? '')?.[0] ?? '';
+
+function storedInstance(): string {
+  try {
+    const name = localStorage.getItem(STORED_INSTANCE_KEY) ?? '';
+    return INSTANCE_NAME_RE.test(name) ? name : '';
+  } catch { return ''; }
+}
+
+export const INSTANCE_PREFIX = PATH_PREFIX || (storedInstance() ? `/u/${storedInstance()}` : '');
 
 export const API_BASE = API_URL || INSTANCE_PREFIX || import.meta.env.BASE_URL.replace(/\/$/, '');
 const BASE = API_BASE;
 
-/** Router basename: the instance prefix when there is one, else the build base. */
-export const ROUTER_BASENAME = INSTANCE_PREFIX || import.meta.env.BASE_URL;
+/** Router basename: the prefix in the address bar when there is one, else the build base. */
+export const ROUTER_BASENAME = PATH_PREFIX || import.meta.env.BASE_URL;
 
 // Public origin of the backend, for the base URLs shown to the user.
 export function apiOrigin(): string {
@@ -22,9 +35,42 @@ export function apiOrigin(): string {
 }
 
 // Instances share one origin, so each keeps its own session slot.
-const TOKEN_KEY = INSTANCE_PREFIX
-  ? `freellmapi_dashboard_token:${INSTANCE_PREFIX.slice(3)}`
-  : 'freellmapi_dashboard_token';
+function tokenKey(prefix: string): string {
+  return prefix ? `freellmapi_dashboard_token:${prefix.slice(3)}` : 'freellmapi_dashboard_token';
+}
+const TOKEN_KEY = tokenKey(INSTANCE_PREFIX);
+
+/**
+ * Sign in. On the root page the login goes to the shared front door, which
+ * answers with the instance that owns the email; the session is stored for
+ * that instance and the page reloads onto it. Returns false when it reloads.
+ */
+export async function signIn(payload: { email: string; password: string }): Promise<boolean> {
+  const viaDirectory = !API_URL && !PATH_PREFIX;
+  const res = viaDirectory
+    ? await apiFetchAt<{ token: string; instance?: string }>('', '/api/auth/login', { method: 'POST', body: JSON.stringify(payload) })
+    : await apiFetch<{ token: string; instance?: string }>('/api/auth/login', { method: 'POST', body: JSON.stringify(payload) });
+  if (viaDirectory && res.instance && INSTANCE_NAME_RE.test(res.instance)) {
+    try {
+      localStorage.setItem(tokenKey(`/u/${res.instance}`), res.token);
+      localStorage.setItem(STORED_INSTANCE_KEY, res.instance);
+    } catch { /* ignore */ }
+    if (`/u/${res.instance}` !== INSTANCE_PREFIX) {
+      window.location.reload();
+      return false;
+    }
+    return true;
+  }
+  setToken(res.token);
+  return true;
+}
+
+/** Forget the instance picked on the root page, so the next sign-in can pick another. */
+function leaveStoredInstance(): boolean {
+  if (PATH_PREFIX || !storedInstance()) return false;
+  try { localStorage.removeItem(STORED_INSTANCE_KEY); } catch { /* ignore */ }
+  return true;
+}
 
 // Dashboard session token (#35). Stored in localStorage; sent as a Bearer on
 // every /api request and cleared on a 401.
@@ -47,7 +93,11 @@ export interface ApiError extends Error {
   code?: string;
 }
 
-export async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
+export function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
+  return apiFetchAt<T>(BASE, path, options);
+}
+
+async function apiFetchAt<T>(base: string, path: string, options?: RequestInit): Promise<T> {
   const token = getToken();
   const headers = new Headers(options?.headers);
   const isFormData = typeof FormData !== 'undefined' && options?.body instanceof FormData;
@@ -57,7 +107,7 @@ export async function apiFetch<T>(path: string, options?: RequestInit): Promise<
   if (token) {
     headers.set('Authorization', `Bearer ${token}`);
   }
-  const res = await fetch(`${BASE}${path}`, {
+  const res = await fetch(`${base}${path}`, {
     // `...options` first so an explicit method/body/signal applies, but headers
     // are merged last — otherwise an options.headers would clobber the
     // Content-Type and Authorization we set here.
@@ -105,5 +155,10 @@ export async function apiFetch<T>(path: string, options?: RequestInit): Promise<
 export async function logout(): Promise<void> {
   try { await apiFetch('/api/auth/logout', { method: 'POST' }); } catch { /* ignore */ }
   clearToken();
+  // Back to the shared sign-in page, so a different user can sign in next.
+  if (leaveStoredInstance()) {
+    window.location.reload();
+    return;
+  }
   window.dispatchEvent(new CustomEvent(UNAUTHORIZED_EVENT));
 }

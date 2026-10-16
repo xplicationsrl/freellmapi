@@ -2,9 +2,15 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "freellmapi",
   "compatibility_date": "2026-10-01",
-  // Static dashboard only; the API runs on its own server (VITE_API_URL).
+  "main": "./worker/index.js",
+  // Dashboard is static; API paths run the Worker, which proxies to the backend.
   "assets": {
     "directory": "./client/dist",
-    "not_found_handling": "single-page-application"
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*", "/v1/*", "/v1beta/*", "/mcp", "/mcp/*"]
+  },
+  "vars": {
+    "BACKEND_URL": "https://ceo-pillow-seattle-install.trycloudflare.com"
   }
 }

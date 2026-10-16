@@ -257,4 +257,30 @@ describe('playground conversations', () => {
       expect(status).toBe(401);
     });
   });
+
+  describe('per-account', () => {
+    it("never lists, reads, edits or deletes another account's conversation", async () => {
+      const mine = await create({ title: 'mine' });
+      const otherToken = mintDashboardToken(`other-${Date.now()}@example.com`);
+
+      const list = await request(app, 'GET', '/api/conversations', { token: otherToken });
+      expect(list.status).toBe(200);
+      expect(list.body.some((c: { id: number }) => c.id === mine.id)).toBe(false);
+
+      for (const [method, body] of [['GET', undefined], ['PUT', { title: 'taken' }], ['DELETE', undefined]] as const) {
+        const { status } = await request(app, method, `/api/conversations/${mine.id}`, { token: otherToken, body });
+        expect(status, `${method} as another account`).toBe(404);
+      }
+
+      // Untouched for its owner.
+      const still = await request(app, 'GET', `/api/conversations/${mine.id}`, { token: dashToken });
+      expect(still.status).toBe(200);
+      expect(still.body.title).toBe('mine');
+
+      // The other account's own conversation stays out of the owner's list.
+      const theirs = await request(app, 'POST', '/api/conversations', { token: otherToken, body: { title: 'theirs' } });
+      const ownerList = await request(app, 'GET', '/api/conversations', { token: dashToken });
+      expect(ownerList.body.some((c: { id: number }) => c.id === theirs.body.id)).toBe(false);
+    });
+  });
 });

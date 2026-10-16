@@ -13,6 +13,10 @@ import { getDb } from '../db/index.js';
 // info and `reasoning` included — so a restored conversation renders exactly
 // like the live one. Validation is therefore shape-checking, not
 // normalisation: unknown keys are stripped, everything the page draws survives.
+//
+// Conversations are per account (user_id): accounts sharing an install share
+// its keys, but each sees and touches only the chats it started. Another
+// account's conversation id answers 404, exactly like one that does not exist.
 
 export const conversationsRouter = Router();
 
@@ -128,10 +132,15 @@ function parseMessages(json: string): unknown[] {
   }
 }
 
-function getConversation(id: number): ConversationRow | undefined {
+/** The signed-in dashboard account; requireAuth guarantees it on this router. */
+function ownerId(req: Request): number {
+  return (req as Request & { user: { userId: number } }).user.userId;
+}
+
+function getConversation(id: number, userId: number): ConversationRow | undefined {
   return getDb()
-    .prepare('SELECT * FROM playground_conversations WHERE id = ?')
-    .get(id) as ConversationRow | undefined;
+    .prepare('SELECT * FROM playground_conversations WHERE id = ? AND user_id = ?')
+    .get(id, userId) as ConversationRow | undefined;
 }
 
 function parseId(req: Request, res: Response): number | null {
@@ -172,7 +181,7 @@ function serialiseMessages(messages: unknown[], res: Response): string | null {
 // small no matter how long the conversations are. json_array_length reads the
 // count straight out of the stored blob (SQLite's JSON1, present in both the
 // better-sqlite3 and node:sqlite drivers) instead of parsing every transcript.
-conversationsRouter.get('/', (_req: Request, res: Response) => {
+conversationsRouter.get('/', (req: Request, res: Response) => {
   const rows = getDb().prepare(`
     SELECT id,
            title,
@@ -181,8 +190,9 @@ conversationsRouter.get('/', (_req: Request, res: Response) => {
            created_at_ms,
            updated_at_ms
       FROM playground_conversations
+     WHERE user_id = ?
      ORDER BY updated_at_ms DESC, id DESC
-  `).all() as SummaryRow[];
+  `).all(ownerId(req)) as SummaryRow[];
   res.json(rows.map(row => ({
     id: row.id,
     title: row.title,
@@ -196,7 +206,7 @@ conversationsRouter.get('/', (_req: Request, res: Response) => {
 conversationsRouter.get('/:id', (req: Request, res: Response) => {
   const id = parseId(req, res);
   if (id === null) return;
-  const row = getConversation(id);
+  const row = getConversation(id, ownerId(req));
   if (!row) return notFound(res);
   res.json(toJson(row));
 });
@@ -210,12 +220,14 @@ conversationsRouter.post('/', (req: Request, res: Response) => {
   const messagesJson = serialiseMessages(parsed.data.messages ?? [], res);
   if (messagesJson === null) return;
 
+  const userId = ownerId(req);
   const now = Date.now();
   const info = getDb().prepare(`
     INSERT INTO playground_conversations
-      (title, messages_json, model, system_prompt, created_at_ms, updated_at_ms)
-    VALUES (?, ?, ?, ?, ?, ?)
+      (user_id, title, messages_json, model, system_prompt, created_at_ms, updated_at_ms)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
   `).run(
+    userId,
     parsed.data.title ?? '',
     messagesJson,
     parsed.data.model ?? null,
@@ -223,7 +235,7 @@ conversationsRouter.post('/', (req: Request, res: Response) => {
     now,
     now,
   );
-  res.status(201).json(toJson(getConversation(Number(info.lastInsertRowid))!));
+  res.status(201).json(toJson(getConversation(Number(info.lastInsertRowid), userId)!));
 });
 
 conversationsRouter.put('/:id', (req: Request, res: Response) => {
@@ -234,7 +246,8 @@ conversationsRouter.put('/:id', (req: Request, res: Response) => {
     res.status(400).json({ error: { message: 'Invalid conversation update' } });
     return;
   }
-  const row = getConversation(id);
+  const userId = ownerId(req);
+  const row = getConversation(id, userId);
   if (!row) return notFound(res);
 
   const { title, messages, model, systemPrompt } = parsed.data;
@@ -249,7 +262,7 @@ conversationsRouter.put('/:id', (req: Request, res: Response) => {
   getDb().prepare(`
     UPDATE playground_conversations
        SET title = ?, messages_json = ?, model = ?, system_prompt = ?, updated_at_ms = ?
-     WHERE id = ?
+     WHERE id = ? AND user_id = ?
   `).run(
     title ?? row.title,
     messagesJson,
@@ -257,14 +270,17 @@ conversationsRouter.put('/:id', (req: Request, res: Response) => {
     systemPrompt === undefined ? row.system_prompt : systemPrompt,
     Date.now(),
     id,
+    userId,
   );
-  res.json(toJson(getConversation(id)!));
+  res.json(toJson(getConversation(id, userId)!));
 });
 
 conversationsRouter.delete('/:id', (req: Request, res: Response) => {
   const id = parseId(req, res);
   if (id === null) return;
-  const info = getDb().prepare('DELETE FROM playground_conversations WHERE id = ?').run(id);
+  const info = getDb()
+    .prepare('DELETE FROM playground_conversations WHERE id = ? AND user_id = ?')
+    .run(id, ownerId(req));
   if (info.changes === 0) return notFound(res);
   res.json({ success: true });
 });

@@ -1,7 +1,7 @@
 import type { Db } from '../db/types.js';
 import type { Scheduler } from '../lib/scheduler.js';
 import type { Platform } from '@freellmapi/shared/types.js';
-import { getProvider } from '../providers/index.js';
+import { getAllProviders, getProvider } from '../providers/index.js';
 import { OpenAICompatProvider } from '../providers/openai-compat.js';
 import { decrypt } from '../lib/crypto.js';
 import { decryptProxyUrl } from '../lib/key-proxy.js';
@@ -48,6 +48,25 @@ import { customModelSyncFreePatterns, customModelSyncIntervalMs } from './custom
  *  catalog; managedPlatforms in the catalog covers binaries already shipped. */
 export const BUILTIN_DISCOVERY_PLATFORMS: readonly Platform[] = ['github', 'longcat', 'siliconflow'];
 
+/** `BUILTIN_MODEL_DISCOVERY_PLATFORMS` widens the allowlist above:
+ *  unset keeps it as audited; `all` makes every registered OpenAI-compatible
+ *  platform a candidate; a comma-separated list adds those platforms. The
+ *  catalog still wins either way: a platform the applied catalog manages, or
+ *  that has catalog rows locally, is never discovered (see eligibility). This
+ *  is the operator's call to fill providers the catalog does not carry yet
+ *  (including ones in their 30-day Premium window) from the providers' own
+ *  model lists. */
+export function discoveryPlatforms(): readonly string[] {
+  const raw = process.env.BUILTIN_MODEL_DISCOVERY_PLATFORMS?.trim().toLowerCase() ?? '';
+  if (raw === 'all') {
+    return getAllProviders()
+      .filter(p => p instanceof OpenAICompatProvider && p.platform !== 'custom')
+      .map(p => p.platform);
+  }
+  const extra = raw.split(',').map(s => s.trim()).filter(Boolean);
+  return [...new Set([...BUILTIN_DISCOVERY_PLATFORMS, ...extra])];
+}
+
 /** `BUILTIN_MODEL_DISCOVERY`: 'manual' (default) keeps only the dashboard's
  *  Fetch models action, so nothing is registered without the operator picking
  *  it; 'auto' also discovers on key save, after a healthy check and on the
@@ -76,7 +95,7 @@ export interface DiscoveryEligibility {
 /** Whether `platform` may fill its model list from its own /models. */
 export function builtinDiscoveryEligibility(db: Db, platform: string): DiscoveryEligibility {
   if (builtinDiscoveryMode() === 'off') return { eligible: false, reason: 'disabled' };
-  if (!(BUILTIN_DISCOVERY_PLATFORMS as readonly string[]).includes(platform)) {
+  if (!discoveryPlatforms().includes(platform)) {
     return { eligible: false, reason: 'not_allowlisted' };
   }
   const provider = getProvider(platform as Platform);
@@ -282,7 +301,7 @@ export async function runBuiltinModelDiscovery(db: Db, only?: string): Promise<B
   };
   if (builtinDiscoveryMode() !== 'auto') return result;
 
-  const platforms = only ? [only] : [...BUILTIN_DISCOVERY_PLATFORMS];
+  const platforms = only ? [only] : [...discoveryPlatforms()];
   for (const platform of platforms) {
     const eligibility = builtinDiscoveryEligibility(db, platform);
     if (!eligibility.eligible || !eligibility.provider) continue;
@@ -325,6 +344,7 @@ export async function runBuiltinModelDiscovery(db: Db, only?: string): Promise<B
 const inFlight = new Map<string, Promise<BuiltinDiscoveryResult>>();
 const lastEventRunMs = new Map<string, number>();
 const EVENT_MIN_GAP_MS = 60 * 60 * 1000;
+const STARTUP_DELAY_MS = 60 * 1000;
 
 export function triggerBuiltinModelDiscovery(
   db: Db,
@@ -363,5 +383,9 @@ export function resetBuiltinDiscoveryThrottle(): void {
 export function startBuiltinModelDiscovery(db: Db, scheduler: Scheduler): (() => void) | null {
   const intervalMs = customModelSyncIntervalMs();
   if (intervalMs <= 0 || builtinDiscoveryMode() !== 'auto') return null;
-  return scheduler.every(intervalMs, () => { void runBuiltinModelDiscovery(db); }, { name: 'builtin-model-discovery' });
+  // One pass shortly after boot, so existing keys are checked without waiting
+  // a whole interval; the delay lets the boot catalog sync land first.
+  const cancelBoot = scheduler.after(STARTUP_DELAY_MS, () => { void runBuiltinModelDiscovery(db); });
+  const cancelEvery = scheduler.every(intervalMs, () => { void runBuiltinModelDiscovery(db); }, { name: 'builtin-model-discovery' });
+  return () => { cancelBoot(); cancelEvery(); };
 }

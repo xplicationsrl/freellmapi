@@ -149,6 +149,40 @@ describe('built-in model discovery (#1348)', () => {
       process.env.BUILTIN_MODEL_DISCOVERY = 'off';
       expect(builtinDiscoveryEligibility(getDb(), 'siliconflow')).toMatchObject({ eligible: false, reason: 'disabled' });
     });
+
+    describe('BUILTIN_MODEL_DISCOVERY_PLATFORMS', () => {
+      afterEach(() => { delete process.env.BUILTIN_MODEL_DISCOVERY_PLATFORMS; });
+
+      it('`all` opens every OpenAI-compatible platform the catalog does not manage', () => {
+        process.env.BUILTIN_MODEL_DISCOVERY_PLATFORMS = 'all';
+        expect(builtinDiscoveryEligibility(getDb(), 'simplellm').eligible).toBe(true);
+        expect(builtinDiscoveryEligibility(getDb(), 'siliconflow').eligible).toBe(true);
+        expect(builtinDiscoveryEligibility(getDb(), 'custom').eligible).toBe(false);
+        // The catalog still wins over the widened list.
+        cacheAppliedCatalog(catalogOf([catalogModel('simplellm', 'some-model')]));
+        expect(builtinDiscoveryEligibility(getDb(), 'simplellm')).toMatchObject({ eligible: false, reason: 'catalog_managed' });
+      });
+
+      it('a comma list adds platforms to the audited allowlist', () => {
+        process.env.BUILTIN_MODEL_DISCOVERY_PLATFORMS = 'simplellm, inferbase';
+        expect(builtinDiscoveryEligibility(getDb(), 'simplellm').eligible).toBe(true);
+        expect(builtinDiscoveryEligibility(getDb(), 'inferbase').eligible).toBe(true);
+        expect(builtinDiscoveryEligibility(getDb(), 'longcat').eligible).toBe(true);
+        expect(builtinDiscoveryEligibility(getDb(), 'radeon')).toMatchObject({ eligible: false, reason: 'not_allowlisted' });
+      });
+
+      it('registers a widened platform on the automatic pass', async () => {
+        process.env.BUILTIN_MODEL_DISCOVERY_PLATFORMS = 'all';
+        addKey('simplellm');
+        stubModels(['free-gemma-4-E4B', 'free-Llama-3.1-8B-Instruct']);
+        const result = await runBuiltinModelDiscovery(getDb(), 'simplellm');
+        expect(result.added).toBe(2);
+        expect(rows('simplellm').map(r => [r.model_id, r.source])).toEqual([
+          ['free-Llama-3.1-8B-Instruct', 'discovered'],
+          ['free-gemma-4-E4B', 'discovered'],
+        ]);
+      });
+    });
   });
 
   describe('registration precedence', () => {

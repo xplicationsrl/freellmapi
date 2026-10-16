@@ -29,3 +29,4 @@ monetization/
 # Per-user instances (secrets, databases)
 instances/
 server/data-old-*/
+.wrangler/

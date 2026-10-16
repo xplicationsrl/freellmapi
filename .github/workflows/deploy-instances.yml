@@ -1,0 +1,33 @@
+name: Deploy user instances
+
+# Pushes every user's provider keys + login (secret FREELLMAPI_USERS) to the
+# server and (re)starts one backend per user. The server's deploy key is
+# pinned to deploy/ci-deploy.sh, so this connection can run nothing else.
+on:
+  push:
+    branches: [main]
+    paths: ['server/**', 'shared/**', 'deploy/**', 'package-lock.json']
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-instances
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy over SSH
+        env:
+          SSH_HOST: ${{ secrets.DEPLOY_SSH_HOST }}
+          SSH_USER: ${{ secrets.DEPLOY_SSH_USER }}
+          SSH_PORT: ${{ secrets.DEPLOY_SSH_PORT }}
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.DEPLOY_SSH_KNOWN_HOSTS }}
+          USERS_JSON: ${{ secrets.FREELLMAPI_USERS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key && chmod 600 ~/.ssh/deploy_key
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          printf '%s' "$USERS_JSON" | ssh -i ~/.ssh/deploy_key -p "${SSH_PORT:-22}" \
+            -o StrictHostKeyChecking=yes "$SSH_USER@$SSH_HOST" deploy

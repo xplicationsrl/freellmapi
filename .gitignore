@@ -25,3 +25,7 @@ update-hermes.sh
 
 # Monetization planning — private, never committed
 monetization/
+
+# Per-user instances (secrets, databases)
+instances/
+server/data-old-*/

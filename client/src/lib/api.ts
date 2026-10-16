@@ -1,18 +1,30 @@
 // VITE_API_URL points a separately hosted dashboard (e.g. Cloudflare Pages) at
 // a backend on another origin. Unset, the API is same-origin under BASE_URL.
 const API_URL = (import.meta.env.VITE_API_URL ?? '').replace(/\/$/, '');
-export const API_BASE = API_URL || import.meta.env.BASE_URL.replace(/\/$/, '');
+
+// Per-user instances are served under /u/<name>/ on the same origin: the
+// dashboard, its API and the /v1 proxy all live behind that prefix.
+export const INSTANCE_PREFIX =
+  /^\/u\/[a-z0-9-]+(?=\/|$)/.exec(globalThis.window?.location?.pathname ?? '')?.[0] ?? '';
+
+export const API_BASE = API_URL || INSTANCE_PREFIX || import.meta.env.BASE_URL.replace(/\/$/, '');
 const BASE = API_BASE;
+
+/** Router basename: the instance prefix when there is one, else the build base. */
+export const ROUTER_BASENAME = INSTANCE_PREFIX || import.meta.env.BASE_URL;
 
 // Public origin of the backend, for the base URLs shown to the user.
 export function apiOrigin(): string {
   if (API_URL) return API_URL;
   return import.meta.env.DEV
     ? `http://${window.location.hostname}:${__SERVER_PORT__}`
-    : window.location.origin;
+    : `${window.location.origin}${INSTANCE_PREFIX}`;
 }
 
-const TOKEN_KEY = 'freellmapi_dashboard_token';
+// Instances share one origin, so each keeps its own session slot.
+const TOKEN_KEY = INSTANCE_PREFIX
+  ? `freellmapi_dashboard_token:${INSTANCE_PREFIX.slice(3)}`
+  : 'freellmapi_dashboard_token';
 
 // Dashboard session token (#35). Stored in localStorage; sent as a Bearer on
 // every /api request and cleared on a 401.

@@ -327,6 +327,31 @@ describe('declarative config admin', () => {
     })).toThrow(/invalid declarative config/);
     expect(userCount()).toBe(0);
   });
+
+  it('creates each missing `users` account and never touches an existing one', () => {
+    const first = applyDeclarativeConfig({
+      users: [
+        { email: 'Ana@Example.com', password: 'ana-password-1' },
+        { email: 'bo@example.com', password: 'bo-password-1' },
+      ],
+    });
+    expect(first.users).toBe(2);
+    expect(userCount()).toBe(2);
+    expect(verifyCredentials('ana@example.com', 'ana-password-1')).toBeTruthy();
+
+    // Re-applied with a new password and a new user: only the new user lands,
+    // so a password the user changed in the dashboard is not reverted.
+    const second = applyDeclarativeConfig({
+      users: [
+        { email: 'ana@example.com', password: 'seeded-again-2' },
+        { email: 'cy@example.com', password: 'cy-password-1' },
+      ],
+    });
+    expect(second.users).toBe(1);
+    expect(userCount()).toBe(3);
+    expect(verifyCredentials('ana@example.com', 'ana-password-1')).toBeTruthy();
+    expect(verifyCredentials('ana@example.com', 'seeded-again-2')).toBeNull();
+  });
 });
 
 describe('declarative config license', () => {

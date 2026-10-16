@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Loader2 } from 'lucide-react'
-import { apiFetch, setToken, signIn, UNAUTHORIZED_EVENT, type ApiError } from '@/lib/api'
+import { apiFetch, setToken, UNAUTHORIZED_EVENT, type ApiError } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { FieldError } from '@/components/ui/field-error'
 import { Input } from '@/components/ui/input'
@@ -104,15 +104,11 @@ function AuthForm({ mode, onAuthed }: { mode: 'setup' | 'login'; onAuthed: () =>
       // Only the setup flow carries a code, and only once the server has asked
       // for it. The server ignores it for local (loopback) setup.
       if (isSetup && setupCode) payload.setupCode = setupCode.trim()
-      if (isSetup) {
-        const res = await apiFetch<{ token: string }>('/api/auth/setup', {
-          method: 'POST',
-          body: JSON.stringify(payload),
-        })
-        setToken(res.token)
-      } else if (!(await signIn({ email, password }))) {
-        return // reloading onto the instance that owns this account
-      }
+      const res = await apiFetch<{ token: string }>(isSetup ? '/api/auth/setup' : '/api/auth/login', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      })
+      setToken(res.token)
       onAuthed()
     } catch (err) {
       // The server gates remote first-run setup behind a one-time code; reveal

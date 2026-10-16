@@ -1,7 +1,7 @@
-name: Deploy user instances
+name: Deploy shared instance
 
-# Pushes every user's provider keys + login (secret FREELLMAPI_USERS) to the
-# server and (re)starts one backend per user. The server's deploy key is
+# Pushes the shared install's logins + provider keys (secret FREELLMAPI_USERS)
+# to the server and restarts the backend. The server's deploy key is
 # pinned to deploy/ci-deploy.sh, so this connection can run nothing else.
 on:
   push:

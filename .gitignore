@@ -30,3 +30,4 @@ monetization/
 instances/
 server/data-old-*/
 .wrangler/
+instances-old-*/

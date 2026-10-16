@@ -97,6 +97,10 @@ const adminSchema = z.object({
 
 const declarativeConfigSchema = z.object({
   admin: adminSchema.optional(),
+  // Further dashboard accounts sharing this install (its keys, models and
+  // routing). Each is created when its email has no account yet; an existing
+  // account is never touched, so a password changed in the dashboard sticks.
+  users: z.array(adminSchema).optional(),
   // Premium license key (freellmapi.co). Same minimum as the dashboard's
   // POST /api/premium/key length gate.
   license: z.string().min(8).optional(),
@@ -124,6 +128,8 @@ export interface DeclarativeConfigResult {
   source?: string;
   /** True when the `admin` entry created the first dashboard account. */
   admin: boolean;
+  /** Accounts the `users` entry created on this boot. */
+  users: number;
   /** True when a `license` entry was handed to background activation. */
   license: boolean;
   keys: number;
@@ -474,6 +480,7 @@ export function applyDeclarativeConfig(input: unknown, source = 'inline'): Decla
     applied: true,
     source,
     admin: false,
+    users: 0,
     license: false,
     keys: 0,
     customModels: 0,
@@ -492,6 +499,14 @@ export function applyDeclarativeConfig(input: unknown, source = 'inline'): Decla
         const warning = 'admin: a dashboard account already exists — entry ignored';
         result.warnings.push(warning);
         console.warn(`[config] ${warning}`);
+      }
+    }
+    for (const user of parsed.data.users ?? []) {
+      try {
+        createUser(user.email, user.password);
+        result.users++;
+      } catch (err) {
+        if ((err as { code?: string }).code !== 'email_taken') throw err;
       }
     }
     for (const key of parsed.data.keys ?? []) {
@@ -569,13 +584,13 @@ export async function activateConfiguredLicense(key: string): Promise<void> {
 export function applyDeclarativeConfigFromEnv(): DeclarativeConfigResult {
   const loaded = readConfigFromEnv();
   if (!loaded) {
-    return { applied: false, admin: false, license: false, keys: 0, customModels: 0, models: 0, fallback: 0, routing: false, warnings: [] };
+    return { applied: false, admin: false, users: 0, license: false, keys: 0, customModels: 0, models: 0, fallback: 0, routing: false, warnings: [] };
   }
   const result = applyDeclarativeConfig(loaded.value, loaded.source);
   console.log(
     `[config] applied ${loaded.source}: ${result.keys} keys, ${result.customModels} custom models, ` +
       `${result.models} model edits, ${result.fallback} fallback rows${result.routing ? ', routing' : ''}` +
-      `${result.admin ? ', admin account created' : ''}${result.license ? ', license activation started' : ''}` +
+      `${result.admin ? ', admin account created' : ''}${result.users ? `, ${result.users} user account(s) created` : ''}${result.license ? ', license activation started' : ''}` +
       `${result.warnings.length > 0 ? `, ${result.warnings.length} entries skipped` : ''}`,
   );
   return result;

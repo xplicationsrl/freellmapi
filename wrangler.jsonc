@@ -1,0 +1,10 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "freellmapi",
+  "compatibility_date": "2026-10-01",
+  // Static dashboard only; the API runs on its own server (VITE_API_URL).
+  "assets": {
+    "directory": "./client/dist",
+    "not_found_handling": "single-page-application"
+  }
+}

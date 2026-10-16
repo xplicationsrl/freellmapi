@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { CheckCircle2, ExternalLink, Globe } from 'lucide-react'
-import { apiFetch } from '@/lib/api'
+import { apiFetch, apiOrigin } from '@/lib/api'
 import { useI18n } from '@/i18n'
 import { PageHeader } from '@/components/page-header'
 import { CopyButton } from '@/components/copy-button'
@@ -79,9 +79,7 @@ export default function AgentsPage() {
   const seen = new Map(byClient
     .filter(row => row.lastSeenAt && Date.parse(row.lastSeenAt) >= seenCutoff)
     .map(row => [row.clientAgent, row]))
-  const origin = import.meta.env.DEV
-    ? `http://${window.location.hostname}:${__SERVER_PORT__}`
-    : window.location.origin
+  const origin = apiOrigin()
   const shownKey = keyData?.apiKey
     ? (revealKey ? keyData.apiKey : masked(keyData.apiKey))
     : '…'

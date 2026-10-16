@@ -1,4 +1,17 @@
-const BASE = import.meta.env.BASE_URL.replace(/\/$/, '');
+// VITE_API_URL points a separately hosted dashboard (e.g. Cloudflare Pages) at
+// a backend on another origin. Unset, the API is same-origin under BASE_URL.
+const API_URL = (import.meta.env.VITE_API_URL ?? '').replace(/\/$/, '');
+export const API_BASE = API_URL || import.meta.env.BASE_URL.replace(/\/$/, '');
+const BASE = API_BASE;
+
+// Public origin of the backend, for the base URLs shown to the user.
+export function apiOrigin(): string {
+  if (API_URL) return API_URL;
+  return import.meta.env.DEV
+    ? `http://${window.location.hostname}:${__SERVER_PORT__}`
+    : window.location.origin;
+}
+
 const TOKEN_KEY = 'freellmapi_dashboard_token';
 
 // Dashboard session token (#35). Stored in localStorage; sent as a Bearer on

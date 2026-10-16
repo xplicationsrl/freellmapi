@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Link, useParams } from 'react-router-dom'
 import { ChevronLeft, Merge, Save, Split, Trash2 } from 'lucide-react'
 import { useI18n } from '@/i18n'
-import { apiFetch } from '@/lib/api'
+import { apiFetch, apiOrigin } from '@/lib/api'
 import { addAlias, aliasesFor, removeAlias } from '@/lib/alias-merge'
 import { Button } from '@/components/ui/button'
 import { ConfirmButton } from '@/components/confirm-button'
@@ -219,9 +219,7 @@ export default function ModelDetailPage() {
 
   // A ready-to-run request referencing this model by its unified id, so it fails
   // over across every provider above. Same base-URL derivation as the Keys page.
-  const baseUrl = import.meta.env.DEV
-    ? `http://${window.location.hostname}:${__SERVER_PORT__}/v1`
-    : `${window.location.origin}/v1`
+  const baseUrl = `${apiOrigin()}/v1`
   const snippet = `curl ${baseUrl}/chat/completions \\
   -H "Authorization: Bearer ${keyData?.apiKey || 'YOUR_API_KEY'}" \\
   -H "Content-Type: application/json" \\

@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button'
 import { useI18n } from '@/i18n'
 import { toast } from '@/lib/toast'
 import { pickRecordingMimeType, recordingFilename } from '@/lib/transcription'
+import { API_BASE } from '@/lib/api'
 
 // The mic in the composer. One click records, the next stops and sends the
 // clip to /v1/audio/transcriptions — the gateway's own speech-to-text route,
@@ -93,7 +94,7 @@ export function DictationButton({ available, model, apiKey, disabled, onText, on
       form.append('response_format', 'json')
       const headers: Record<string, string> = {}
       if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`
-      const base = import.meta.env.BASE_URL.replace(/\/$/, '')
+      const base = API_BASE
       const res = await fetch(`${base}/v1/audio/transcriptions`, { method: 'POST', headers, body: form })
       if (!res.ok) {
         const body = await res.json().catch(() => null) as { error?: { message?: string } } | null

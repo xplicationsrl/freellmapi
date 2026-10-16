@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { apiFetch } from '@/lib/api'
+import { apiFetch, apiOrigin } from '@/lib/api'
 import { copyText } from '@/lib/clipboard'
 import { toast } from '@/lib/toast'
 import { Button } from '@/components/ui/button'
@@ -35,9 +35,7 @@ export function UnifiedKeySection() {
 
   const apiKey = data?.apiKey ?? ''
   const masked = apiKey ? apiKey.slice(0, 13) + '•'.repeat(32) : '…'
-  const baseUrl = import.meta.env.DEV
-    ? `http://${window.location.hostname}:${__SERVER_PORT__}/v1`
-    : `${window.location.origin}/v1`
+  const baseUrl = `${apiOrigin()}/v1`
 
   async function copy() {
     if (!await copyText(apiKey)) {

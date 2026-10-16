@@ -7,7 +7,7 @@ import { I18nProvider } from '@/i18n'
 import { apiFetch } from '@/lib/api'
 import { UnifiedKeySection } from './unified-key-section'
 
-vi.mock('@/lib/api', () => ({ apiFetch: vi.fn() }))
+vi.mock('@/lib/api', () => ({ apiFetch: vi.fn(), apiOrigin: () => 'http://localhost:3001' }))
 vi.mock('@/lib/toast', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 
 let root: Root

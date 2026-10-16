@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useMemo, useCallback, type ReactNode } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { ChevronRight, CircleAlert, FileText, Globe, X } from 'lucide-react'
-import { apiFetch } from '@/lib/api'
+import { apiFetch, API_BASE } from '@/lib/api'
 import { buildModelOptions } from '@/lib/model-groups'
 import type { Chain } from '@/components/chain-manager'
 import { Markdown } from '@/components/markdown'
@@ -843,7 +843,7 @@ export default function PlaygroundPage() {
     try {
       const headers: Record<string, string> = { 'Content-Type': 'application/json' }
       if (keyData?.apiKey) headers['Authorization'] = `Bearer ${keyData.apiKey}`
-      const base = import.meta.env.BASE_URL.replace(/\/$/, '')
+      const base = API_BASE
 
       // Web search first, when it is on and there is a question to look up. A
       // failed search is reported and the question is answered without it.

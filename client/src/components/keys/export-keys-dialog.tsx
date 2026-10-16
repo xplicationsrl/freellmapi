@@ -8,7 +8,7 @@ import { Switch } from '@/components/ui/switch'
 import { Input } from '@/components/ui/input'
 import { FieldError } from '@/components/ui/field-error'
 import { useI18n } from '@/i18n'
-import { apiFetch, getToken } from '@/lib/api'
+import { apiFetch, getToken, API_BASE } from '@/lib/api'
 import { toast } from '@/lib/toast'
 import type { ApiKey } from '../../../../shared/types'
 
@@ -23,7 +23,7 @@ const FORMAT_OPTIONS: { value: ExportFormat; label: string; ext: string }[] = [
   { value: 'csv', label: 'CSV', ext: 'csv' },
 ]
 
-const BASE = import.meta.env.BASE_URL.replace(/\/$/, '');
+const BASE = API_BASE;
 
 // #786: the desktop build has no user-set password to re-enter, and its server
 // skips re-auth for local requests, so the password step is skipped here too.

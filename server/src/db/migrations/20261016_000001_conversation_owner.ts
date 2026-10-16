@@ -13,10 +13,15 @@
 import type { Db } from '../types.js';
 
 export function up(db: Db): void {
+  // Idempotent: the baseline set can be re-run over an already-migrated DB.
+  const columns = db.prepare('PRAGMA table_info(playground_conversations)').all() as { name: string }[];
+  if (!columns.some(c => c.name === 'user_id')) {
+    db.exec(`
+      ALTER TABLE playground_conversations
+        ADD COLUMN user_id INTEGER REFERENCES users(id) ON DELETE CASCADE;
+    `);
+  }
   db.exec(`
-    ALTER TABLE playground_conversations
-      ADD COLUMN user_id INTEGER REFERENCES users(id) ON DELETE CASCADE;
-
     UPDATE playground_conversations
        SET user_id = (SELECT MIN(id) FROM users)
      WHERE user_id IS NULL;

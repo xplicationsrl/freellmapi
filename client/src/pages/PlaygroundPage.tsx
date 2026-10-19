@@ -30,27 +30,20 @@ import {
 } from '@/lib/attachments'
 import { readChatStream } from '@/lib/playground-stream'
 import { ConversationSidebar } from '@/components/playground/conversation-sidebar'
-import { SettingsRail } from '@/components/playground/settings-rail'
 import { LiquidComposer } from '@/components/playground/liquid-composer'
+import { usePlaygroundPrefs } from '@/lib/playground-prefs'
+import { useOpenSettings } from '@/lib/settings-ui'
 import { SearchSources } from '@/components/playground/search-sources'
 import { engineChain, searchContextMessage, searchProviderName, type SearchEngine, type SearchResult } from '@/lib/search'
 import { ModelMakerIcon } from '@/components/model-maker-icon'
 import { composerHasContent } from '@/lib/composer-geometry'
 import {
-  DICTATION_AUTO,
-  DICTATION_MODEL_STORAGE_KEY,
   appendDictation,
   hasTranscription,
   resolveDictationModel,
-  transcriptionOptions,
   type TranscriptionModelRow,
 } from '@/lib/transcription'
-import {
-  readSampling,
-  samplingRequestParams,
-  writeSampling,
-  type SamplingSettings,
-} from '@/lib/playground-sampling'
+import { samplingRequestParams } from '@/lib/playground-sampling'
 import {
   SIDEBAR_OPEN_KEY,
   autoTitle,
@@ -74,14 +67,11 @@ import {
 } from '@/lib/playground-conversations'
 import {
   createMemory,
-  deleteMemory,
   filterNewMemories,
   listMemories,
   memoryContextMessage,
   memoryExtractPrompt,
   parseExtractedMemories,
-  readMemoryEnabled,
-  writeMemoryEnabled,
   type Memory,
 } from '@/lib/playground-memories'
 import { useI18n } from '@/i18n'
@@ -237,14 +227,10 @@ function ReplyTrace({ reasoning, search, answerStarted }: {
 // keeps the follow from dropping out on a stray trackpad nudge.
 const SCROLL_FOLLOW_SLACK = 40
 
-/** localStorage key holding whether the right-hand settings rail is expanded. */
-const SETTINGS_OPEN_KEY = 'playground.settingsOpen'
-
-// Both rails plus the chat need room the small breakpoints do not have: three
-// columns on a phone leave the transcript a sliver. So below lg a visit starts
-// with the rails collapsed to their strips whatever a desktop session
-// remembered — the toggles still work, the remembered choice just isn't
-// restored until there is width for it.
+// The conversation sidebar needs room the small breakpoints do not have. So
+// below lg a visit starts collapsed whatever a desktop session remembered —
+// the toggle still works, the remembered choice just isn't restored until
+// there is width for it.
 function initialRailOpen(key: string): boolean {
   if (typeof window === 'undefined') return true
   if (!window.matchMedia('(min-width: 1024px)').matches) return false
@@ -253,50 +239,21 @@ function initialRailOpen(key: string): boolean {
 
 export default function PlaygroundPage() {
   const { t } = useI18n()
+  const openSettings = useOpenSettings()
+  const {
+    systemPrompt,
+    setSystemPrompt,
+    sampling,
+    webSearch,
+    setWebSearch: updateWebSearch,
+    memoryEnabled,
+    selectedModel,
+    setSelectedModel,
+    dictationChoice,
+  } = usePlaygroundPrefs()
   const [messages, setMessages] = useState<ChatMessage[]>([])
-  // Optional system prompt for this Playground session. Client-side only:
-  // when set, it's prepended as a `system` message to the request. Persisted
-  // to localStorage so it survives reloads.
-  const [systemPrompt, setSystemPrompt] = useState<string>(
-    () => localStorage.getItem('playground.systemPrompt') ?? '',
-  )
-  const updateSystemPrompt = (v: string) => {
-    setSystemPrompt(v)
-    localStorage.setItem('playground.systemPrompt', v)
-  }
-  // Sampling knobs (temperature / top_p / max_tokens), edited in the settings
-  // rail. Every one is opt-in, so an untouched rail composes exactly the
-  // request the Playground sent before they existed. Remembered in
-  // localStorage, NOT on the conversation row — these are how YOU like to
-  // drive the Playground, not part of a saved transcript.
-  const [sampling, setSampling] = useState<SamplingSettings>(() => readSampling())
-  const updateSampling = (next: SamplingSettings) => {
-    setSampling(next)
-    writeSampling(next)
-  }
-  // "Search the web" (#1174): look the question up with POST /v1/search first
-  // and hand the model numbered sources to cite. A preference like the
-  // sampling knobs, so it is remembered here rather than per conversation.
-  const [webSearch, setWebSearch] = useState<boolean>(
-    () => localStorage.getItem('playground.webSearch') === '1',
-  )
-  const updateWebSearch = (enabled: boolean) => {
-    setWebSearch(enabled)
-    localStorage.setItem('playground.webSearch', enabled ? '1' : '0')
-  }
-  // Cross-chat memory (#playground): facts stored per dashboard account and
-  // injected into every Playground request while the toggle is on. Extraction
-  // after an exchange is best-effort and never blocks the transcript save.
-  const [memoryEnabled, setMemoryEnabled] = useState<boolean>(() => readMemoryEnabled())
-  const updateMemoryEnabled = (enabled: boolean) => {
-    setMemoryEnabled(enabled)
-    writeMemoryEnabled(enabled)
-  }
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
-  const [selectedModel, setSelectedModel] = useState<string>(
-    () => localStorage.getItem('playground.model') ?? 'auto',
-  )
   // Files staged for the NEXT message: images already downscaled to a data URI,
   // text-like files already decoded. Cleared on send. (#325)
   const [attachments, setAttachments] = useState<Attachment[]>([])
@@ -321,7 +278,6 @@ export default function PlaygroundPage() {
   const queryClient = useQueryClient()
   const [conversationId, setConversationId] = useState<number | null>(null)
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(() => initialRailOpen(SIDEBAR_OPEN_KEY))
-  const [settingsOpen, setSettingsOpen] = useState<boolean>(() => initialRailOpen(SETTINGS_OPEN_KEY))
   // Mirrors of state the async save paths read AFTER their closure was made:
   // a stream that started before the row existed still has to save into it.
   const conversationIdRef = useRef<number | null>(null)
@@ -364,26 +320,6 @@ export default function PlaygroundPage() {
     queryFn: () => apiFetch('/api/settings/api-key'),
   })
   useEffect(() => { apiKeyRef.current = keyData?.apiKey }, [keyData?.apiKey])
-
-  const addMemory = async (content: string) => {
-    try {
-      await createMemory(content)
-      refreshMemories()
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : t('playground.memorySaveFailed'))
-      throw err
-    }
-  }
-
-  const removeMemory = async (id: number) => {
-    try {
-      await deleteMemory(id)
-      refreshMemories()
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : t('playground.memoryDeleteFailed'))
-      throw err
-    }
-  }
 
   // After a finished exchange, ask the router for NEW durable facts and store
   // any that are not already known. Failures stay silent — memory is a side
@@ -454,14 +390,6 @@ export default function PlaygroundPage() {
   const webSearchAvailable = usableEngines.length > 0
   const webSearchOn = webSearch && webSearchAvailable
   const transcriptionAvailable = hasTranscription(mediaModels)
-  const [dictationChoice, setDictationChoice] = useState<string>(
-    () => localStorage.getItem(DICTATION_MODEL_STORAGE_KEY) ?? DICTATION_AUTO,
-  )
-  const pickDictationModel = (v: string) => {
-    setDictationChoice(v)
-    localStorage.setItem(DICTATION_MODEL_STORAGE_KEY, v)
-  }
-  const dictationOptions = transcriptionOptions(mediaModels, t('playground.autoModel'))
   const dictationModel = resolveDictationModel(dictationChoice, mediaModels)
 
   // Artifacts (#playground): runnable code in a reply (HTML, SVG) opens in a
@@ -691,8 +619,8 @@ export default function PlaygroundPage() {
     createRef.current = null
     setMessages(conversation.messages)
     setAttachments([])
-    pickModel(conversation.model ?? 'auto')
-    updateSystemPrompt(conversation.systemPrompt ?? '')
+    setSelectedModel(conversation.model ?? 'auto')
+    setSystemPrompt(conversation.systemPrompt ?? '')
     adoptConversation(conversation.id, conversation.title)
     followRef.current = true
     inputRef.current?.focus()
@@ -788,13 +716,6 @@ export default function PlaygroundPage() {
   const toggleSidebar = () => {
     setSidebarOpen(open => {
       localStorage.setItem(SIDEBAR_OPEN_KEY, String(!open))
-      return !open
-    })
-  }
-
-  const toggleSettings = () => {
-    setSettingsOpen(open => {
-      localStorage.setItem(SETTINGS_OPEN_KEY, String(!open))
       return !open
     })
   }
@@ -1163,39 +1084,6 @@ export default function PlaygroundPage() {
   // stream too, or its next frame would paste the half-finished answer back
   // into the empty transcript.)
 
-  // Searchable picker options: auto + fusion pinned at the top, then every model
-  // ordered BY INTELLIGENCE — size tier first (Frontier→Small), then the catalog
-  // rank within the tier, name as the final tiebreaker. (Raw intelligence_rank is
-  // per-provider, not global, so tier-first matches the server's preset; #135.)
-  const pickerOptions = [
-    { value: 'auto', label: t('playground.autoModel'), sub: '', isNew: false, platforms: [] as string[] },
-    { value: 'fusion', label: t('playground.fusionModel'), sub: '', isNew: false, platforms: [] as string[] },
-    ...chainOptions,
-    ...modelOptions
-      .slice()
-      .sort((a, b) =>
-        a.sizeTier - b.sizeTier ||
-        a.intelligenceRank - b.intelligenceRank ||
-        a.label.localeCompare(b.label, undefined, { sensitivity: 'base' }))
-      .map(o => ({
-        value: o.value,
-        label: o.label,
-        sub: o.providerCount > 1 ? t('models.providerCount', { count: o.providerCount }) : o.platform,
-        isNew: false,
-        // Provider names for the multi-provider hover + search; empty when solo.
-        platforms: o.providerCount > 1 ? o.platforms : [],
-        // With images staged, flag (and dim) the models that can't read them.
-        // Only a hint — sending anyway is allowed and the server decides.
-        note: pendingImages.length > 0 && !visionValues.has(o.value)
-          ? t('playground.noVisionBadge')
-          : undefined,
-      })),
-  ]
-  function pickModel(v: string) {
-    setSelectedModel(v)
-    localStorage.setItem('playground.model', v)
-  }
-
   const activeModelLabel = selectedModel === 'auto'
     ? t('playground.autoModel')
     : selectedModel === 'fusion'
@@ -1207,14 +1095,12 @@ export default function PlaygroundPage() {
     : modelOptions.find(o => o.value === selectedModel)?.label ?? selectedModel
 
   return (
-    // Three columns, edge to edge: conversations, the chat, the settings rail.
-    // The page is a flex child of the shell's full-bleed container, so it is
-    // exactly as tall as what the navbar leaves and nothing here scrolls except
-    // the three panes that mean to. The transcript keeps its OWN scroll
-    // container in the middle column — transcriptRef and the follow-the-stream
-    // behaviour are untouched by the reshuffle.
-    // Every lucide icon in the three panes draws at 1.5 instead of the default
-    // 2: the page is dense with small glyphs and the bold stroke read heavy.
+    // Conversations rail + chat (+ optional artifact panel). The page is a
+    // flex child of the shell's full-bleed container, so it is exactly as tall
+    // as the viewport (minus any desktop drag bar) and nothing here scrolls
+    // except the panes that mean to.
+    // Every lucide icon draws at 1.5 instead of the default 2: the page is
+    // dense with small glyphs and the bold stroke read heavy.
     <div className="flex min-h-0 flex-1 overflow-hidden [&_svg]:stroke-[1.5]">
       <ConversationSidebar
         conversations={conversations}
@@ -1230,6 +1116,7 @@ export default function PlaygroundPage() {
         onRenameProject={handleRenameProject}
         onDeleteProject={handleDeleteProject}
         onMoveConversation={handleMoveConversation}
+        onOpenSettings={openSettings}
       />
 
       <div className="flex min-w-0 flex-1 flex-col">
@@ -1475,12 +1362,7 @@ export default function PlaygroundPage() {
         </div>
       </div>
 
-      {/* Last column, and last in the DOM on purpose: the system prompt textarea
-          it carries must never come before the composer's, which is what a
-          plain `textarea` selector reaches for. */}
-      {/* The artifact panel takes the rail's column while something is open;
-          closing it brings the settings rail back as it was. */}
-      {artifact ? (
+      {artifact && (
         <ArtifactPanel
           artifact={artifact}
           open={artifactOpen}
@@ -1489,32 +1371,6 @@ export default function PlaygroundPage() {
           onWidthCommit={commitArtifactWidth}
           onClose={closeArtifact}
         />
-      ) : (
-      <SettingsRail
-        open={settingsOpen}
-        onToggle={toggleSettings}
-        modelValue={selectedModel}
-        modelOptions={pickerOptions}
-        onSelectModel={pickModel}
-        noModels={availableModels.length === 0}
-        dictationValue={dictationModel}
-        dictationOptions={dictationOptions}
-        onSelectDictation={pickDictationModel}
-        noTranscription={!transcriptionAvailable}
-        systemPrompt={systemPrompt}
-        onSystemPromptChange={updateSystemPrompt}
-        sampling={sampling}
-        onSamplingChange={updateSampling}
-        webSearch={webSearch}
-        onWebSearchChange={updateWebSearch}
-        webSearchAvailable={webSearchAvailable}
-        webSearchChain={usableEngines.map(e => e.displayName).join(' → ')}
-        memoryEnabled={memoryEnabled}
-        onMemoryEnabledChange={updateMemoryEnabled}
-        memories={memories}
-        onAddMemory={addMemory}
-        onDeleteMemory={removeMemory}
-      />
       )}
     </div>
   )

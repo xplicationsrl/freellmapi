@@ -1,28 +1,16 @@
-import { useState, type ReactNode } from 'react'
-import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom'
+import { useState, type CSSProperties, type ReactNode } from 'react'
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { MutationCache, QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { KeyRound, LogOut, Menu, Search, Settings } from 'lucide-react'
-import { buttonVariants } from '@/components/ui/button'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
-import { AuthGate, ChangeCredentialsModal } from '@/components/auth-gate'
+import { AuthGate } from '@/components/auth-gate'
+import { AppNavSidebar, isDesktopApp } from '@/components/app-nav'
 import { CommandPalette } from '@/components/command-palette'
-import { openCommandPalette } from '@/components/command-palette-state'
 import { ErrorBoundary } from '@/components/error-boundary'
 import { SettingsDialog } from '@/components/settings-dialog'
 import { Toaster } from '@/components/toaster'
 import { NewBuildPrompt } from '@/components/new-build-prompt'
-import { I18nProvider, useI18n } from '@/i18n'
-import { logout } from '@/lib/api'
+import { I18nProvider } from '@/i18n'
+import { PlaygroundPrefsProvider } from '@/lib/playground-prefs'
+import { SettingsUiProvider, useOpenSettings } from '@/lib/settings-ui'
 import { toast } from '@/lib/toast'
 import { ThemeProvider } from '@/theme'
 import KeysPage from '@/pages/KeysPage'
@@ -63,60 +51,6 @@ const queryClient = new QueryClient({
   }),
 })
 
-// Playground is the home page; everything else lives in the right-side hamburger.
-const navItems = [
-  { to: '/playground', labelKey: 'nav.playground' },
-  { to: '/models', labelKey: 'nav.models' },
-  { to: '/keys', labelKey: 'nav.keys' },
-  { to: '/agents', labelKey: 'nav.agents' },
-  { to: '/analytics', labelKey: 'nav.analytics' },
-]
-
-// The modality pages behind "Models"; surfaced in the hamburger submenu so
-// Fusion/Embeddings/Image/Audio are discoverable without first landing on the
-// chat table.
-const modelItems = [
-  { to: '/models/chat', labelKey: 'models.chatModelsTab' },
-  { to: '/models/embeddings', labelKey: 'models.embeddingsTab' },
-  { to: '/models/image', labelKey: 'models.imageTab' },
-  { to: '/models/video', labelKey: 'models.videoTab' },
-  { to: '/models/audio', labelKey: 'models.audioTab' },
-  { to: '/models/search', labelKey: 'search.tab' },
-  { to: '/models/fusion', labelKey: 'models.fusionTab' },
-]
-
-// The pages that hang off "Analytics". Logs is reachable only from here.
-const analyticsItems = [
-  { to: '/analytics', labelKey: 'nav.analytics' },
-  { to: '/logs', labelKey: 'nav.logs' },
-]
-
-// Nav entries rendered as a submenu in the hamburger. Keyed by the nav entry's
-// `to` so the menu stays one lookup.
-const navMenus: Record<
-  string,
-  { items: { to: string; labelKey: string }[]; isActive: (pathname: string) => boolean }
-> = {
-  '/models': {
-    items: modelItems,
-    isActive: (pathname) => pathname.startsWith('/models'),
-  },
-  '/analytics': {
-    items: analyticsItems,
-    isActive: (pathname) => pathname.startsWith('/analytics') || pathname.startsWith('/logs'),
-  },
-}
-
-const isMac = typeof navigator !== 'undefined' && /mac/i.test(navigator.platform)
-
-// Brand lives only in the Playground sidebar — the navbar is chrome only.
-
-// True when the dashboard runs inside the desktop shell (Electron preload
-// sets this). The navbar then doubles as the window title bar: draggable,
-// padded for the macOS traffic lights, and without the web-only Sign out.
-const isDesktopApp = typeof window !== 'undefined'
-  && (window as Window & { __FREEAPI_DESKTOP__?: boolean }).__FREEAPI_DESKTOP__ === true
-
 const desktopPlatform = typeof window !== 'undefined'
   ? (window as Window & { __FREEAPI_PLATFORM__?: string }).__FREEAPI_PLATFORM__
   : undefined
@@ -136,144 +70,16 @@ if (isDesktopApp) {
   }
 }
 
-function AccountMenuItems({
-  settingsLabel,
-  signOutLabel,
-  changeEmailLabel,
-  changePasswordLabel,
-  onOpenSettings,
-  onChangeEmail,
-  onChangePassword,
-}: {
-  settingsLabel: string
-  signOutLabel: string
-  changeEmailLabel: string
-  changePasswordLabel: string
-  onOpenSettings: () => void
-  onChangeEmail: () => void
-  onChangePassword: () => void
-}) {
+// Mac desktop needs a drag region for the traffic lights; everywhere else the
+// chrome lives in the left rail and there is nothing to put in a top bar.
+function DesktopDragBar() {
+  if (!isMacDesktop) return null
   return (
-    <>
-      <DropdownMenuItem onClick={onOpenSettings}>
-        <Settings />
-        {settingsLabel}
-      </DropdownMenuItem>
-      {/* Desktop signs in with a hidden local account, so it has no credentials
-          to change and no session to end. */}
-      {!isDesktopApp && (
-        <>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={onChangeEmail}>
-            <span className="flex size-4 items-center justify-center font-serif text-xs font-bold">@</span>
-            {changeEmailLabel}
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={onChangePassword}>
-            <KeyRound />
-            {changePasswordLabel}
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => logout()}>
-            <LogOut />
-            {signOutLabel}
-          </DropdownMenuItem>
-        </>
-      )}
-    </>
-  )
-}
-
-function Navbar() {
-  const { t } = useI18n()
-  const location = useLocation()
-  const navigate = useNavigate()
-  const [settingsOpen, setSettingsOpen] = useState(false)
-  const [credentialsMode, setCredentialsMode] = useState<'password' | 'email' | null>(null)
-
-  return (
-    <>
-      <header
-        // In macOS desktop shell the window carries vibrancy blur, so a lighter wash (45%)
-        // lets it read as glass. Everywhere else (Windows/Linux/browser), use solid wash (80%)
-        // so text and contrast stay sharp and readable.
-        className={`sticky top-0 z-40 border-b backdrop-blur ${isMacDesktop ? 'bg-background/45' : 'bg-background/80'}`}
-        style={isDesktopApp ? ({ WebkitAppRegion: 'drag' } as React.CSSProperties) : undefined}
-      >
-        <div
-          // Physical pl: reserves macOS traffic lights only on macOS. On Windows and Linux,
-          // standard window controls sit on the top-right, so no left padding is needed.
-          className={`mx-auto flex max-w-6xl items-center justify-end px-4 sm:px-6 ${isMacDesktop ? 'pl-20 sm:pl-20' : ''}`}
-          style={isMacDesktop ? { minHeight: 52 } : undefined}
-        >
-          <div
-            className="flex items-center gap-1"
-            style={isDesktopApp ? ({ WebkitAppRegion: 'no-drag' } as React.CSSProperties) : undefined}
-          >
-            <button
-              type="button"
-              onClick={openCommandPalette}
-              aria-label={t('palette.title')}
-              className={buttonVariants({ variant: 'ghost', size: 'sm' })}
-            >
-              <Search className="size-3.5" />
-              <kbd className="hidden text-[10px] text-muted-foreground sm:inline">{isMac ? '⌘K' : 'Ctrl K'}</kbd>
-            </button>
-            <DropdownMenu>
-              <DropdownMenuTrigger
-                className={buttonVariants({ variant: 'ghost', size: 'icon' })}
-                aria-label={t('nav.openMenu')}
-              >
-                <Menu />
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-52">
-                <DropdownMenuGroup>
-                  {navItems.map((item) => {
-                    const menu = navMenus[item.to]
-                    return menu ? (
-                      <DropdownMenuSub key={item.to}>
-                        <DropdownMenuSubTrigger
-                          className={menu.isActive(location.pathname) ? 'bg-accent text-accent-foreground font-medium' : undefined}
-                        >
-                          {t(item.labelKey)}
-                        </DropdownMenuSubTrigger>
-                        <DropdownMenuSubContent>
-                          {menu.items.map((entry) => (
-                            <DropdownMenuItem key={entry.to} onClick={() => navigate(entry.to)}>
-                              {t(entry.labelKey)}
-                            </DropdownMenuItem>
-                          ))}
-                        </DropdownMenuSubContent>
-                      </DropdownMenuSub>
-                    ) : (
-                      <DropdownMenuItem
-                        key={item.to}
-                        onClick={() => navigate(item.to)}
-                        className={location.pathname === item.to ? 'bg-accent text-accent-foreground font-medium' : undefined}
-                      >
-                        {t(item.labelKey)}
-                      </DropdownMenuItem>
-                    )
-                  })}
-                </DropdownMenuGroup>
-                <DropdownMenuSeparator />
-                <AccountMenuItems
-                  settingsLabel={t('nav.settings')}
-                  signOutLabel={t('nav.signOut')}
-                  changeEmailLabel={t('auth.changeEmail')}
-                  changePasswordLabel={t('auth.changePassword')}
-                  onOpenSettings={() => setSettingsOpen(true)}
-                  onChangeEmail={() => setCredentialsMode('email')}
-                  onChangePassword={() => setCredentialsMode('password')}
-                />
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        </div>
-      </header>
-      <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
-      {credentialsMode && (
-        <ChangeCredentialsModal mode={credentialsMode} onClose={() => setCredentialsMode(null)} />
-      )}
-    </>
+    <div
+      className="sticky top-0 z-40 h-[52px] shrink-0 border-b bg-background/45 backdrop-blur"
+      style={{ WebkitAppRegion: 'drag' } as CSSProperties}
+      aria-hidden
+    />
   )
 }
 
@@ -284,9 +90,9 @@ function PageBoundary({ children }: { children: ReactNode }) {
 }
 
 // Routes that own the whole viewport instead of sitting in the shell's centred,
-// padded column. Only the Playground so far: its three columns run edge to edge
+// padded column. Only the Playground so far: its columns run edge to edge
 // and the transcript scrolls inside its own pane, so the page must be exactly
-// as tall as what is left under the navbar — not a centred card with margins.
+// as tall as what is left under any desktop drag bar — not a centred card.
 const FULL_BLEED_ROUTES = new Set(['/playground'])
 
 // The shell's content container. A full-bleed route drops the max-width and the
@@ -314,6 +120,23 @@ function PageContainer({ children }: { children: ReactNode }) {
   )
 }
 
+function ShellBody({ children }: { children: ReactNode }) {
+  const location = useLocation()
+  const fullBleed = FULL_BLEED_ROUTES.has(location.pathname)
+  const openSettings = useOpenSettings()
+  // Playground owns its conversation sidebar (with the same nav footer). Other
+  // routes get a slim left rail so Models / Keys / … stay reachable without a
+  // top hamburger.
+  return (
+    <div className="flex min-h-0 flex-1">
+      {!fullBleed && <AppNavSidebar onOpenSettings={openSettings} />}
+      <div className={`flex min-h-0 min-w-0 flex-1 flex-col ${fullBleed ? '' : 'overflow-y-auto'}`}>
+        {children}
+      </div>
+    </div>
+  )
+}
+
 // The shell column. Padded routes keep `min-h-screen` and scroll as a document;
 // a full-bleed route pins the shell to the dynamic viewport instead, because
 // min-height alone is a floor, not a ceiling: with an indefinite shell height
@@ -322,10 +145,16 @@ function PageContainer({ children }: { children: ReactNode }) {
 function AppShell({ children }: { children: ReactNode }) {
   const location = useLocation()
   const fullBleed = FULL_BLEED_ROUTES.has(location.pathname)
+  const [settingsOpen, setSettingsOpen] = useState(false)
+
   return (
-    <div className={`flex flex-col ${fullBleed ? 'h-dvh overflow-hidden' : 'min-h-screen'} ${isMacDesktop ? 'desktop-backdrop' : 'bg-background'}`}>
-      {children}
-    </div>
+    <SettingsUiProvider openSettings={() => setSettingsOpen(true)}>
+      <div className={`flex flex-col ${fullBleed ? 'h-dvh overflow-hidden' : 'min-h-screen'} ${isMacDesktop ? 'desktop-backdrop' : 'bg-background'}`}>
+        <DesktopDragBar />
+        <ShellBody>{children}</ShellBody>
+        <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
+      </div>
+    </SettingsUiProvider>
   )
 }
 
@@ -334,51 +163,48 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <I18nProvider>
-          <BrowserRouter basename={import.meta.env.BASE_URL}>
-            <AuthGate>
-              {/* Column, so a full-bleed route can claim the height the navbar
-                  leaves without anyone having to know how tall the navbar is.
-                  Fixed-position children (toaster, palette, reminder) are out of
-                  flow, and a padded route stretches to nothing it can show. */}
-              <AppShell>
-                <Navbar />
-                <PageContainer>
-                  <PageBoundary>
-                    <Routes>
-                      <Route path="/" element={<Navigate to="/playground" replace />} />
-                      <Route path="/models" element={<Navigate to="/models/chat" replace />} />
-                      <Route path="/models/chat" element={<FallbackPage />} />
-                      <Route path="/models/chat/:id" element={<ModelDetailPage />} />
-                      <Route path="/models/fusion" element={<FusionPage />} />
-                      <Route path="/models/embeddings" element={<EmbeddingsPage />} />
-                      <Route path="/models/embeddings/:id" element={<EmbeddingDetailPage />} />
-                      <Route path="/models/image" element={<ImagePage />} />
-                      <Route path="/models/image/:id" element={<MediaDetailPage modality="image" />} />
-                      <Route path="/models/video" element={<VideoPage />} />
-                      <Route path="/models/video/:id" element={<MediaDetailPage modality="video" />} />
-                      <Route path="/models/audio" element={<AudioPage />} />
-                      <Route path="/models/audio/:id" element={<MediaDetailPage modality="audio" />} />
-                      <Route path="/models/transcription/:id" element={<MediaDetailPage modality="transcription" />} />
-                      <Route path="/models/search" element={<SearchPage />} />
-                      <Route path="/playground" element={<PlaygroundPage />} />
-                      <Route path="/keys" element={<KeysPage />} />
-                      <Route path="/agents" element={<AgentsPage />} />
-                      <Route path="/fallback" element={<Navigate to="/models/chat" replace />} />
-                      <Route path="/analytics" element={<AnalyticsPage />} />
-                      <Route path="/logs" element={<LogsPage />} />
-                      <Route path="/premium" element={<Navigate to="/playground" replace />} />
-                      <Route path="/test" element={<Navigate to="/playground" replace />} />
-                      <Route path="/health" element={<Navigate to="/keys" replace />} />
-                      <Route path="*" element={<NotFoundPage />} />
-                    </Routes>
-                  </PageBoundary>
-                </PageContainer>
-                <Toaster />
-                <CommandPalette />
-                <NewBuildPrompt />
-              </AppShell>
-            </AuthGate>
-          </BrowserRouter>
+          <PlaygroundPrefsProvider>
+            <BrowserRouter basename={import.meta.env.BASE_URL}>
+              <AuthGate>
+                <AppShell>
+                  <PageContainer>
+                    <PageBoundary>
+                      <Routes>
+                        <Route path="/" element={<Navigate to="/playground" replace />} />
+                        <Route path="/models" element={<Navigate to="/models/chat" replace />} />
+                        <Route path="/models/chat" element={<FallbackPage />} />
+                        <Route path="/models/chat/:id" element={<ModelDetailPage />} />
+                        <Route path="/models/fusion" element={<FusionPage />} />
+                        <Route path="/models/embeddings" element={<EmbeddingsPage />} />
+                        <Route path="/models/embeddings/:id" element={<EmbeddingDetailPage />} />
+                        <Route path="/models/image" element={<ImagePage />} />
+                        <Route path="/models/image/:id" element={<MediaDetailPage modality="image" />} />
+                        <Route path="/models/video" element={<VideoPage />} />
+                        <Route path="/models/video/:id" element={<MediaDetailPage modality="video" />} />
+                        <Route path="/models/audio" element={<AudioPage />} />
+                        <Route path="/models/audio/:id" element={<MediaDetailPage modality="audio" />} />
+                        <Route path="/models/transcription/:id" element={<MediaDetailPage modality="transcription" />} />
+                        <Route path="/models/search" element={<SearchPage />} />
+                        <Route path="/playground" element={<PlaygroundPage />} />
+                        <Route path="/keys" element={<KeysPage />} />
+                        <Route path="/agents" element={<AgentsPage />} />
+                        <Route path="/fallback" element={<Navigate to="/models/chat" replace />} />
+                        <Route path="/analytics" element={<AnalyticsPage />} />
+                        <Route path="/logs" element={<LogsPage />} />
+                        <Route path="/premium" element={<Navigate to="/playground" replace />} />
+                        <Route path="/test" element={<Navigate to="/playground" replace />} />
+                        <Route path="/health" element={<Navigate to="/keys" replace />} />
+                        <Route path="*" element={<NotFoundPage />} />
+                      </Routes>
+                    </PageBoundary>
+                  </PageContainer>
+                  <Toaster />
+                  <CommandPalette />
+                  <NewBuildPrompt />
+                </AppShell>
+              </AuthGate>
+            </BrowserRouter>
+          </PlaygroundPrefsProvider>
         </I18nProvider>
       </ThemeProvider>
     </QueryClientProvider>

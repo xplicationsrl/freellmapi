@@ -23,6 +23,7 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { AppNavFooter } from '@/components/app-nav'
 import type { ConversationSummary, Project } from '@/lib/playground-conversations'
 import {
   readCollapsedProjectIds,
@@ -60,6 +61,7 @@ export function ConversationSidebar({
   onRenameProject,
   onDeleteProject,
   onMoveConversation,
+  onOpenSettings,
 }: {
   conversations: ConversationSummary[]
   projects: Project[]
@@ -74,6 +76,7 @@ export function ConversationSidebar({
   onRenameProject: (id: number, name: string) => void
   onDeleteProject: (id: number) => void
   onMoveConversation: (id: number, projectId: number | null) => void
+  onOpenSettings: () => void
 }) {
   const { t } = useI18n()
   const [renamingId, setRenamingId] = useState<number | null>(null)
@@ -538,6 +541,8 @@ export function ConversationSidebar({
             </ul>
           )}
         </div>
+
+        <AppNavFooter onOpenSettings={onOpenSettings} />
       </div>
     </div>
   )

@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react'
-import { ChevronsLeft, ChevronsRight, MoreHorizontal, Pencil, SquarePen, Trash2 } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { ChevronsLeft, ChevronsRight, MoreHorizontal, Pencil, Search, SquarePen, Trash2 } from 'lucide-react'
 import { Button, buttonVariants } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -54,7 +54,10 @@ export function ConversationSidebar({
   // Which row's Delete is armed (first click); cleared when its menu closes.
   const [armedDeleteId, setArmedDeleteId] = useState<number | null>(null)
   const [draft, setDraft] = useState('')
+  const [searching, setSearching] = useState(false)
+  const [query, setQuery] = useState('')
   const renameRef = useRef<HTMLInputElement>(null)
+  const searchRef = useRef<HTMLInputElement>(null)
   // Re-render once a minute so "2m ago" doesn't quietly go stale while a long
   // answer streams.
   const [, setTick] = useState(0)
@@ -68,6 +71,18 @@ export function ConversationSidebar({
     if (renamingId !== null) renameRef.current?.select()
   }, [renamingId])
 
+  useEffect(() => {
+    if (searching) searchRef.current?.focus()
+  }, [searching])
+
+  // Closing the rail drops the search UI so the next open starts clean.
+  useEffect(() => {
+    if (!open) {
+      setSearching(false)
+      setQuery('')
+    }
+  }, [open])
+
   const startRename = (conversation: ConversationSummary) => {
     setRenamingId(conversation.id)
     setDraft(conversation.title)
@@ -80,6 +95,19 @@ export function ConversationSidebar({
     setRenamingId(null)
     // An empty box is a cancel, not a request for a nameless conversation.
     if (title && title !== previous?.title) onRename(renamingId, title)
+  }
+
+  const visible = useMemo(() => {
+    const needle = query.trim().toLowerCase()
+    if (!needle) return conversations
+    return conversations.filter(c =>
+      (c.title || t('playgroundSessions.untitled')).toLowerCase().includes(needle),
+    )
+  }, [conversations, query, t])
+
+  const stopSearching = () => {
+    setSearching(false)
+    setQuery('')
   }
 
   return (
@@ -96,11 +124,11 @@ export function ConversationSidebar({
         <Button
           variant="ghost"
           size="icon-sm"
-          onClick={onToggle}
-          aria-label={t('playgroundSessions.showSidebar')}
-          title={t('playgroundSessions.showSidebar')}
+          onClick={() => { onToggle(); setSearching(true) }}
+          aria-label={t('playgroundSessions.searchChats')}
+          title={t('playgroundSessions.searchChats')}
         >
-          <ChevronsRight className="size-4" />
+          <Search className="size-4" />
         </Button>
         <Button
           variant="ghost"
@@ -111,26 +139,47 @@ export function ConversationSidebar({
         >
           <SquarePen className="size-4" />
         </Button>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          className="mt-auto"
+          onClick={onToggle}
+          aria-label={t('playgroundSessions.showSidebar')}
+          title={t('playgroundSessions.showSidebar')}
+        >
+          <ChevronsRight className="size-4" />
+        </Button>
       </div>
 
       <div
         className={`${LAYER} w-60 ${open ? 'visible opacity-100' : 'invisible opacity-0'}`}
       >
-        {/* Two lines: the collapse control alone on the first, then New chat as
-            a proper button spanning the width. No heading — the list explains
-            itself. */}
-        <div className="flex shrink-0 flex-col gap-1.5 border-b border-border/40 px-2 pt-1 pb-2">
-          <div className="flex items-center justify-end">
+        {/* Search above New chat; the collapse control lives at the foot of
+            the rail so the list keeps the space between them. */}
+        <div className="flex shrink-0 flex-col gap-1.5 border-b border-border/40 px-2 pt-2 pb-2">
+          {searching ? (
+            <input
+              ref={searchRef}
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Escape') { e.preventDefault(); stopSearching() }
+              }}
+              aria-label={t('playgroundSessions.searchChats')}
+              placeholder={t('playgroundSessions.searchPlaceholder')}
+              className="w-full rounded-lg border bg-background px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring/50"
+            />
+          ) : (
             <Button
-              variant="ghost"
-              size="icon-sm"
-              onClick={onToggle}
-              aria-label={t('playgroundSessions.hideSidebar')}
-              title={t('playgroundSessions.hideSidebar')}
+              variant="outline"
+              size="sm"
+              className="w-full justify-center gap-2"
+              onClick={() => setSearching(true)}
             >
-              <ChevronsLeft className="size-4" />
+              <Search className="size-4" />
+              <span className="truncate">{t('playgroundSessions.searchChats')}</span>
             </Button>
-          </div>
+          )}
           <Button
             variant="outline"
             size="sm"
@@ -147,9 +196,13 @@ export function ConversationSidebar({
             <p className="px-2 py-3 text-xs text-muted-foreground">
               {t('playgroundSessions.empty')}
             </p>
+          ) : visible.length === 0 ? (
+            <p className="px-2 py-3 text-xs text-muted-foreground">
+              {t('playgroundSessions.searchEmpty')}
+            </p>
           ) : (
             <ul className="space-y-0.5">
-              {conversations.map(conversation => {
+              {visible.map(conversation => {
                 const isActive = conversation.id === activeId
                 const armed = armedDeleteId === conversation.id
                 return (
@@ -223,6 +276,18 @@ export function ConversationSidebar({
               })}
             </ul>
           )}
+        </div>
+
+        <div className="flex shrink-0 items-center justify-end border-t border-border/40 px-2 py-1.5">
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={onToggle}
+            aria-label={t('playgroundSessions.hideSidebar')}
+            title={t('playgroundSessions.hideSidebar')}
+          >
+            <ChevronsLeft className="size-4" />
+          </Button>
         </div>
       </div>
     </div>

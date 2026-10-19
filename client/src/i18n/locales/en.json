@@ -966,7 +966,10 @@
     "renameFailed": "Couldn't rename that conversation.",
     "deleteFailed": "Couldn't delete that conversation.",
     "actions": "Conversation actions",
-    "newChat": "New chat"
+    "newChat": "New chat",
+    "searchChats": "Search chats",
+    "searchPlaceholder": "Search chats…",
+    "searchEmpty": "No chats match that search."
   },
   "embeddings": {
     "title": "Models",

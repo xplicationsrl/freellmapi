@@ -929,7 +929,10 @@
     "renameFailed": "Nu s-a putut redenumi acea conversație.",
     "deleteFailed": "Nu s-a putut șterge acea conversație.",
     "actions": "Acțiuni conversație",
-    "newChat": "Chat nou"
+    "newChat": "Chat nou",
+    "searchChats": "Caută chat-uri",
+    "searchPlaceholder": "Caută chat-uri…",
+    "searchEmpty": "Niciun chat nu se potrivește."
   },
   "embeddings": {
     "title": "Modele",

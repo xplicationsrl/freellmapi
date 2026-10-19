@@ -906,7 +906,16 @@
     "artifactHtml": "HTML-pagina",
     "artifactSvg": "SVG-afbeelding",
     "artifactLines": "regels",
-    "artifactResize": "Voorbeeld vergroten of verkleinen"
+    "artifactResize": "Voorbeeld vergroten of verkleinen",
+    "memoryHeading": "Memory",
+    "memoryHelp": "Facts remembered across Playground chats on this account. New chats can use them without you repeating yourself.",
+    "memoryToggle": "Remember across chats",
+    "memoryEmpty": "No memories yet. They appear as you chat, or add one below.",
+    "memoryAdd": "Add memory",
+    "memoryAddPlaceholder": "Something to remember…",
+    "memoryDelete": "Delete memory",
+    "memorySaveFailed": "Couldn't save that memory.",
+    "memoryDeleteFailed": "Couldn't delete that memory."
   },
   "playgroundSessions": {
     "heading": "Gesprekken",
@@ -930,7 +939,21 @@
     "searchChats": "Chats zoeken",
     "searchPlaceholder": "Chats zoeken…",
     "searchEmpty": "Geen chats komen overeen met die zoekopdracht.",
-    "allChats": "Alles"
+    "allChats": "Alles",
+    "projects": "Projects",
+    "newProject": "New project",
+    "projectNamePlaceholder": "Project name",
+    "renameProject": "Rename project",
+    "deleteProject": "Delete project",
+    "deleteProjectConfirm": "Delete project?",
+    "moveToProject": "Move to project",
+    "removeFromProject": "Remove from project",
+    "noProject": "No project",
+    "emptyProject": "No chats in this project.",
+    "projectCreateFailed": "Couldn't create that project.",
+    "projectRenameFailed": "Couldn't rename that project.",
+    "projectDeleteFailed": "Couldn't delete that project.",
+    "moveFailed": "Couldn't move that chat."
   },
   "embeddings": {
     "title": "Modellen",

@@ -72,6 +72,18 @@ import {
   type FusionPanelEntry,
   type Project,
 } from '@/lib/playground-conversations'
+import {
+  createMemory,
+  deleteMemory,
+  filterNewMemories,
+  listMemories,
+  memoryContextMessage,
+  memoryExtractPrompt,
+  parseExtractedMemories,
+  readMemoryEnabled,
+  writeMemoryEnabled,
+  type Memory,
+} from '@/lib/playground-memories'
 import { useI18n } from '@/i18n'
 
 interface FallbackEntry {
@@ -272,6 +284,14 @@ export default function PlaygroundPage() {
     setWebSearch(enabled)
     localStorage.setItem('playground.webSearch', enabled ? '1' : '0')
   }
+  // Cross-chat memory (#playground): facts stored per dashboard account and
+  // injected into every Playground request while the toggle is on. Extraction
+  // after an exchange is best-effort and never blocks the transcript save.
+  const [memoryEnabled, setMemoryEnabled] = useState<boolean>(() => readMemoryEnabled())
+  const updateMemoryEnabled = (enabled: boolean) => {
+    setMemoryEnabled(enabled)
+    writeMemoryEnabled(enabled)
+  }
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [selectedModel, setSelectedModel] = useState<string>(
@@ -318,17 +338,101 @@ export default function PlaygroundPage() {
     queryKey: ['playground-projects'],
     queryFn: listProjects,
   })
+  const { data: memories = [] } = useQuery<Memory[]>({
+    queryKey: ['playground-memories'],
+    queryFn: listMemories,
+  })
   const refreshConversations = () => {
     queryClient.invalidateQueries({ queryKey: ['playground-conversations'] })
   }
   const refreshProjects = () => {
     queryClient.invalidateQueries({ queryKey: ['playground-projects'] })
   }
+  const refreshMemories = () => {
+    queryClient.invalidateQueries({ queryKey: ['playground-memories'] })
+  }
+  // Stream completions close over stale state; these refs keep extract + inject
+  // looking at the latest toggle and list without restarting the request.
+  const memoryEnabledRef = useRef(memoryEnabled)
+  const memoriesRef = useRef(memories)
+  const apiKeyRef = useRef<string | undefined>(undefined)
+  useEffect(() => { memoryEnabledRef.current = memoryEnabled }, [memoryEnabled])
+  useEffect(() => { memoriesRef.current = memories }, [memories])
 
   const { data: keyData } = useQuery<{ apiKey: string }>({
     queryKey: ['unified-key'],
     queryFn: () => apiFetch('/api/settings/api-key'),
   })
+  useEffect(() => { apiKeyRef.current = keyData?.apiKey }, [keyData?.apiKey])
+
+  const addMemory = async (content: string) => {
+    try {
+      await createMemory(content)
+      refreshMemories()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t('playground.memorySaveFailed'))
+      throw err
+    }
+  }
+
+  const removeMemory = async (id: number) => {
+    try {
+      await deleteMemory(id)
+      refreshMemories()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t('playground.memoryDeleteFailed'))
+      throw err
+    }
+  }
+
+  // After a finished exchange, ask the router for NEW durable facts and store
+  // any that are not already known. Failures stay silent — memory is a side
+  // channel, not part of the answer the user is waiting on.
+  const extractMemoriesFromExchange = async (msgs: ChatMessage[]) => {
+    if (!memoryEnabledRef.current) return
+    const apiKey = apiKeyRef.current
+    if (!apiKey) return
+
+    const lastAssistant = [...msgs].reverse().find(m => m.role === 'assistant' && !m.isError)
+    const lastUser = [...msgs].reverse().find(m => m.role === 'user')
+    if (!lastAssistant?.content.trim() || !lastUser?.content.trim()) return
+
+    const existing = memoriesRef.current
+    try {
+      const res = await fetch(`${API_BASE}/v1/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model: 'auto',
+          stream: false,
+          temperature: 0,
+          max_tokens: 400,
+          messages: [{
+            role: 'user',
+            content: memoryExtractPrompt(existing, {
+              user: lastUser.content,
+              assistant: lastAssistant.content,
+            }),
+          }],
+        }),
+      })
+      if (!res.ok) return
+      const data = await res.json()
+      const raw = data.choices?.[0]?.message?.content
+      if (typeof raw !== 'string') return
+      const fresh = filterNewMemories(parseExtractedMemories(raw), existing)
+      if (fresh.length === 0) return
+      for (const content of fresh) {
+        await createMemory(content)
+      }
+      refreshMemories()
+    } catch {
+      // Extraction is best-effort; a failed side call must not surface as a chat error.
+    }
+  }
 
   // Speech-to-text for the composer's mic: which transcription models can
   // route right now, and which one the user asked for (Auto by default,
@@ -762,7 +866,9 @@ export default function PlaygroundPage() {
       }
     }
     // The exchange is complete: one save, here, never per delta.
-    await persistConversation(flush(false))
+    const finished = flush(false)
+    await persistConversation(finished)
+    void extractMemoriesFromExchange(finished)
   }
 
   // Read a plain (non-fusion) OpenAI chat stream, filling the assistant bubble
@@ -817,7 +923,9 @@ export default function PlaygroundPage() {
       onError: message => { failure = message; flush(true) },
     })
     // The exchange is complete: one save, here, never per delta.
-    await persistConversation(flush(false))
+    const finished = flush(false)
+    await persistConversation(finished)
+    if (failure === null) void extractMemoriesFromExchange(finished)
   }
 
   // Stage dropped/pasted/picked files. Every rejection is reported by name so a
@@ -930,9 +1038,13 @@ export default function PlaygroundPage() {
 
       const isFusion = selectedModel === 'fusion'
       const sysPrompt = systemPrompt.trim()
+      const memoryContext = memoryEnabled
+        ? memoryContextMessage(memories)
+        : ''
       const body: any = {
         messages: [
           ...(sysPrompt ? [{ role: 'system', content: sysPrompt }] : []),
+          ...(memoryContext ? [{ role: 'system', content: memoryContext }] : []),
           ...(searchContext ? [{ role: 'system', content: searchContext }] : []),
           ...newMessages.map(m => ({ role: m.role, content: toMessageContent(m.content, m.images) })),
         ],
@@ -1020,6 +1132,7 @@ export default function PlaygroundPage() {
       }]
       setMessages(answered)
       await persistConversation(answered)
+      void extractMemoriesFromExchange(answered)
     } catch (err: any) {
       // Clearing the chat (or leaving the page) aborts the stream on purpose —
       // that is not a failure to report, and the transcript it belonged to is
@@ -1396,6 +1509,11 @@ export default function PlaygroundPage() {
         onWebSearchChange={updateWebSearch}
         webSearchAvailable={webSearchAvailable}
         webSearchChain={usableEngines.map(e => e.displayName).join(' → ')}
+        memoryEnabled={memoryEnabled}
+        onMemoryEnabledChange={updateMemoryEnabled}
+        memories={memories}
+        onAddMemory={addMemory}
+        onDeleteMemory={removeMemory}
       />
       )}
     </div>

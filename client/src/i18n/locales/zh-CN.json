@@ -906,7 +906,16 @@
     "artifactHtml": "HTML 页面",
     "artifactSvg": "SVG 图像",
     "artifactLines": "行",
-    "artifactResize": "调整预览大小"
+    "artifactResize": "调整预览大小",
+    "memoryHeading": "记忆",
+    "memoryHelp": "在此账户的 Playground 对话之间记住的事实。新对话可以直接使用，无需重复说明。",
+    "memoryToggle": "跨对话记住",
+    "memoryEmpty": "暂无记忆。聊天时会自动出现，也可在下方手动添加。",
+    "memoryAdd": "添加记忆",
+    "memoryAddPlaceholder": "想记住的内容…",
+    "memoryDelete": "删除记忆",
+    "memorySaveFailed": "无法保存该记忆。",
+    "memoryDeleteFailed": "无法删除该记忆。"
   },
   "playgroundSessions": {
     "heading": "对话",
@@ -930,7 +939,21 @@
     "searchChats": "搜索对话",
     "searchPlaceholder": "搜索对话…",
     "searchEmpty": "没有匹配的对话。",
-    "allChats": "全部"
+    "allChats": "全部",
+    "projects": "Projects",
+    "newProject": "New project",
+    "projectNamePlaceholder": "Project name",
+    "renameProject": "Rename project",
+    "deleteProject": "Delete project",
+    "deleteProjectConfirm": "Delete project?",
+    "moveToProject": "Move to project",
+    "removeFromProject": "Remove from project",
+    "noProject": "No project",
+    "emptyProject": "No chats in this project.",
+    "projectCreateFailed": "Couldn't create that project.",
+    "projectRenameFailed": "Couldn't rename that project.",
+    "projectDeleteFailed": "Couldn't delete that project.",
+    "moveFailed": "Couldn't move that chat."
   },
   "embeddings": {
     "title": "模型",

@@ -8,6 +8,7 @@ import { keysRouter } from './routes/keys.js';
 import { clientProfilesRouter } from './routes/client-profiles.js';
 import { conversationsRouter } from './routes/conversations.js';
 import { projectsRouter } from './routes/projects.js';
+import { memoriesRouter } from './routes/memories.js';
 import { logsRouter } from './routes/logs.js';
 import { modelsRouter } from './routes/models.js';
 import { proxyRouter } from './routes/proxy.js';
@@ -253,6 +254,8 @@ export function createApp(config?: Config) {
   app.use('/api/conversations', requireAuth, conversationsRouter);
   // Playground project folders that group those conversations.
   app.use('/api/projects', requireAuth, projectsRouter);
+  // Cross-chat memories for the Playground (per dashboard account).
+  app.use('/api/memories', requireAuth, memoriesRouter);
   // Server logs for the dashboard viewer. Dashboard-session gated like the rest
   // of /api — these lines name providers, models and key ids, so the unified
   // /v1 key must not open them.

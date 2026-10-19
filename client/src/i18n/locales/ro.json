@@ -906,7 +906,16 @@
     "artifactHtml": "Pagină HTML",
     "artifactSvg": "Imagine SVG",
     "artifactLines": "linii",
-    "artifactResize": "Redimensionează previzualizarea"
+    "artifactResize": "Redimensionează previzualizarea",
+    "memoryHeading": "Memorie",
+    "memoryHelp": "Fapte ținute minte între chat-urile Playground pe acest cont. Chat-urile noi le pot folosi fără să le repeți.",
+    "memoryToggle": "Ține minte între chat-uri",
+    "memoryEmpty": "Nicio memorie încă. Apar pe măsură ce discuți, sau adaugă una mai jos.",
+    "memoryAdd": "Adaugă memorie",
+    "memoryAddPlaceholder": "Ceva de ținut minte…",
+    "memoryDelete": "Șterge memoria",
+    "memorySaveFailed": "Nu s-a putut salva memoria.",
+    "memoryDeleteFailed": "Nu s-a putut șterge memoria."
   },
   "playgroundSessions": {
     "heading": "Conversații",

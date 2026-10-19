@@ -12,6 +12,8 @@ import {
   type SamplingField,
   type SamplingSettings,
 } from '@/lib/playground-sampling'
+import type { Memory } from '@/lib/playground-memories'
+import { MemorySection } from '@/components/playground/memory-section'
 import { useI18n } from '@/i18n'
 
 // The Playground's right-hand settings rail: everything that shapes the NEXT
@@ -64,6 +66,12 @@ export interface SettingsRailProps {
   webSearchAvailable: boolean
   /** Enabled engines in failover order, e.g. "Tavily → Exa". */
   webSearchChain: string
+  /** Cross-chat memory for this dashboard account. */
+  memoryEnabled: boolean
+  onMemoryEnabledChange: (enabled: boolean) => void
+  memories: Memory[]
+  onAddMemory: (content: string) => Promise<void>
+  onDeleteMemory: (id: number) => Promise<void>
 }
 
 function SamplingControlRow({
@@ -157,11 +165,19 @@ export function SettingsRail({
   onWebSearchChange,
   webSearchAvailable,
   webSearchChain,
+  memoryEnabled,
+  onMemoryEnabledChange,
+  memories,
+  onAddMemory,
+  onDeleteMemory,
 }: SettingsRailProps) {
   const { t } = useI18n()
   // Anything the collapsed strip should own up to: a system prompt riding on
   // every request, or a knob overriding the provider's default.
-  const tweaked = samplingActiveCount(sampling) > 0 || systemPrompt.trim().length > 0 || webSearch
+  const tweaked = samplingActiveCount(sampling) > 0
+    || systemPrompt.trim().length > 0
+    || webSearch
+    || (memoryEnabled && memories.length > 0)
 
   return (
     <div
@@ -307,6 +323,14 @@ export function SettingsRail({
               </p>
             )}
           </div>
+
+          <MemorySection
+            enabled={memoryEnabled}
+            onEnabledChange={onMemoryEnabledChange}
+            memories={memories}
+            onAdd={onAddMemory}
+            onDelete={onDeleteMemory}
+          />
         </div>
       </div>
     </div>

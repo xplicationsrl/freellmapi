@@ -1,15 +1,19 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import {
   ChevronDown,
   ChevronRight,
   Folder,
   FolderPlus,
+  History,
+  LayoutGrid,
+  LogOut,
   MoreHorizontal,
   PanelLeft,
   PanelLeftClose,
   Pencil,
   Search,
+  Settings,
   SquarePen,
   Trash2,
 } from 'lucide-react'
@@ -23,12 +27,13 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { AppNavFooter } from '@/components/app-nav'
+import { AppNavFooter, isDesktopApp, navItems, navMenus } from '@/components/app-nav'
 import type { ConversationSummary, Project } from '@/lib/playground-conversations'
 import {
   readCollapsedProjectIds,
   writeCollapsedProjectIds,
 } from '@/lib/playground-conversations'
+import { logout } from '@/lib/api'
 import { useI18n } from '@/i18n'
 
 // The Playground's saved-conversation rail, laid out like a Gemini-style
@@ -79,6 +84,8 @@ export function ConversationSidebar({
   onOpenSettings: () => void
 }) {
   const { t } = useI18n()
+  const navigate = useNavigate()
+  const location = useLocation()
   const [renamingId, setRenamingId] = useState<number | null>(null)
   const [renamingProjectId, setRenamingProjectId] = useState<number | null>(null)
   const [creatingProject, setCreatingProject] = useState(false)
@@ -199,6 +206,17 @@ export function ConversationSidebar({
     setQuery('')
   }
 
+  // Gemini-style: search only opens. A second click on the icon never closes it
+  // (Escape / closing the rail still clears it).
+  const openSearch = () => {
+    setSearching(true)
+    if (!open) onToggle()
+  }
+
+  const openRail = () => {
+    if (!open) onToggle()
+  }
+
   const renderConversation = (conversation: ConversationSummary) => {
     const isActive = conversation.id === activeId
     const armed = armedDeleteId === conversation.id
@@ -300,27 +318,123 @@ export function ConversationSidebar({
         open ? 'w-64' : 'w-14'
       }`}
     >
-      {/* ── Collapsed strip: logo only; hover reveals open-sidebar icon ─ */}
+      {/* ── Collapsed strip: Gemini-style icon rail ───────────────────── */}
       <div
         className={`${LAYER} w-14 items-center px-2.5 py-3 ${
           open ? 'invisible opacity-0' : 'visible opacity-100'
         }`}
       >
-        <button
-          type="button"
-          onClick={onToggle}
-          className={`${iconBtn} group relative`}
-          aria-label={t('playgroundSessions.showSidebar')}
-          title={t('playgroundSessions.showSidebar')}
-        >
-          <img
-            src={LOGO_ICON}
-            alt=""
-            className="size-7 object-contain transition-opacity group-hover:opacity-0 group-focus-visible:opacity-0"
-            draggable={false}
-          />
-          <PanelLeft className="absolute size-4 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100" />
-        </button>
+        <div className="flex flex-col items-center gap-1">
+          <button
+            type="button"
+            onClick={onToggle}
+            className={`${iconBtn} group relative`}
+            aria-label={t('playgroundSessions.showSidebar')}
+            title={t('playgroundSessions.showSidebar')}
+          >
+            <img
+              src={LOGO_ICON}
+              alt=""
+              className="size-7 object-contain transition-opacity group-hover:opacity-0 group-focus-visible:opacity-0"
+              draggable={false}
+            />
+            <PanelLeft className="absolute size-4 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100" />
+          </button>
+          <button
+            type="button"
+            onClick={onNew}
+            className={iconBtn}
+            aria-label={t('playgroundSessions.newChat')}
+            title={t('playgroundSessions.newChat')}
+          >
+            <SquarePen className="size-4" />
+          </button>
+          <button
+            type="button"
+            onClick={openSearch}
+            className={iconBtn}
+            aria-label={t('playgroundSessions.searchChats')}
+            title={t('playgroundSessions.searchChats')}
+          >
+            <Search className="size-4" />
+          </button>
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              className={iconBtn}
+              aria-label={t('nav.openMenu')}
+              title={t('nav.openMenu')}
+            >
+              <LayoutGrid className="size-4" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent side="right" align="start" className="w-48">
+              {navItems.map((item) => {
+                const menu = navMenus[item.to]
+                if (menu) {
+                  return (
+                    <DropdownMenuSub key={item.to}>
+                      <DropdownMenuSubTrigger>
+                        {t(item.labelKey)}
+                      </DropdownMenuSubTrigger>
+                      <DropdownMenuSubContent className="w-48">
+                        {menu.items.map((entry) => (
+                          <DropdownMenuItem
+                            key={entry.to}
+                            onClick={() => navigate(entry.to)}
+                          >
+                            {t(entry.labelKey)}
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuSubContent>
+                    </DropdownMenuSub>
+                  )
+                }
+                return (
+                  <DropdownMenuItem
+                    key={item.to}
+                    onClick={() => navigate(item.to)}
+                    className={location.pathname === item.to ? 'bg-muted' : undefined}
+                  >
+                    {t(item.labelKey)}
+                  </DropdownMenuItem>
+                )
+              })}
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <button
+            type="button"
+            onClick={openRail}
+            className={iconBtn}
+            aria-label={t('playgroundSessions.allChats')}
+            title={t('playgroundSessions.allChats')}
+          >
+            <History className="size-4" />
+          </button>
+        </div>
+
+        <div className="min-h-0 flex-1" />
+
+        <div className="flex flex-col items-center gap-1">
+          <button
+            type="button"
+            onClick={onOpenSettings}
+            className={iconBtn}
+            aria-label={t('nav.settings')}
+            title={t('nav.settings')}
+          >
+            <Settings className="size-4" />
+          </button>
+          {!isDesktopApp && (
+            <button
+              type="button"
+              onClick={() => logout()}
+              className={iconBtn}
+              aria-label={t('nav.signOut')}
+              title={t('nav.signOut')}
+            >
+              <LogOut className="size-4" />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* ── Expanded panel ────────────────────────────────────────────── */}
@@ -342,7 +456,7 @@ export function ConversationSidebar({
           </Link>
           <button
             type="button"
-            onClick={() => setSearching(true)}
+            onClick={openSearch}
             className={iconBtn}
             aria-label={t('playgroundSessions.searchChats')}
             title={t('playgroundSessions.searchChats')}

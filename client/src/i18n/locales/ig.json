@@ -103,6 +103,8 @@
     "noLanguages": "Ọnweghị asụsụ ahụrụ",
     "sections": "Akụkụ ntọala",
     "sectionGeneral": "Izugbe",
+    "sectionPlayground": "Ebe egwuregwu",
+    "playgroundDescription": "Model, sampling, system prompt, web search, and memory for the Playground.",
     "sectionCompression": "Mpịkọta",
     "sectionAdvanced": "Nke dị elu",
     "sectionPreview": "Nlele",

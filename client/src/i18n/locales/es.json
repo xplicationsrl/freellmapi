@@ -103,6 +103,8 @@
     "noLanguages": "No se encontraron idiomas",
     "sections": "Secciones de configuración",
     "sectionGeneral": "General",
+    "sectionPlayground": "Entorno de pruebas",
+    "playgroundDescription": "Modelo, muestreo, prompt del sistema, búsqueda web y memoria para el Playground.",
     "sectionCompression": "Compresión",
     "sectionAdvanced": "Avanzado",
     "sectionPreview": "Vista previa",

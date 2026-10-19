@@ -103,6 +103,8 @@
     "noLanguages": "Kieliä ei löytynyt",
     "sections": "Asetusosiot",
     "sectionGeneral": "Yleiset",
+    "sectionPlayground": "Leikkipaikka",
+    "playgroundDescription": "Malli, sampling, järjestelmäkehote, verkkohaku ja muisti Playgroundille.",
     "sectionCompression": "Pakkaus",
     "sectionAdvanced": "Lisäasetukset",
     "sectionPreview": "Esikatselu",

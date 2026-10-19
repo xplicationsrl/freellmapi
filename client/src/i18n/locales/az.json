@@ -103,6 +103,8 @@
     "noLanguages": "Heç bir dil tapılmadı",
     "sections": "Parametr bölmələri",
     "sectionGeneral": "Ümumi",
+    "sectionPlayground": "Uşaq meydançası",
+    "playgroundDescription": "Model, sampling, system prompt, web search, and memory for the Playground.",
     "sectionCompression": "Sıxılma",
     "sectionAdvanced": "Ətraflı",
     "sectionPreview": "Ön baxış",

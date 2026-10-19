@@ -103,6 +103,8 @@
     "noLanguages": "Nem található nyelv",
     "sections": "Beállítási szakaszok",
     "sectionGeneral": "Általános",
+    "sectionPlayground": "Játszótér",
+    "playgroundDescription": "Modell, sampling, rendszerprompt, webes keresés és memória a Playgroundhoz.",
     "sectionCompression": "Tömörítés",
     "sectionAdvanced": "Speciális",
     "sectionPreview": "Előnézet",

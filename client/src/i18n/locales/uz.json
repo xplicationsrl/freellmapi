@@ -103,6 +103,8 @@
     "noLanguages": "Hech qanday til topilmadi",
     "sections": "Sozlamalar bo'limlari",
     "sectionGeneral": "Umumiy",
+    "sectionPlayground": "O'yin maydonchasi",
+    "playgroundDescription": "Model, sampling, system prompt, web search, and memory for the Playground.",
     "sectionCompression": "Siqish",
     "sectionAdvanced": "Kengaytirilgan",
     "sectionPreview": "Oldindan ko'rish",

@@ -103,6 +103,8 @@
     "noLanguages": "Няма намерени езици",
     "sections": "Раздели с настройки",
     "sectionGeneral": "Общи",
+    "sectionPlayground": "Детска площадка",
+    "playgroundDescription": "Модел, sampling, системен промпт, уеб търсене и памет за Playground.",
     "sectionCompression": "Компресия",
     "sectionAdvanced": "Разширени",
     "sectionPreview": "Преглед",

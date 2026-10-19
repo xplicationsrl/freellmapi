@@ -103,6 +103,8 @@
     "noLanguages": "Nema pronađenih jezika",
     "sections": "Odjeljci postavki",
     "sectionGeneral": "Općenito",
+    "sectionPlayground": "Igralište",
+    "playgroundDescription": "Model, sampling, sistemski prompt, web pretraživanje i memorija za Playground.",
     "sectionCompression": "Kompresija",
     "sectionAdvanced": "Napredno",
     "sectionPreview": "Pregled",

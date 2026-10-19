@@ -103,6 +103,8 @@
     "noLanguages": "هیچ زبانی یافت نشد",
     "sections": "بخش‌های تنظیمات",
     "sectionGeneral": "عمومی",
+    "sectionPlayground": "زمین بازی",
+    "playgroundDescription": "مدل، sampling، پرامپت سیستم، جستجوی وب و حافظه برای Playground.",
     "sectionCompression": "فشرده‌سازی",
     "sectionAdvanced": "پیشرفته",
     "sectionPreview": "پیش‌نمایش",

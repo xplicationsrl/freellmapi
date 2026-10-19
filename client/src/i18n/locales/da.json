@@ -103,6 +103,8 @@
     "noLanguages": "Ingen sprog fundet",
     "sections": "Indstillingsafsnit",
     "sectionGeneral": "Generelt",
+    "sectionPlayground": "Legeplads",
+    "playgroundDescription": "Model, sampling, systemprompt, websøgning og hukommelse til Playground.",
     "sectionCompression": "Komprimering",
     "sectionAdvanced": "Avanceret",
     "sectionPreview": "Forhåndsvisning",

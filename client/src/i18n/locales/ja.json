@@ -103,6 +103,8 @@
     "noLanguages": "言語が見つかりません",
     "sections": "設定セクション",
     "sectionGeneral": "一般",
+    "sectionPlayground": "遊び場",
+    "playgroundDescription": "Playground のモデル、サンプリング、システムプロンプト、ウェブ検索、メモリ。",
     "sectionCompression": "圧縮",
     "sectionAdvanced": "詳細設定",
     "sectionPreview": "プレビュー",

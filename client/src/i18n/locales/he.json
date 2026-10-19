@@ -103,6 +103,8 @@
     "noLanguages": "לא נמצאו שפות",
     "sections": "מקטעי הגדרות",
     "sectionGeneral": "כללי",
+    "sectionPlayground": "מגרש משחקים",
+    "playgroundDescription": "מודל, sampling, הנחיית מערכת, חיפוש ברשת וזיכרון עבור ה-Playground.",
     "sectionCompression": "דחיסה",
     "sectionAdvanced": "מתקדם",
     "sectionPreview": "תצוגה מקדימה",

@@ -14,6 +14,10 @@ const source = readFileSync(path.join(here, 'chain-manager.tsx'), 'utf8')
 const fallbackPage = readFileSync(path.join(here, '../pages/FallbackPage.tsx'), 'utf8')
 const app = readFileSync(path.join(here, '../App.tsx'), 'utf8')
 const playground = readFileSync(path.join(here, '../pages/PlaygroundPage.tsx'), 'utf8')
+const playgroundSettings = readFileSync(
+  path.join(here, 'playground/playground-settings-panel.tsx'),
+  'utf8',
+)
 
 function locale(name: string): Record<string, unknown> {
   return JSON.parse(readFileSync(path.join(localeDir, `${name}.json`), 'utf8'))
@@ -104,13 +108,14 @@ describe('chains reach the rest of the dashboard (#1021)', () => {
   })
 
   it('offers every custom chain in the playground picker as auto:<name>', () => {
-    expect(playground).toContain("queryKey: ['profiles']")
+    // The model picker lives in Settings → Playground (moved off the right rail).
+    expect(playgroundSettings).toContain("queryKey: ['profiles']")
     // The id has to be derived exactly as the server derives it in
     // routes/proxy.ts, or the picker offers models /v1/models never listed.
-    expect(playground).toContain('`auto:${c.name.toLowerCase()}`')
-    expect(playground).toContain('...chainOptions,')
+    expect(playgroundSettings).toContain('`auto:${c.name.toLowerCase()}`')
+    expect(playgroundSettings).toContain('...chainOptions,')
     // A chain is server-picked like plain auto, so the "can't see images" hint
-    // must not fire on one.
+    // on the chat page must not fire on one.
     expect(playground).toContain("!selectedModel.startsWith('auto:')")
   })
 })

@@ -103,6 +103,8 @@
     "noLanguages": "Nenhum idioma encontrado",
     "sections": "Seções das configurações",
     "sectionGeneral": "Geral",
+    "sectionPlayground": "Playground",
+    "playgroundDescription": "Modelo, amostragem, prompt do sistema, pesquisa na web e memória para o Playground.",
     "sectionCompression": "Compressão",
     "sectionAdvanced": "Avançado",
     "sectionPreview": "Prévia",

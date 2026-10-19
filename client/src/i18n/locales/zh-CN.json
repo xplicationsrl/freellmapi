@@ -103,6 +103,8 @@
     "noLanguages": "未找到语言",
     "sections": "设置分组",
     "sectionGeneral": "常规",
+    "sectionPlayground": "试验场",
+    "playgroundDescription": "Playground 的模型、采样、系统提示、网络搜索与记忆。",
     "sectionCompression": "压缩",
     "sectionAdvanced": "高级",
     "sectionPreview": "预览",

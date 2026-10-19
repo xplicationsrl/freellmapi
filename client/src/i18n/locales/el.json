@@ -103,6 +103,8 @@
     "noLanguages": "Δεν βρέθηκαν γλώσσες",
     "sections": "Ενότητες ρυθμίσεων",
     "sectionGeneral": "Γενικά",
+    "sectionPlayground": "Παιδική χαρά",
+    "playgroundDescription": "Μοντέλο, sampling, προτροπή συστήματος, αναζήτηση ιστού και μνήμη για το Playground.",
     "sectionCompression": "Συμπίεση",
     "sectionAdvanced": "Για προχωρημένους",
     "sectionPreview": "Προεπισκόπηση",

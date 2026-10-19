@@ -103,6 +103,8 @@
     "noLanguages": "कुनै भाषा फेला परेन",
     "sections": "सेटिङ खण्डहरू",
     "sectionGeneral": "सामान्य",
+    "sectionPlayground": "खेल मैदान[सम्पादन गर्ने]",
+    "playgroundDescription": "Model, sampling, system prompt, web search, and memory for the Playground.",
     "sectionCompression": "कम्प्रेसन",
     "sectionAdvanced": "उन्नत",
     "sectionPreview": "पूर्वावलोकन",

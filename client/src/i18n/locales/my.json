@@ -103,6 +103,8 @@
     "noLanguages": "ဘာသာစကား မတွေ့ရှိပါ",
     "sections": "ဆက်တင် အပိုင်းများ",
     "sectionGeneral": "အထွေထွေ",
+    "sectionPlayground": "ကစားကွင်း",
+    "playgroundDescription": "Model, sampling, system prompt, web search, and memory for the Playground.",
     "sectionCompression": "ချုံ့ခြင်း",
     "sectionAdvanced": "အဆင့်မြင့်",
     "sectionPreview": "အစမ်းကြည့်ရှုမှု",

@@ -103,6 +103,8 @@
     "noLanguages": "Geen talen gevonden",
     "sections": "Instellingssecties",
     "sectionGeneral": "Algemeen",
+    "sectionPlayground": "Speeltuin",
+    "playgroundDescription": "Model, sampling, systeemprompt, webzoekopdracht en geheugen voor de Playground.",
     "sectionCompression": "Compressie",
     "sectionAdvanced": "Geavanceerd",
     "sectionPreview": "Voorbeeld",

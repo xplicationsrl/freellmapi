@@ -103,6 +103,8 @@
     "noLanguages": "භාෂා හමු නොවීය",
     "sections": "සැකසුම් කොටස්",
     "sectionGeneral": "සාමාන්‍ය",
+    "sectionPlayground": "ක්රීඩා පිටිය",
+    "playgroundDescription": "Model, sampling, system prompt, web search, and memory for the Playground.",
     "sectionCompression": "සම්පීඩනය",
     "sectionAdvanced": "උසස්",
     "sectionPreview": "පෙරදසුන",

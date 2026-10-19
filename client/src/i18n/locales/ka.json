@@ -103,6 +103,8 @@
     "noLanguages": "ენები ვერ მოიძებნა",
     "sections": "პარამეტრების სექციები",
     "sectionGeneral": "ზოგადი",
+    "sectionPlayground": "სათამაშო მოედანი",
+    "playgroundDescription": "მოდელი, sampling, სისტემური პრომპტი, ვებ-ძიება და მეხსიერება Playground-ისთვის.",
     "sectionCompression": "შეკუმშვა",
     "sectionAdvanced": "დამატებითი",
     "sectionPreview": "გადახედვა",

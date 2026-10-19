@@ -103,6 +103,8 @@
     "noLanguages": "કોઈ ભાષા મળી નથી",
     "sections": "સેટિંગ્સ વિભાગો",
     "sectionGeneral": "સામાન્ય",
+    "sectionPlayground": "રમતનું મેદાન",
+    "playgroundDescription": "Model, sampling, system prompt, web search, and memory for the Playground.",
     "sectionCompression": "કમ્પ્રેશન",
     "sectionAdvanced": "અદ્યતન",
     "sectionPreview": "પ્રીવ્યૂ",

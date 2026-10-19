@@ -103,6 +103,8 @@
     "noLanguages": "Nenhuma língua encontrada",
     "sections": "Secções das definições",
     "sectionGeneral": "Geral",
+    "sectionPlayground": "Parque infantil",
+    "playgroundDescription": "Modelo, amostragem, prompt do sistema, pesquisa na web e memória para o Playground.",
     "sectionCompression": "Compressão",
     "sectionAdvanced": "Avançado",
     "sectionPreview": "Pré-visualização",

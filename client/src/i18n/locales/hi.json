@@ -103,6 +103,8 @@
     "noLanguages": "कोई भाषा नहीं मिली",
     "sections": "सेटिंग्स अनुभाग",
     "sectionGeneral": "सामान्य",
+    "sectionPlayground": "खेल का मैदान",
+    "playgroundDescription": "Playground के लिए मॉडल, सैंपलिंग, सिस्टम प्रॉम्प्ट, वेब खोज और मेमोरी।",
     "sectionCompression": "संपीड़न",
     "sectionAdvanced": "उन्नत",
     "sectionPreview": "पूर्वावलोकन",

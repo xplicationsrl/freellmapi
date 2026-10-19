@@ -103,6 +103,8 @@
     "noLanguages": "କୌଣସି ଭାଷା ମିଳିଲା ନାହିଁ",
     "sections": "ସେଟିଂସ୍ ବିଭାଗ",
     "sectionGeneral": "ସାଧାରଣ",
+    "sectionPlayground": "ଖେଳ ପଡିଆ",
+    "playgroundDescription": "Model, sampling, system prompt, web search, and memory for the Playground.",
     "sectionCompression": "ସଙ୍କୋଚନ",
     "sectionAdvanced": "ଉନ୍ନତ",
     "sectionPreview": "ପୂର୍ବାବଲୋକନ",

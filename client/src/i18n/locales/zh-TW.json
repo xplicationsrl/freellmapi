@@ -103,6 +103,8 @@
     "noLanguages": "找不到語言",
     "sections": "設定區塊",
     "sectionGeneral": "一般",
+    "sectionPlayground": "遊樂場",
+    "playgroundDescription": "Playground 的模型、取樣、系統提示、網路搜尋與記憶。",
     "sectionCompression": "壓縮",
     "sectionAdvanced": "進階",
     "sectionPreview": "預覽",

@@ -103,6 +103,8 @@
     "noLanguages": "Мови не знайдено",
     "sections": "Розділи налаштувань",
     "sectionGeneral": "Загальні",
+    "sectionPlayground": "Дитячий майданчик",
+    "playgroundDescription": "Модель, sampling, системний промпт, вебпошук і памʼять для Playground.",
     "sectionCompression": "Стиснення",
     "sectionAdvanced": "Додатково",
     "sectionPreview": "Попередній перегляд",

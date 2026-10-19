@@ -103,6 +103,8 @@
     "noLanguages": "Kalbų nerasta",
     "sections": "Nustatymų skiltys",
     "sectionGeneral": "Bendra",
+    "sectionPlayground": "Žaidimų aikštelė",
+    "playgroundDescription": "Modelis, sampling, sisteminis promptas, žiniatinklio paieška ir atmintis Playground.",
     "sectionCompression": "Suspaudimas",
     "sectionAdvanced": "Išplėstiniai",
     "sectionPreview": "Peržiūra",

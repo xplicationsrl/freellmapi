@@ -103,6 +103,8 @@
     "noLanguages": "Ba a sami yaruka ba",
     "sections": "Sassan saituna",
     "sectionGeneral": "Gabaɗaya",
+    "sectionPlayground": "filin wasa",
+    "playgroundDescription": "Model, sampling, system prompt, web search, and memory for the Playground.",
     "sectionCompression": "Matsawa",
     "sectionAdvanced": "Na ci gaba",
     "sectionPreview": "Samfoti",

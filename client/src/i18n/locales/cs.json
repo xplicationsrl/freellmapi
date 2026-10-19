@@ -103,6 +103,8 @@
     "noLanguages": "Nenalezeny žádné jazyky",
     "sections": "Sekce nastavení",
     "sectionGeneral": "Obecné",
+    "sectionPlayground": "Hřiště",
+    "playgroundDescription": "Model, sampling, systémový prompt, webové vyhledávání a paměť pro Playground.",
     "sectionCompression": "Komprese",
     "sectionAdvanced": "Pokročilé",
     "sectionPreview": "Náhled",

@@ -103,6 +103,8 @@
     "noLanguages": "কোনো ভাষা পাওয়া যায়নি",
     "sections": "সেটিংস বিভাগ",
     "sectionGeneral": "সাধারণ",
+    "sectionPlayground": "খেলার মাঠ",
+    "playgroundDescription": "Model, sampling, system prompt, web search, and memory for the Playground.",
     "sectionCompression": "কম্প্রেশন",
     "sectionAdvanced": "উন্নত",
     "sectionPreview": "প্রিভিউ",

@@ -103,6 +103,8 @@
     "noLanguages": "ಯಾವುದೇ ಭಾಷೆಗಳು ಕಂಡುಬಂದಿಲ್ಲ",
     "sections": "ಸೆಟ್ಟಿಂಗ್‌ಗಳ ವಿಭಾಗಗಳು",
     "sectionGeneral": "ಸಾಮಾನ್ಯ",
+    "sectionPlayground": "ಆಟದ ಮೈದಾನ",
+    "playgroundDescription": "Model, sampling, system prompt, web search, and memory for the Playground.",
     "sectionCompression": "ಸಂಕೋಚನ",
     "sectionAdvanced": "ಸುಧಾರಿತ",
     "sectionPreview": "ಪೂರ್ವವೀಕ್ಷಣೆ",

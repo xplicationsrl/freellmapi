@@ -103,6 +103,8 @@
     "noLanguages": "لم يتم العثور على لغات",
     "sections": "أقسام الإعدادات",
     "sectionGeneral": "عام",
+    "sectionPlayground": "ملعب",
+    "playgroundDescription": "النموذج والمعاينة وموجّه النظام والبحث على الويب والذاكرة لـ Playground.",
     "sectionCompression": "الضغط",
     "sectionAdvanced": "متقدم",
     "sectionPreview": "المعاينة",

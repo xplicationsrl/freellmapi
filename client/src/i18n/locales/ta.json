@@ -103,6 +103,8 @@
     "noLanguages": "மொழிகள் எதுவும் இல்லை",
     "sections": "அமைப்புகள் பிரிவுகள்",
     "sectionGeneral": "பொது",
+    "sectionPlayground": "விளையாட்டு மைதானம்",
+    "playgroundDescription": "Model, sampling, system prompt, web search, and memory for the Playground.",
     "sectionCompression": "சுருக்கம்",
     "sectionAdvanced": "மேம்பட்டவை",
     "sectionPreview": "முன்னோட்டம்",

@@ -103,6 +103,8 @@
     "noLanguages": "Dil bulunamadı",
     "sections": "Ayar bölümleri",
     "sectionGeneral": "Genel",
+    "sectionPlayground": "Oyun Alanı",
+    "playgroundDescription": "Playground için model, sampling, sistem istemi, web araması ve bellek.",
     "sectionCompression": "Sıkıştırma",
     "sectionAdvanced": "Gelişmiş",
     "sectionPreview": "Önizleme",

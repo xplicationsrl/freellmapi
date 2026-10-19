@@ -103,6 +103,8 @@
     "noLanguages": "कोणतीही भाषा आढळली नाही",
     "sections": "सेटिंग्ज विभाग",
     "sectionGeneral": "सामान्य",
+    "sectionPlayground": "खेळाचे मैदान",
+    "playgroundDescription": "Model, sampling, system prompt, web search, and memory for the Playground.",
     "sectionCompression": "कॉम्प्रेशन",
     "sectionAdvanced": "प्रगत",
     "sectionPreview": "पूर्वावलोकन",

@@ -103,6 +103,8 @@
     "noLanguages": "Aucune langue trouvée",
     "sections": "Sections des paramètres",
     "sectionGeneral": "Général",
+    "sectionPlayground": "Bac à sable",
+    "playgroundDescription": "Modèle, échantillonnage, invite système, recherche web et mémoire pour le Playground.",
     "sectionCompression": "Compression",
     "sectionAdvanced": "Avancé",
     "sectionPreview": "Aperçu",

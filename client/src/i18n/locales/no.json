@@ -103,6 +103,8 @@
     "noLanguages": "Ingen språk funnet",
     "sections": "Innstillingsseksjoner",
     "sectionGeneral": "Generelt",
+    "sectionPlayground": "Lekeplass",
+    "playgroundDescription": "Modell, sampling, systemprompt, websøk og minne for Playground.",
     "sectionCompression": "Komprimering",
     "sectionAdvanced": "Avansert",
     "sectionPreview": "Forhåndsvisning",

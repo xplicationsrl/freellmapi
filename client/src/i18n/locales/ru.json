@@ -103,6 +103,8 @@
     "noLanguages": "Языки не найдены",
     "sections": "Разделы настроек",
     "sectionGeneral": "Общие",
+    "sectionPlayground": "Детская площадка",
+    "playgroundDescription": "Модель, sampling, системный промпт, веб-поиск и память для Playground.",
     "sectionCompression": "Сжатие",
     "sectionAdvanced": "Дополнительно",
     "sectionPreview": "Предпросмотр",

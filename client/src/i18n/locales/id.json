@@ -103,6 +103,8 @@
     "noLanguages": "Tidak ada bahasa yang ditemukan",
     "sections": "Bagian pengaturan",
     "sectionGeneral": "Umum",
+    "sectionPlayground": "Taman bermain",
+    "playgroundDescription": "Model, sampling, prompt sistem, pencarian web, dan memori untuk Playground.",
     "sectionCompression": "Kompresi",
     "sectionAdvanced": "Lanjutan",
     "sectionPreview": "Pratinjau",

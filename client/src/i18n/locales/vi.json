@@ -103,6 +103,8 @@
     "noLanguages": "Không tìm thấy ngôn ngữ nào",
     "sections": "Mục cài đặt",
     "sectionGeneral": "Chung",
+    "sectionPlayground": "Sân chơi",
+    "playgroundDescription": "Mô hình, sampling, prompt hệ thống, tìm kiếm web và bộ nhớ cho Playground.",
     "sectionCompression": "Nén",
     "sectionAdvanced": "Nâng cao",
     "sectionPreview": "Xem trước",

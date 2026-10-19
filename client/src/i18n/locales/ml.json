@@ -103,6 +103,8 @@
     "noLanguages": "ഭാഷകളൊന്നും കണ്ടെത്തിയില്ല",
     "sections": "ക്രമീകരണ വിഭാഗങ്ങൾ",
     "sectionGeneral": "പൊതുവായവ",
+    "sectionPlayground": "കളിസ്ഥലം",
+    "playgroundDescription": "Model, sampling, system prompt, web search, and memory for the Playground.",
     "sectionCompression": "കംപ്രഷൻ",
     "sectionAdvanced": "വിപുലം",
     "sectionPreview": "പ്രിവ്യൂ",

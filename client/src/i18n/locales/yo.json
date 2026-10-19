@@ -103,6 +103,8 @@
     "noLanguages": "Ko si awọn ede ti a rii",
     "sections": "Awọn apakan eto",
     "sectionGeneral": "Gbogbogbo",
+    "sectionPlayground": "Ibi isereile",
+    "playgroundDescription": "Model, sampling, system prompt, web search, and memory for the Playground.",
     "sectionCompression": "Ifunpọ",
     "sectionAdvanced": "Ilọsiwaju",
     "sectionPreview": "Awotẹlẹ",

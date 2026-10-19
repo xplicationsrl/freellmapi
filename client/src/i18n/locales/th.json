@@ -103,6 +103,8 @@
     "noLanguages": "ไม่พบภาษา",
     "sections": "ส่วนการตั้งค่า",
     "sectionGeneral": "ทั่วไป",
+    "sectionPlayground": "สนามเด็กเล่น",
+    "playgroundDescription": "โมเดล การสุ่มตัวอย่าง พรอมต์ระบบ การค้นหาเว็บ และหน่วยความจำสำหรับ Playground",
     "sectionCompression": "การบีบอัด",
     "sectionAdvanced": "ขั้นสูง",
     "sectionPreview": "ดูตัวอย่าง",

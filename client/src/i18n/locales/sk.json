@@ -103,6 +103,8 @@
     "noLanguages": "Nenašli sa žiadne jazyky",
     "sections": "Sekcie nastavení",
     "sectionGeneral": "Všeobecné",
+    "sectionPlayground": "Ihrisko",
+    "playgroundDescription": "Model, sampling, systémový prompt, webové vyhľadávanie a pamäť pre Playground.",
     "sectionCompression": "Kompresia",
     "sectionAdvanced": "Rozšírené",
     "sectionPreview": "Náhľad",

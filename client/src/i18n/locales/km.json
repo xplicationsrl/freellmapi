@@ -103,6 +103,8 @@
     "noLanguages": "រកមិនឃើញភាសា",
     "sections": "ផ្នែកនៃការកំណត់",
     "sectionGeneral": "ទូទៅ",
+    "sectionPlayground": "កន្លែងលេងក្មេង",
+    "playgroundDescription": "Model, sampling, system prompt, web search, and memory for the Playground.",
     "sectionCompression": "ការបង្ហាប់",
     "sectionAdvanced": "កម្រិតខ្ពស់",
     "sectionPreview": "មើលជាមុន",

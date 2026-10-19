@@ -932,7 +932,8 @@
     "newChat": "Chat nou",
     "searchChats": "Caută chat-uri",
     "searchPlaceholder": "Caută chat-uri…",
-    "searchEmpty": "Niciun chat nu se potrivește."
+    "searchEmpty": "Niciun chat nu se potrivește.",
+    "allChats": "Toate"
   },
   "embeddings": {
     "title": "Modele",

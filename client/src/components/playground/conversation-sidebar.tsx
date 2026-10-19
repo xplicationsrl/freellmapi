@@ -1,6 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ChevronsLeft, ChevronsRight, MoreHorizontal, Pencil, Search, SquarePen, Trash2 } from 'lucide-react'
-import { Button, buttonVariants } from '@/components/ui/button'
+import { Link } from 'react-router-dom'
+import {
+  LayoutGrid,
+  MoreHorizontal,
+  PanelLeft,
+  PanelLeftClose,
+  Pencil,
+  Search,
+  Settings,
+  SquarePen,
+  Trash2,
+} from 'lucide-react'
+import { buttonVariants } from '@/components/ui/button'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -10,25 +21,21 @@ import {
 import type { ConversationSummary } from '@/lib/playground-conversations'
 import { useI18n } from '@/i18n'
 
-// The Playground's saved-conversation rail. Collapses to a narrow strip (the
-// toggle and "new chat" stay reachable) so a long transcript can have the whole
-// width when you want it; the open/closed choice is remembered by the page.
-//
-// Open and collapsed are the same box at two widths. The container animates its
-// width and clips; both layers inside keep a FIXED width and are laid over each
-// other, so nothing reflows or squishes while the rail moves. Whichever layer is
-// not in use fades out and ends `invisible`, which also takes it out of the tab
-// order and the accessibility tree. A reader who asked for less motion gets the
-// old instant snap.
-//
-// Deliberately dumb: every mutation is handed up to PlaygroundPage, which owns
-// the active conversation, the transcript, and the saving. All this does is
-// list, select, rename in place, and confirm a delete.
+// The Playground's saved-conversation rail, laid out like a Gemini-style
+// sidebar: brand + tools up top, the chat list in the middle, collapse at the
+// edge. Open and collapsed are the same box at two widths; both layers keep a
+// fixed width so nothing reflows while the rail animates.
 
-// Both layers sit on top of each other inside the animated container; only the
-// width and the fade differ.
 const LAYER =
   'absolute inset-y-0 start-0 flex flex-col transition-[opacity,visibility] duration-200 ease-out motion-reduce:transition-none'
+
+const LOGO_WORDMARK = `${import.meta.env.BASE_URL}brand/xplication-wordmark.png`
+const LOGO_ICON = `${import.meta.env.BASE_URL}brand/xplication-icon.png`
+
+const navBtn =
+  'flex w-full items-center gap-3 rounded-full px-3 py-2 text-sm text-foreground/90 transition-colors hover:bg-muted/70'
+const iconBtn =
+  'flex size-9 items-center justify-center rounded-full text-foreground/80 transition-colors hover:bg-muted/70'
 
 export function ConversationSidebar({
   conversations,
@@ -51,21 +58,12 @@ export function ConversationSidebar({
 }) {
   const { t } = useI18n()
   const [renamingId, setRenamingId] = useState<number | null>(null)
-  // Which row's Delete is armed (first click); cleared when its menu closes.
   const [armedDeleteId, setArmedDeleteId] = useState<number | null>(null)
   const [draft, setDraft] = useState('')
   const [searching, setSearching] = useState(false)
   const [query, setQuery] = useState('')
   const renameRef = useRef<HTMLInputElement>(null)
   const searchRef = useRef<HTMLInputElement>(null)
-  // Re-render once a minute so "2m ago" doesn't quietly go stale while a long
-  // answer streams.
-  const [, setTick] = useState(0)
-
-  useEffect(() => {
-    const timer = window.setInterval(() => setTick(n => n + 1), 60_000)
-    return () => window.clearInterval(timer)
-  }, [])
 
   useEffect(() => {
     if (renamingId !== null) renameRef.current?.select()
@@ -75,7 +73,6 @@ export function ConversationSidebar({
     if (searching) searchRef.current?.focus()
   }, [searching])
 
-  // Closing the rail drops the search UI so the next open starts clean.
   useEffect(() => {
     if (!open) {
       setSearching(false)
@@ -93,7 +90,6 @@ export function ConversationSidebar({
     const title = draft.trim()
     const previous = conversations.find(c => c.id === renamingId)
     setRenamingId(null)
-    // An empty box is a cancel, not a request for a nameless conversation.
     if (title && title !== previous?.title) onRename(renamingId, title)
   }
 
@@ -110,184 +106,249 @@ export function ConversationSidebar({
     setQuery('')
   }
 
+  const openSearch = () => {
+    if (!open) onToggle()
+    setSearching(true)
+  }
+
   return (
     <div
-      className={`relative shrink-0 overflow-hidden border-e bg-card transition-[width] duration-200 ease-out motion-reduce:transition-none ${
-        open ? 'w-60' : 'w-11'
+      className={`relative shrink-0 overflow-hidden border-e border-border/40 bg-sidebar text-sidebar-foreground transition-[width] duration-200 ease-out motion-reduce:transition-none ${
+        open ? 'w-64' : 'w-14'
       }`}
     >
+      {/* ── Collapsed strip ───────────────────────────────────────────── */}
       <div
-        className={`${LAYER} w-11 items-center gap-1 py-3 ${
+        className={`${LAYER} w-14 items-center gap-1 px-2.5 py-3 ${
           open ? 'invisible opacity-0' : 'visible opacity-100'
         }`}
       >
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          onClick={() => { onToggle(); setSearching(true) }}
-          aria-label={t('playgroundSessions.searchChats')}
-          title={t('playgroundSessions.searchChats')}
+        <button
+          type="button"
+          onClick={onToggle}
+          className={`${iconBtn} relative`}
+          aria-label={t('playgroundSessions.showSidebar')}
+          title={t('playgroundSessions.showSidebar')}
         >
-          <Search className="size-4" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon-sm"
+          <img
+            src={LOGO_ICON}
+            alt=""
+            className="size-7 object-contain"
+            draggable={false}
+          />
+        </button>
+
+        <button
+          type="button"
+          onClick={onToggle}
+          className={iconBtn}
+          aria-label={t('playgroundSessions.showSidebar')}
+          title={t('playgroundSessions.showSidebar')}
+        >
+          <PanelLeft className="size-4" />
+        </button>
+
+        <button
+          type="button"
           onClick={onNew}
+          className={iconBtn}
           aria-label={t('playgroundSessions.newChat')}
           title={t('playgroundSessions.newChat')}
         >
           <SquarePen className="size-4" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          className="mt-auto"
-          onClick={onToggle}
-          aria-label={t('playgroundSessions.showSidebar')}
-          title={t('playgroundSessions.showSidebar')}
+        </button>
+
+        <button
+          type="button"
+          onClick={openSearch}
+          className={iconBtn}
+          aria-label={t('playgroundSessions.searchChats')}
+          title={t('playgroundSessions.searchChats')}
         >
-          <ChevronsRight className="size-4" />
-        </Button>
+          <Search className="size-4" />
+        </button>
+
+        <Link
+          to="/models"
+          className={iconBtn}
+          aria-label={t('nav.models')}
+          title={t('nav.models')}
+        >
+          <LayoutGrid className="size-4" />
+        </Link>
+
+        <div className="mt-auto flex flex-col items-center gap-1">
+          <Link
+            to="/keys"
+            className={iconBtn}
+            aria-label={t('nav.keys')}
+            title={t('nav.keys')}
+          >
+            <Settings className="size-4" />
+          </Link>
+        </div>
       </div>
 
+      {/* ── Expanded panel ────────────────────────────────────────────── */}
       <div
-        className={`${LAYER} w-60 ${open ? 'visible opacity-100' : 'invisible opacity-0'}`}
+        className={`${LAYER} w-64 ${open ? 'visible opacity-100' : 'invisible opacity-0'}`}
       >
-        {/* Search above New chat; the collapse control lives at the foot of
-            the rail so the list keeps the space between them. */}
-        <div className="flex shrink-0 flex-col gap-1.5 border-b border-border/40 px-2 pt-2 pb-2">
-          {searching ? (
-            <input
-              ref={searchRef}
-              value={query}
-              onChange={e => setQuery(e.target.value)}
-              onKeyDown={e => {
-                if (e.key === 'Escape') { e.preventDefault(); stopSearching() }
-              }}
-              aria-label={t('playgroundSessions.searchChats')}
-              placeholder={t('playgroundSessions.searchPlaceholder')}
-              className="w-full rounded-lg border bg-background px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring/50"
-            />
-          ) : (
-            <Button
-              variant="outline"
-              size="sm"
-              className="w-full justify-center gap-2"
-              onClick={() => setSearching(true)}
-            >
-              <Search className="size-4" />
-              <span className="truncate">{t('playgroundSessions.searchChats')}</span>
-            </Button>
-          )}
-          <Button
-            variant="outline"
-            size="sm"
-            className="w-full justify-center gap-2"
-            onClick={onNew}
+        <div className="flex shrink-0 items-center gap-1 px-3 pt-3 pb-1">
+          <Link
+            to="/playground"
+            className="min-w-0 flex-1 rounded-lg px-1 py-1 transition-opacity hover:opacity-80"
+            aria-label="Xplication"
           >
-            <SquarePen className="size-4" />
-            <span className="truncate">{t('playgroundSessions.newChat')}</span>
-          </Button>
-        </div>
-
-        <div className="min-h-0 flex-1 overflow-y-auto p-1.5">
-          {conversations.length === 0 ? (
-            <p className="px-2 py-3 text-xs text-muted-foreground">
-              {t('playgroundSessions.empty')}
-            </p>
-          ) : visible.length === 0 ? (
-            <p className="px-2 py-3 text-xs text-muted-foreground">
-              {t('playgroundSessions.searchEmpty')}
-            </p>
-          ) : (
-            <ul className="space-y-0.5">
-              {visible.map(conversation => {
-                const isActive = conversation.id === activeId
-                const armed = armedDeleteId === conversation.id
-                return (
-                  <li key={conversation.id}>
-                    {renamingId === conversation.id ? (
-                      <input
-                        ref={renameRef}
-                        value={draft}
-                        onChange={e => setDraft(e.target.value)}
-                        onBlur={commitRename}
-                        onKeyDown={e => {
-                          if (e.key === 'Enter') { e.preventDefault(); commitRename() }
-                          if (e.key === 'Escape') { e.preventDefault(); setRenamingId(null) }
-                        }}
-                        aria-label={t('playgroundSessions.renamePlaceholder')}
-                        placeholder={t('playgroundSessions.renamePlaceholder')}
-                        className="w-full rounded-lg border bg-background px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring/50"
-                      />
-                    ) : (
-                      <div
-                        className={`group flex items-center gap-0.5 rounded-lg pr-0.5 transition-colors ${
-                          isActive ? 'bg-muted' : 'hover:bg-muted/60'
-                        }`}
-                      >
-                        <button
-                          type="button"
-                          onClick={() => onSelect(conversation.id)}
-                          onDoubleClick={() => startRename(conversation)}
-                          className="min-w-0 flex-1 px-2 py-1.5 text-left"
-                        >
-                          <span className="block truncate text-sm">
-                            {conversation.title || t('playgroundSessions.untitled')}
-                          </span>
-                        </button>
-                        {/* One "…" per row, shown on hover/focus (and while its
-                            menu is open) so the list reads as titles only. Delete
-                            arms on the first click and fires on the second, the
-                            dashboard's usual two-step, without leaving the menu. */}
-                        <DropdownMenu
-                          onOpenChange={open => { if (!open) setArmedDeleteId(null) }}
-                        >
-                          <DropdownMenuTrigger
-                            className={`${buttonVariants({ variant: 'ghost', size: 'icon-xs' })} shrink-0 opacity-0 transition-opacity focus-visible:opacity-100 group-hover:opacity-100 data-popup-open:opacity-100 data-pressed:opacity-100`}
-                            aria-label={t('playgroundSessions.actions')}
-                            title={t('playgroundSessions.actions')}
-                          >
-                            <MoreHorizontal className="size-3.5" />
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="w-40">
-                            <DropdownMenuItem onClick={() => startRename(conversation)}>
-                              <Pencil />
-                              {t('playgroundSessions.rename')}
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              variant="destructive"
-                              closeOnClick={armed}
-                              onClick={() => {
-                                if (armed) { setArmedDeleteId(null); onDelete(conversation.id) }
-                                else setArmedDeleteId(conversation.id)
-                              }}
-                            >
-                              <Trash2 />
-                              {armed ? t('common.confirm') : t('common.delete')}
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
-                    )}
-                  </li>
-                )
-              })}
-            </ul>
-          )}
-        </div>
-
-        <div className="flex shrink-0 items-center justify-end border-t border-border/40 px-2 py-1.5">
-          <Button
-            variant="ghost"
-            size="icon-sm"
+            <img
+              src={LOGO_WORDMARK}
+              alt="Xplication"
+              className="h-7 w-auto max-w-full object-contain object-left brightness-0 dark:brightness-100"
+              draggable={false}
+            />
+          </Link>
+          <button
+            type="button"
+            onClick={() => setSearching(true)}
+            className={iconBtn}
+            aria-label={t('playgroundSessions.searchChats')}
+            title={t('playgroundSessions.searchChats')}
+          >
+            <Search className="size-4" />
+          </button>
+          <button
+            type="button"
             onClick={onToggle}
+            className={iconBtn}
             aria-label={t('playgroundSessions.hideSidebar')}
             title={t('playgroundSessions.hideSidebar')}
           >
-            <ChevronsLeft className="size-4" />
-          </Button>
+            <PanelLeftClose className="size-4" />
+          </button>
+        </div>
+
+        <div className="flex shrink-0 flex-col gap-0.5 px-2 pt-2 pb-1">
+          <button type="button" onClick={onNew} className={navBtn}>
+            <SquarePen className="size-4 shrink-0" />
+            <span className="truncate">{t('playgroundSessions.newChat')}</span>
+          </button>
+          <Link to="/models" className={navBtn}>
+            <LayoutGrid className="size-4 shrink-0" />
+            <span className="truncate">{t('nav.models')}</span>
+          </Link>
+        </div>
+
+        <div className="flex min-h-0 flex-1 flex-col px-2 pt-3">
+          <div className="mb-1 flex shrink-0 items-center justify-between px-3">
+            <span className="text-xs font-medium tracking-wide text-muted-foreground">
+              {t('playgroundSessions.allChats')}
+            </span>
+          </div>
+
+          {searching && (
+            <div className="mb-1.5 px-1">
+              <input
+                ref={searchRef}
+                value={query}
+                onChange={e => setQuery(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Escape') { e.preventDefault(); stopSearching() }
+                }}
+                aria-label={t('playgroundSessions.searchChats')}
+                placeholder={t('playgroundSessions.searchPlaceholder')}
+                className="w-full rounded-full border border-border/50 bg-background/50 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring/50"
+              />
+            </div>
+          )}
+
+          <div className="min-h-0 flex-1 overflow-y-auto pb-2">
+            {conversations.length === 0 ? (
+              <p className="px-3 py-3 text-xs text-muted-foreground">
+                {t('playgroundSessions.empty')}
+              </p>
+            ) : visible.length === 0 ? (
+              <p className="px-3 py-3 text-xs text-muted-foreground">
+                {t('playgroundSessions.searchEmpty')}
+              </p>
+            ) : (
+              <ul className="space-y-0.5">
+                {visible.map(conversation => {
+                  const isActive = conversation.id === activeId
+                  const armed = armedDeleteId === conversation.id
+                  return (
+                    <li key={conversation.id}>
+                      {renamingId === conversation.id ? (
+                        <input
+                          ref={renameRef}
+                          value={draft}
+                          onChange={e => setDraft(e.target.value)}
+                          onBlur={commitRename}
+                          onKeyDown={e => {
+                            if (e.key === 'Enter') { e.preventDefault(); commitRename() }
+                            if (e.key === 'Escape') { e.preventDefault(); setRenamingId(null) }
+                          }}
+                          aria-label={t('playgroundSessions.renamePlaceholder')}
+                          placeholder={t('playgroundSessions.renamePlaceholder')}
+                          className="w-full rounded-full border bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring/50"
+                        />
+                      ) : (
+                        <div
+                          className={`group flex items-center gap-0.5 rounded-full pe-0.5 transition-colors ${
+                            isActive ? 'bg-muted' : 'hover:bg-muted/60'
+                          }`}
+                        >
+                          <button
+                            type="button"
+                            onClick={() => onSelect(conversation.id)}
+                            onDoubleClick={() => startRename(conversation)}
+                            className="min-w-0 flex-1 px-3 py-2 text-left"
+                          >
+                            <span className="block truncate text-sm">
+                              {conversation.title || t('playgroundSessions.untitled')}
+                            </span>
+                          </button>
+                          <DropdownMenu
+                            onOpenChange={menuOpen => { if (!menuOpen) setArmedDeleteId(null) }}
+                          >
+                            <DropdownMenuTrigger
+                              className={`${buttonVariants({ variant: 'ghost', size: 'icon-xs' })} shrink-0 rounded-full opacity-0 transition-opacity focus-visible:opacity-100 group-hover:opacity-100 data-popup-open:opacity-100 data-pressed:opacity-100`}
+                              aria-label={t('playgroundSessions.actions')}
+                              title={t('playgroundSessions.actions')}
+                            >
+                              <MoreHorizontal className="size-3.5" />
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-40">
+                              <DropdownMenuItem onClick={() => startRename(conversation)}>
+                                <Pencil />
+                                {t('playgroundSessions.rename')}
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                variant="destructive"
+                                closeOnClick={armed}
+                                onClick={() => {
+                                  if (armed) { setArmedDeleteId(null); onDelete(conversation.id) }
+                                  else setArmedDeleteId(conversation.id)
+                                }}
+                              >
+                                <Trash2 />
+                                {armed ? t('common.confirm') : t('common.delete')}
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+                      )}
+                    </li>
+                  )
+                })}
+              </ul>
+            )}
+          </div>
+        </div>
+
+        <div className="flex shrink-0 items-center gap-1 border-t border-border/40 px-2 py-2">
+          <Link to="/keys" className={`${navBtn} flex-1`}>
+            <Settings className="size-4 shrink-0" />
+            <span className="truncate">{t('nav.keys')}</span>
+          </Link>
         </div>
       </div>
     </div>

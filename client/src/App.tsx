@@ -118,8 +118,13 @@ const isMac = typeof navigator !== 'undefined' && /mac/i.test(navigator.platform
 function Brand() {
   return (
     <Link to="/" className="flex items-center gap-2 transition-opacity hover:opacity-70">
-      <span className="inline-block size-2 rounded-full bg-foreground" />
-      <span className="font-semibold tracking-tight text-sm">FreeLLMAPI</span>
+      <img
+        src={`${import.meta.env.BASE_URL}brand/xplication-icon.png`}
+        alt=""
+        className="size-5 object-contain"
+        draggable={false}
+      />
+      <span className="font-semibold tracking-tight text-sm">Xplication</span>
     </Link>
   )
 }

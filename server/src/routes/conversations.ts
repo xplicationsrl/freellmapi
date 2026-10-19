@@ -2,6 +2,13 @@ import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { z } from 'zod';
 import { getDb } from '../db/index.js';
+import {
+  DEFAULT_RECALL_LIMIT,
+  MAX_RECALL_CANDIDATES,
+  rankRecallSnippets,
+  turnsFromMessages,
+  type RecallTurnInput,
+} from '../lib/conversation-recall.js';
 
 // Playground conversation storage, mounted under /api/conversations behind the
 // dashboard session gate like every other admin route. The Playground page is
@@ -17,6 +24,9 @@ import { getDb } from '../db/index.js';
 // Conversations are per account (user_id): accounts sharing an install share
 // its keys, but each sees and touches only the chats it started. Another
 // account's conversation id answers 404, exactly like one that does not exist.
+//
+// Cross-chat recall keeps a denormalised `playground_chat_turns` index in sync
+// with every transcript write, so a new chat can pull relevant past turns.
 
 export const conversationsRouter = Router();
 
@@ -95,6 +105,12 @@ const updateSchema = z.object({
   projectId: projectIdSchema.optional(),
 }).strict();
 
+const recallSchema = z.object({
+  query: z.string().min(1).max(4000),
+  excludeConversationId: z.number().int().positive().nullable().optional(),
+  limit: z.number().int().min(1).max(12).optional(),
+}).strict();
+
 interface ConversationRow {
   id: number;
   title: string;
@@ -114,6 +130,15 @@ interface SummaryRow {
   message_count: number | null;
   created_at_ms: number;
   updated_at_ms: number;
+}
+
+interface TurnCandidateRow {
+  conversation_id: number;
+  title: string;
+  role: 'user' | 'assistant';
+  content: string;
+  updated_at_ms: number;
+  turn_index: number;
 }
 
 function toJson(row: ConversationRow) {
@@ -195,6 +220,33 @@ function serialiseMessages(messages: unknown[], res: Response): string | null {
   return json;
 }
 
+/**
+ * Replace the searchable turn index for one conversation. Called after every
+ * transcript write so recall never reads a stale blob.
+ */
+function syncConversationTurns(
+  userId: number,
+  conversationId: number,
+  messagesJson: string,
+  updatedAtMs: number,
+): void {
+  const db = getDb();
+  const turns = turnsFromMessages(parseMessages(messagesJson) as { role?: unknown; content?: unknown }[]);
+  const replace = db.transaction(() => {
+    db.prepare('DELETE FROM playground_chat_turns WHERE conversation_id = ? AND user_id = ?')
+      .run(conversationId, userId);
+    const insert = db.prepare(`
+      INSERT INTO playground_chat_turns
+        (user_id, conversation_id, turn_index, role, content, updated_at_ms)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `);
+    for (const turn of turns) {
+      insert.run(userId, conversationId, turn.turnIndex, turn.role, turn.content, updatedAtMs);
+    }
+  });
+  replace();
+}
+
 // Summaries for the sidebar: no message bodies cross the wire, so the list stays
 // small no matter how long the conversations are. json_array_length reads the
 // count straight out of the stored blob (SQLite's JSON1, present in both the
@@ -221,6 +273,56 @@ conversationsRouter.get('/', (req: Request, res: Response) => {
     createdAt: row.created_at_ms,
     updatedAt: row.updated_at_ms,
   })));
+});
+
+// Cross-chat recall: rank past turns for the current question. Registered
+// before `/:id` so "recall" is never parsed as a conversation id.
+conversationsRouter.post('/recall', (req: Request, res: Response) => {
+  const parsed = recallSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({ error: { message: 'Invalid recall request' } });
+    return;
+  }
+
+  const userId = ownerId(req);
+  const excludeId = parsed.data.excludeConversationId ?? null;
+  const limit = parsed.data.limit ?? DEFAULT_RECALL_LIMIT;
+
+  const rows = getDb().prepare(`
+    SELECT t.conversation_id,
+           c.title,
+           t.role,
+           t.content,
+           t.updated_at_ms,
+           t.turn_index
+      FROM playground_chat_turns t
+      JOIN playground_conversations c
+        ON c.id = t.conversation_id
+       AND c.user_id = t.user_id
+     WHERE t.user_id = ?
+       AND (? IS NULL OR t.conversation_id != ?)
+     ORDER BY t.updated_at_ms DESC, t.conversation_id DESC, t.turn_index DESC
+     LIMIT ?
+  `).all(userId, excludeId, excludeId, MAX_RECALL_CANDIDATES) as TurnCandidateRow[];
+
+  const candidates: RecallTurnInput[] = rows.map(row => ({
+    conversationId: row.conversation_id,
+    title: row.title ?? '',
+    role: row.role,
+    content: row.content,
+    updatedAtMs: row.updated_at_ms,
+    turnIndex: row.turn_index,
+  }));
+
+  const snippets = rankRecallSnippets(parsed.data.query, candidates, { limit });
+  res.json({
+    snippets: snippets.map(s => ({
+      conversationId: s.conversationId,
+      title: s.title,
+      role: s.role,
+      content: s.content,
+    })),
+  });
 });
 
 conversationsRouter.get('/:id', (req: Request, res: Response) => {
@@ -261,7 +363,9 @@ conversationsRouter.post('/', (req: Request, res: Response) => {
     now,
     now,
   );
-  res.status(201).json(toJson(getConversation(Number(info.lastInsertRowid), userId)!));
+  const id = Number(info.lastInsertRowid);
+  syncConversationTurns(userId, id, messagesJson, now);
+  res.status(201).json(toJson(getConversation(id, userId)!));
 });
 
 conversationsRouter.put('/:id', (req: Request, res: Response) => {
@@ -287,6 +391,7 @@ conversationsRouter.put('/:id', (req: Request, res: Response) => {
     return;
   }
 
+  const now = Date.now();
   // One statement for the whole conversation: title, transcript, model and
   // system prompt always move together, so a save can never leave a row half
   // updated (the transcript of one exchange under the title of another).
@@ -300,19 +405,29 @@ conversationsRouter.put('/:id', (req: Request, res: Response) => {
     model === undefined ? row.model : model,
     systemPrompt === undefined ? row.system_prompt : systemPrompt,
     projectId === undefined ? row.project_id : projectId,
-    Date.now(),
+    now,
     id,
     userId,
   );
+
+  // Rebuild the turn index whenever the transcript changes. Title-only renames
+  // still refresh updated_at on turns so recall recency stays honest — cheap
+  // for typical Playground lengths.
+  syncConversationTurns(userId, id, messagesJson, now);
   res.json(toJson(getConversation(id, userId)!));
 });
 
 conversationsRouter.delete('/:id', (req: Request, res: Response) => {
   const id = parseId(req, res);
   if (id === null) return;
+  const userId = ownerId(req);
+  // Explicit turn cleanup so recall stays correct even when SQLite foreign
+  // keys are off for a driver/path; CASCADE covers the happy path.
+  getDb().prepare('DELETE FROM playground_chat_turns WHERE conversation_id = ? AND user_id = ?')
+    .run(id, userId);
   const info = getDb()
     .prepare('DELETE FROM playground_conversations WHERE id = ? AND user_id = ?')
-    .run(id, ownerId(req));
+    .run(id, userId);
   if (info.changes === 0) return notFound(res);
   res.json({ success: true });
 });

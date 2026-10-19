@@ -74,6 +74,10 @@ import {
   parseExtractedMemories,
   type Memory,
 } from '@/lib/playground-memories'
+import {
+  conversationRecallMessage,
+  recallConversations,
+} from '@/lib/playground-recall'
 import { useI18n } from '@/i18n'
 
 interface FallbackEntry {
@@ -959,12 +963,29 @@ export default function PlaygroundPage() {
 
       const isFusion = selectedModel === 'fusion'
       const sysPrompt = systemPrompt.trim()
+
+      // Cross-chat recall first (past discussions), then durable fact bullets.
+      // Failures stay silent — recall is a side channel, like extraction.
+      let recallContext = ''
+      if (memoryEnabled && text) {
+        try {
+          const recalled = await recallConversations({
+            query: text,
+            excludeConversationId: conversationIdRef.current,
+          })
+          recallContext = conversationRecallMessage(recalled.snippets ?? [])
+        } catch {
+          // Best-effort: a failed recall must not block the answer.
+        }
+      }
+
       const memoryContext = memoryEnabled
         ? memoryContextMessage(memories)
         : ''
       const body: any = {
         messages: [
           ...(sysPrompt ? [{ role: 'system', content: sysPrompt }] : []),
+          ...(recallContext ? [{ role: 'system', content: recallContext }] : []),
           ...(memoryContext ? [{ role: 'system', content: memoryContext }] : []),
           ...(searchContext ? [{ role: 'system', content: searchContext }] : []),
           ...newMessages.map(m => ({ role: m.role, content: toMessageContent(m.content, m.images) })),

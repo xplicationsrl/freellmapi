@@ -910,14 +910,16 @@
     "artifactLines": "linya",
     "artifactResize": "Baguhin ang laki ng preview",
     "memoryHeading": "Memory",
-    "memoryHelp": "Facts remembered across Playground chats on this account. New chats can use them without you repeating yourself.",
+    "memoryHelp": "New chats can answer from what you already discussed, and important facts are saved automatically from those talks.",
     "memoryToggle": "Remember across chats",
-    "memoryEmpty": "No memories yet. They appear as you chat, or add one below.",
+    "memoryEmpty": "Nothing saved yet. Important facts appear as you chat.",
     "memoryAdd": "Add memory",
     "memoryAddPlaceholder": "Something to remember…",
     "memoryDelete": "Delete memory",
     "memorySaveFailed": "Couldn't save that memory.",
-    "memoryDeleteFailed": "Couldn't delete that memory."
+    "memoryDeleteFailed": "Couldn't delete that memory.",
+    "memoryAutoHeading": "Saved automatically",
+    "memoryAddOptional": "Add a fact manually (optional)"
   },
   "playgroundSessions": {
     "heading": "Mga usapan",

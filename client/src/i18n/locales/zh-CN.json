@@ -910,14 +910,16 @@
     "artifactLines": "行",
     "artifactResize": "调整预览大小",
     "memoryHeading": "记忆",
-    "memoryHelp": "在此账户的 Playground 对话之间记住的事实。新对话可以直接使用，无需重复说明。",
+    "memoryHelp": "New chats can answer from what you already discussed, and important facts are saved automatically from those talks.",
     "memoryToggle": "跨对话记住",
-    "memoryEmpty": "暂无记忆。聊天时会自动出现，也可在下方手动添加。",
+    "memoryEmpty": "Nothing saved yet. Important facts appear as you chat.",
     "memoryAdd": "添加记忆",
     "memoryAddPlaceholder": "想记住的内容…",
     "memoryDelete": "删除记忆",
     "memorySaveFailed": "无法保存该记忆。",
-    "memoryDeleteFailed": "无法删除该记忆。"
+    "memoryDeleteFailed": "无法删除该记忆。",
+    "memoryAutoHeading": "Saved automatically",
+    "memoryAddOptional": "Add a fact manually (optional)"
   },
   "playgroundSessions": {
     "heading": "对话",

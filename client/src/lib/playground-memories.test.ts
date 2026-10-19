@@ -12,7 +12,7 @@ describe('playground memories helpers', () => {
       { content: 'Prefers Romanian' },
       { content: 'Works on FreeLLMAPI' },
     ])
-    expect(msg).toContain('durable cross-chat memory')
+    expect(msg).toContain('durable facts auto-saved')
     expect(msg).toContain('Never claim you lack long-term memory')
     expect(msg).toContain('- Prefers Romanian')
     expect(msg).toContain('- Works on FreeLLMAPI')
@@ -20,7 +20,7 @@ describe('playground memories helpers', () => {
 
   it('still injects a preamble when there are no facts yet', () => {
     const empty = memoryContextMessage([])
-    expect(empty).toContain('durable cross-chat memory')
+    expect(empty).toContain('durable facts auto-saved')
     expect(empty).toContain('Stored facts: (none yet)')
     expect(memoryContextMessage([{ content: '  ' }])).toContain('(none yet)')
   })

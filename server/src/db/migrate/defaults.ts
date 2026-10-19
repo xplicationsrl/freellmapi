@@ -42,6 +42,7 @@ import * as searchEngines from '../migrations/20261013_000001_search_engines.js'
 import * as conversationOwner from '../migrations/20261016_000001_conversation_owner.js';
 import * as playgroundProjects from '../migrations/20261019_000001_playground_projects.js';
 import * as playgroundMemories from '../migrations/20261019_000002_playground_memories.js';
+import * as playgroundChatTurns from '../migrations/20261019_000003_playground_chat_turns.js';
 
 export interface MigrationModule {
   up(db: Db): void;
@@ -96,6 +97,7 @@ export const SEARCH_ENGINES_FILENAME = '20261013_000001_search_engines.ts';
 export const CONVERSATION_OWNER_FILENAME = '20261016_000001_conversation_owner.ts';
 export const PLAYGROUND_PROJECTS_FILENAME = '20261019_000001_playground_projects.ts';
 export const PLAYGROUND_MEMORIES_FILENAME = '20261019_000002_playground_memories.ts';
+export const PLAYGROUND_CHAT_TURNS_FILENAME = '20261019_000003_playground_chat_turns.ts';
 
 export const DEFAULT_MIGRATIONS: readonly DefaultMigration[] = [
   { filename: LEGACY_BASELINE_FILENAME, module: legacyBaseline },
@@ -141,4 +143,5 @@ export const DEFAULT_MIGRATIONS: readonly DefaultMigration[] = [
   { filename: CONVERSATION_OWNER_FILENAME, module: conversationOwner },
   { filename: PLAYGROUND_PROJECTS_FILENAME, module: playgroundProjects },
   { filename: PLAYGROUND_MEMORIES_FILENAME, module: playgroundMemories },
+  { filename: PLAYGROUND_CHAT_TURNS_FILENAME, module: playgroundChatTurns },
 ];

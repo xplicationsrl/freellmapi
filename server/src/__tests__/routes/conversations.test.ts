@@ -60,6 +60,7 @@ describe('playground conversations', () => {
   });
 
   beforeEach(() => {
+    getDb().prepare('DELETE FROM playground_chat_turns').run();
     getDb().prepare('DELETE FROM playground_conversations').run();
   });
 
@@ -242,6 +243,7 @@ describe('playground conversations', () => {
         ['GET', '/api/conversations', undefined],
         ['GET', `/api/conversations/${created.id}`, undefined],
         ['POST', '/api/conversations', {}],
+        ['POST', '/api/conversations/recall', { query: 'hi' }],
         ['PUT', `/api/conversations/${created.id}`, { title: 'x' }],
         ['DELETE', `/api/conversations/${created.id}`, undefined],
       ] as const) {
@@ -255,6 +257,96 @@ describe('playground conversations', () => {
     it('the unified /v1 key does not open the conversations API', async () => {
       const { status } = await request(app, 'GET', '/api/conversations', { token: unifiedKey });
       expect(status).toBe(401);
+    });
+  });
+
+  describe('turn index + recall', () => {
+    it('indexes turns on create/update and clears them on delete', async () => {
+      const created = await create({
+        title: 'intro',
+        messages: [
+          { role: 'user', content: 'Ma numesc Bala Alexandru' },
+          { role: 'assistant', content: 'Salut, Bala!' },
+        ],
+      });
+
+      const turns = getDb().prepare(`
+        SELECT role, content, turn_index
+          FROM playground_chat_turns
+         WHERE conversation_id = ?
+         ORDER BY turn_index
+      `).all(created.id) as { role: string; content: string; turn_index: number }[];
+      expect(turns).toEqual([
+        { role: 'user', content: 'Ma numesc Bala Alexandru', turn_index: 0 },
+        { role: 'assistant', content: 'Salut, Bala!', turn_index: 1 },
+      ]);
+
+      await request(app, 'PUT', `/api/conversations/${created.id}`, {
+        token: dashToken,
+        body: {
+          messages: [
+            { role: 'user', content: 'Ma numesc Bala Alexandru' },
+            { role: 'assistant', content: 'Salut, Bala!' },
+            { role: 'user', content: 'Lucrez la Xplication' },
+          ],
+        },
+      });
+
+      const afterPut = getDb().prepare(`
+        SELECT content FROM playground_chat_turns
+         WHERE conversation_id = ?
+         ORDER BY turn_index
+      `).all(created.id) as { content: string }[];
+      expect(afterPut.map(r => r.content)).toEqual([
+        'Ma numesc Bala Alexandru',
+        'Salut, Bala!',
+        'Lucrez la Xplication',
+      ]);
+
+      await request(app, 'DELETE', `/api/conversations/${created.id}`, { token: dashToken });
+      const leftover = getDb().prepare(
+        'SELECT COUNT(*) AS n FROM playground_chat_turns WHERE conversation_id = ?',
+      ).get(created.id) as { n: number };
+      expect(leftover.n).toBe(0);
+    });
+
+    it('recalls a name statement from another chat and excludes the current one', async () => {
+      const named = await create({
+        title: 'Ma numesc Bala Alexandru',
+        messages: [{ role: 'user', content: 'Ma numesc Bala Alexandru' }],
+      });
+      const current = await create({
+        title: 'cum ma cheama?',
+        messages: [{ role: 'user', content: 'cum ma cheama?' }],
+      });
+
+      const recall = await request(app, 'POST', '/api/conversations/recall', {
+        token: dashToken,
+        body: { query: 'cum ma cheama?', excludeConversationId: current.id },
+      });
+
+      expect(recall.status).toBe(200);
+      expect(recall.body.snippets.length).toBeGreaterThan(0);
+      expect(recall.body.snippets[0]).toMatchObject({
+        conversationId: named.id,
+        role: 'user',
+      });
+      expect(recall.body.snippets[0].content).toMatch(/Bala Alexandru/i);
+      expect(recall.body.snippets.every((s: { conversationId: number }) => s.conversationId !== current.id)).toBe(true);
+    });
+
+    it('does not leak another account\'s turns through recall', async () => {
+      await create({
+        title: 'secret',
+        messages: [{ role: 'user', content: 'Ma numesc Secret User' }],
+      });
+      const otherToken = mintDashboardToken(`recall-other-${Date.now()}@example.com`);
+      const otherRecall = await request(app, 'POST', '/api/conversations/recall', {
+        token: otherToken,
+        body: { query: 'cum ma cheama?' },
+      });
+      expect(otherRecall.status).toBe(200);
+      expect(otherRecall.body.snippets).toEqual([]);
     });
   });
 

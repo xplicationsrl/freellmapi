@@ -47,6 +47,7 @@ const SEARCH_ENGINES_FILENAME = '20261013_000001_search_engines.ts';
 const CONVERSATION_OWNER_FILENAME = '20261016_000001_conversation_owner.ts';
 const PLAYGROUND_PROJECTS_FILENAME = '20261019_000001_playground_projects.ts';
 const PLAYGROUND_MEMORIES_FILENAME = '20261019_000002_playground_memories.ts';
+const PLAYGROUND_CHAT_TURNS_FILENAME = '20261019_000003_playground_chat_turns.ts';
 
 interface SchemaRow {
   type: string;
@@ -140,6 +141,7 @@ describe('migration round trip', () => {
         CONVERSATION_OWNER_FILENAME,
         PLAYGROUND_PROJECTS_FILENAME,
         PLAYGROUND_MEMORIES_FILENAME,
+        PLAYGROUND_CHAT_TURNS_FILENAME,
       ]);
     } finally {
       db.close();

@@ -49,6 +49,7 @@ const PURE_MODULES = [
   // Type-only imports today; listed so they stay that way.
   'client-classifier.ts',
   'content.ts',
+  'conversation-recall.ts',
   'think-tags.ts',
 ];
 

@@ -861,7 +861,7 @@
     "send": "送信",
     "sending": "送信中…",
     "clear": "クリア",
-    "inputPlaceholder": "メッセージを入力してください… (送信するには ⏎、改行には ⇧⏎)",
+    "inputPlaceholder": "How may I help?",
     "emptyTitle": "メッセージを送信して始めてください。",
     "emptyDescription": "{model}を使用します。上のセレクターでモデルを切り替えます。",
     "noModels": "まだモデルはありません。 「キー」ページに API キーを追加して、このリストにデータを入力します。",

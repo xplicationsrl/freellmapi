@@ -861,7 +861,7 @@
     "send": "Pošalji",
     "sending": "Šaljem...",
     "clear": "Čisto",
-    "inputPlaceholder": "Napiši poruku... (⏎ za slanje, ⇧⏎ za novu liniju)",
+    "inputPlaceholder": "How may I help?",
     "emptyTitle": "Pošaljite poruku da započnete.",
     "emptyDescription": "Koristeći {model}. Modeli prekidača u selektoru iznad.",
     "noModels": "Još nema modela. Dodajte API ključ na stranicu Ključevi kako biste popunili ovaj popis.",

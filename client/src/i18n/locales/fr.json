@@ -861,7 +861,7 @@
     "send": "Envoyer",
     "sending": "Envoi…",
     "clear": "Effacer",
-    "inputPlaceholder": "Tapez un message… (⏎ pour envoyer, ⇧⏎ pour un retour à la ligne)",
+    "inputPlaceholder": "How may I help?",
     "emptyTitle": "Envoyez un message pour commencer.",
     "emptyDescription": "Utilise {model}. Changez de modèle dans le sélecteur ci-dessus.",
     "noModels": "Aucun modèle pour l'instant. Ajoutez une clé API sur la page Clés pour remplir cette liste.",

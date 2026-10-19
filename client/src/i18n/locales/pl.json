@@ -861,7 +861,7 @@
     "send": "Wyślij",
     "sending": "Wysyłam…",
     "clear": "Jasne",
-    "inputPlaceholder": "Wpisz wiadomość… (⏎, aby wysłać, ⇧⏎, aby przejść do nowej linii)",
+    "inputPlaceholder": "How may I help?",
     "emptyTitle": "Wyślij wiadomość, aby rozpocząć.",
     "emptyDescription": "Używając {model}. Zmień modele w selektorze powyżej.",
     "noModels": "Nie ma jeszcze żadnych modeli. Dodaj klucz API na stronie Klucze, aby wypełnić tę listę.",

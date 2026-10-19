@@ -861,7 +861,7 @@
     "send": "שלח",
     "sending": "שולח...",
     "clear": "נקי",
-    "inputPlaceholder": "הקליד הודעה... (⏎ לשליחה, ⇧⏎ עבור newline)",
+    "inputPlaceholder": "How may I help?",
     "emptyTitle": "שלח הודעה כדי להתחיל.",
     "emptyDescription": "משתמש {model}. דגמי מתג בבורר למעלה.",
     "noModels": "עדיין אין דגמים. הוסף מקש API בדף המפתחות כדי למלא את הרשימה הזו.",

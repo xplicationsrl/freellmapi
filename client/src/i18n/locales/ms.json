@@ -861,7 +861,7 @@
     "send": "Hantar",
     "sending": "Menghantar...",
     "clear": "Clear",
-    "inputPlaceholder": "Taip mesej... (⏎ untuk menghantar, ⇧⏎ untuk newline)",
+    "inputPlaceholder": "How may I help?",
     "emptyTitle": "Hantar mesej untuk bermula.",
     "emptyDescription": "Menggunakan {model}. Tukar model dalam pemilih di atas.",
     "noModels": "Belum ada model lagi. Tambah kekunci API pada halaman Kunci untuk mengisi senarai ini.",

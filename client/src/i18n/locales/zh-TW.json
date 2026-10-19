@@ -861,7 +861,7 @@
     "send": "傳送",
     "sending": "傳送中...",
     "clear": "清空",
-    "inputPlaceholder": "輸入訊息...（Enter 傳送，Shift+Enter 換行）",
+    "inputPlaceholder": "How may I help?",
     "emptyTitle": "傳送訊息即可開始。",
     "emptyDescription": "正在使用 {model}。可在上方選擇器中切換模型。",
     "noModels": "尚無模型。請先在「金鑰」頁面新增 API 金鑰。",

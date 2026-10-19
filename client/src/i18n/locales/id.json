@@ -861,7 +861,7 @@
     "send": "Kirim",
     "sending": "Mengirim…",
     "clear": "Jelas",
-    "inputPlaceholder": "Ketik pesan… (⏎ untuk mengirim, ⇧⏎ untuk baris baru)",
+    "inputPlaceholder": "How may I help?",
     "emptyTitle": "Kirim pesan untuk memulai.",
     "emptyDescription": "Menggunakan {model}. Ganti model di pemilih di atas.",
     "noModels": "Belum ada model. Tambahkan kunci API pada halaman Kunci untuk mengisi daftar ini.",

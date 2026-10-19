@@ -861,7 +861,7 @@
     "send": "أرسل",
     "sending": "جارٍ الإرسال...",
     "clear": "واضح",
-    "inputPlaceholder": "اكتب رسالة... (⏎ للإرسال، ⇧⏎ للخط الجديد)",
+    "inputPlaceholder": "How may I help?",
     "emptyTitle": "أرسل رسالة للبدء.",
     "emptyDescription": "باستخدام {model}. تبديل النماذج في المحدد أعلاه.",
     "noModels": "لا توجد نماذج حتى الآن. أضف مفتاح API في صفحة المفاتيح لملء هذه القائمة.",

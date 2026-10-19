@@ -861,7 +861,7 @@
     "send": "Odesílat",
     "sending": "Posílám...",
     "clear": "Čisté",
-    "inputPlaceholder": "Napiš vzkaz... (⏎ odeslat, ⇧⏎ pro novou linku)",
+    "inputPlaceholder": "How may I help?",
     "emptyTitle": "Pošlete zprávu a začněte.",
     "emptyDescription": "Používám {model}. Modely spínačů v seznamu výše.",
     "noModels": "Modely zatím nejsou. Přidejte API klíč na stránku Klíče, aby se tento seznam vyplnil.",

@@ -861,7 +861,7 @@
     "send": "Send",
     "sending": "Sender...",
     "clear": "Klart",
-    "inputPlaceholder": "Skriv en melding... (⏎ for å sende, ⇧⏎ for nylinje)",
+    "inputPlaceholder": "How may I help?",
     "emptyTitle": "Send en melding for å komme i gang.",
     "emptyDescription": "Å bruke {model}. Bytt modell i velgeren over.",
     "noModels": "Ingen modeller ennå. Legg til en API-tast på Nøkler-siden for å fylle ut denne listen.",

@@ -861,7 +861,7 @@
     "send": "Verzenden",
     "sending": "Zend...",
     "clear": "Vrij",
-    "inputPlaceholder": "Typ een bericht... (⏎ om te verzenden, ⇧⏎ voor nieuwe regel)",
+    "inputPlaceholder": "How may I help?",
     "emptyTitle": "Stuur een bericht om te beginnen.",
     "emptyDescription": "Met {model}. Wissel modellen in de selector hierboven.",
     "noModels": "Nog geen modellen. Voeg een API-sleutel toe op de pagina Sleutels om deze lijst te vullen.",

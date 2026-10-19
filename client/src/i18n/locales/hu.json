@@ -861,7 +861,7 @@
     "send": "Elküldöm",
     "sending": "Küldve...",
     "clear": "Tiszta",
-    "inputPlaceholder": "Írj egy üzenetet... (⏎ küldéshez, ⇧⏎ az új vonalhoz)",
+    "inputPlaceholder": "How may I help?",
     "emptyTitle": "Küldj üzenetet, hogy elkezdjék.",
     "emptyDescription": "Használva {model}. A fenti választóban cserélj modelleket.",
     "noModels": "Még nincsenek modellek. Adj hozzá egy API kulcsot a Kulcsok oldalra, hogy feltöltsd ezt a listát.",

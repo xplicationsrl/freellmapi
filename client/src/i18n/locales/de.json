@@ -861,7 +861,7 @@
     "send": "Senden",
     "sending": "Senden…",
     "clear": "Klar",
-    "inputPlaceholder": "Geben Sie eine Nachricht ein… (⏎ zum Senden, ⇧⏎ für Zeilenumbruch)",
+    "inputPlaceholder": "How may I help?",
     "emptyTitle": "Senden Sie eine Nachricht, um loszulegen.",
     "emptyDescription": "Mit {model}. Wechseln Sie die Modelle in der Auswahl oben.",
     "noModels": "Noch keine Modelle. Fügen Sie auf der Seite „Schlüssel“ einen API-Schlüssel hinzu, um diese Liste zu füllen.",

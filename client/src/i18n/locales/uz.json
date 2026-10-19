@@ -861,7 +861,7 @@
     "send": "Yuborish",
     "sending": "Yuborilmoqda…",
     "clear": "Tozalash",
-    "inputPlaceholder": "Xabar yozing… (⏎ yuborish uchun, ⇧⏎ yangi qator uchun)",
+    "inputPlaceholder": "How may I help?",
     "emptyTitle": "Boshlash uchun xabar yuboring.",
     "emptyDescription": "{model} dan foydalanish. Yuqoridagi selektorda modellarni almashtiring.",
     "noModels": "Hozircha modellar yoʻq. Ushbu roʻyxatni toʻldirish uchun kalitlar sahifasiga API kalitini qoʻshing.",

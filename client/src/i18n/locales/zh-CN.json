@@ -861,7 +861,7 @@
     "send": "发送",
     "sending": "发送中…",
     "clear": "清空",
-    "inputPlaceholder": "输入消息…（回车发送，Shift+回车换行）",
+    "inputPlaceholder": "How may I help?",
     "emptyTitle": "发送消息即可开始。",
     "emptyDescription": "正在使用 {model}。可在上方选择器中切换模型。",
     "noModels": "暂无模型。请先在「密钥」页面添加 API 密钥。",

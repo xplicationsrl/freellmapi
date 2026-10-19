@@ -861,7 +861,7 @@
     "send": "Lähetä",
     "sending": "Lähetetään...",
     "clear": "Selvä",
-    "inputPlaceholder": "Kirjoita viesti... (⏎ lähettääkseen, ⇧⏎ uudelle linjalle)",
+    "inputPlaceholder": "How may I help?",
     "emptyTitle": "Lähetä viesti aloittaaksesi.",
     "emptyDescription": "Käyttäen {model}. Vaihda malleja yllä olevassa valitsimessa.",
     "noModels": "Ei vielä malleja. Lisää API-avain Avain-sivulle täyttääksesi tämän listan.",

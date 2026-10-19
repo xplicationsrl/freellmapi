@@ -861,7 +861,7 @@
     "send": "보내기",
     "sending": "보내는 중…",
     "clear": "지우기",
-    "inputPlaceholder": "메시지를 입력하세요… (보내려면 ⏎, 개행에는 ⇧⏎)",
+    "inputPlaceholder": "How may I help?",
     "emptyTitle": "시작하려면 메시지를 보내세요.",
     "emptyDescription": "{model}를 사용합니다. 위 선택기에서 모델을 전환하세요.",
     "noModels": "아직 모델이 없습니다. 이 목록을 채우려면 키 페이지에 API 키를 추가하세요.",

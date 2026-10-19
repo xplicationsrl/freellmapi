@@ -861,7 +861,7 @@
     "send": "Send",
     "sending": "Sender...",
     "clear": "Klart",
-    "inputPlaceholder": "Skriv en besked... (⏎ for at sende, ⇧⏎ for nyhedslinje)",
+    "inputPlaceholder": "How may I help?",
     "emptyTitle": "Send en besked for at komme i gang.",
     "emptyDescription": "Bruger {model}. Skift modeller i vælgeren ovenfor.",
     "noModels": "Ingen modeller endnu. Tilføj en API-nøgle på siden Nøgler for at udfylde denne liste.",

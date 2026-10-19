@@ -861,7 +861,7 @@
     "send": "Trimite",
     "sending": "Trimiți...",
     "clear": "Clar",
-    "inputPlaceholder": "Scrie un mesaj... (⏎ pentru a trimite, ⇧⏎ pentru noua linie)",
+    "inputPlaceholder": "How may I help?",
     "emptyTitle": "Trimite un mesaj pentru a începe.",
     "emptyDescription": "Folosind {model}. Schimbă modelele din selectorul de mai sus.",
     "noModels": "Încă nu există modele. Adaugă o cheie API pe pagina Chei pentru a completa această listă.",

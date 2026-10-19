@@ -861,7 +861,7 @@
     "send": "Ipadala",
     "sending": "Nagpapadala...",
     "clear": "Clear",
-    "inputPlaceholder": "Mag-type ng mensahe... (⏎ para ipadala, ⇧⏎ para sa newline)",
+    "inputPlaceholder": "How may I help?",
     "emptyTitle": "Magpadala ng mensahe upang makapagsimula.",
     "emptyDescription": "Gamit ang {model}. Magpalit ng modelo sa selector sa itaas.",
     "noModels": "Wala pang modelo. Magdagdag ng API key sa pahina ng Keys upang punan ang listahang ito.",

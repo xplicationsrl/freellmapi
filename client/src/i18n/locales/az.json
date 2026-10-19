@@ -861,7 +861,7 @@
     "send": "Göndər",
     "sending": "Göndərirəm...",
     "clear": "Təmiz",
-    "inputPlaceholder": "Mesaj yaz... (⏎ göndərmək üçün, ⇧⏎ yeni xətt üçün)",
+    "inputPlaceholder": "How may I help?",
     "emptyTitle": "Başlamaq üçün mesaj göndərin.",
     "emptyDescription": "Using {model}. Yuxarıdakı seçicidə modelləri dəyişin.",
     "noModels": "Hələ model yoxdur. Bu siyahını doldurmaq üçün Keys səhifəsində API açarı əlavə edin.",

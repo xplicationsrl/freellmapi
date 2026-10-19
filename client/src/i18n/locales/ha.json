@@ -861,7 +861,7 @@
     "send": "Aika",
     "sending": "Ana aikawa…",
     "clear": "Share",
-    "inputPlaceholder": "Buga saƙo… (⏎ don aikawa, ⇧⏎ don sabon layi)",
+    "inputPlaceholder": "How may I help?",
     "emptyTitle": "Aika sako don farawa.",
     "emptyDescription": "Yin amfani da {model}. Canja samfura a cikin mai zaɓe a sama.",
     "noModels": "Babu samfura tukuna. Ƙara maɓallin API akan shafin Maɓallai don cika wannan jerin.",

@@ -861,7 +861,7 @@
     "send": "Gönder",
     "sending": "Gönderiliyor…",
     "clear": "Temizle",
-    "inputPlaceholder": "Bir mesaj yazın… (⏎ göndermek için, ⇧⏎ yeni satır için)",
+    "inputPlaceholder": "How may I help?",
     "emptyTitle": "Başlamak için bir mesaj gönderin.",
     "emptyDescription": "{model} kullanılıyor. Yukarıdaki seçiciden modeli değiştirebilirsiniz.",
     "noModels": "Henüz model yok. Bu listeyi doldurmak için Anahtarlar sayfasına bir API anahtarı ekleyin.",

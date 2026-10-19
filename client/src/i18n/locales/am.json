@@ -861,7 +861,7 @@
     "send": "ላክ",
     "sending": "በመላክ ላይ...",
     "clear": "አጽዳ",
-    "inputPlaceholder": "መልእክት ይተይቡ... (⏎ ለመላክ፣ ⇧⏎ ለአዲስ መስመር)",
+    "inputPlaceholder": "How may I help?",
     "emptyTitle": "ለመጀመር መልእክት ይላኩ።",
     "emptyDescription": "{model} በመጠቀም። ከላይ ባለው መራጭ ውስጥ ሞዴሎችን ይቀይሩ.",
     "noModels": "እስካሁን ምንም ሞዴሎች የሉም. ይህንን ዝርዝር ለመሙላት በቁልፎች ገጽ ላይ API ቁልፍ ያክሉ።",

@@ -7,6 +7,7 @@ import { FieldError } from '@/components/ui/field-error'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { isEmail } from '@/lib/validate'
+import { APP_NAME } from '@/components/app-nav'
 import { useI18n } from '@/i18n'
 import { toast } from '@/lib/toast'
 
@@ -135,7 +136,7 @@ function AuthForm({ mode, onAuthed }: { mode: 'setup' | 'login'; onAuthed: () =>
           className="size-5 object-contain"
           draggable={false}
         />
-        <span className="font-semibold tracking-tight text-sm">Xplication</span>
+        <span className="font-semibold tracking-tight text-sm">{APP_NAME}</span>
       </div>
       <div className="rounded-3xl border bg-card p-6">
         <h1 className="text-lg font-semibold tracking-tight">{isSetup ? t('auth.createYourAccount') : t('auth.signIn')}</h1>
@@ -285,7 +286,7 @@ function ForgotPasswordForm({ onBack, onAuthed }: { onBack: () => void; onAuthed
           className="size-5 object-contain"
           draggable={false}
         />
-        <span className="font-semibold tracking-tight text-sm">Xplication</span>
+        <span className="font-semibold tracking-tight text-sm">{APP_NAME}</span>
       </div>
       <div className="rounded-3xl border bg-card p-6">
         <h1 className="text-base font-medium">{t('auth.forgotPassword')}</h1>

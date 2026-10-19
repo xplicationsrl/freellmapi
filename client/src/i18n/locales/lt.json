@@ -861,7 +861,7 @@
     "send": "Siųsti",
     "sending": "Siunčiu...",
     "clear": "Aišku",
-    "inputPlaceholder": "Parašyk žinutę... (⏎ siųsti, ⇧⏎ naujai linijai)",
+    "inputPlaceholder": "How may I help?",
     "emptyTitle": "Parašykite žinutę, kad pradėtumėte.",
     "emptyDescription": "Naudojant {model}. Perjunkite modelius aukščiau esančiame selektoriuje.",
     "noModels": "Modelių dar nėra. Pridėkite API raktą Raktų puslapyje, kad užpildytumėte šį sąrašą.",

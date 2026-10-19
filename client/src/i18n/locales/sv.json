@@ -861,7 +861,7 @@
     "send": "Skicka",
     "sending": "Skickar...",
     "clear": "Klart",
-    "inputPlaceholder": "Skriv ett meddelande... (⏎ för att skicka, ⇧⏎ för nyrad)",
+    "inputPlaceholder": "How may I help?",
     "emptyTitle": "Skicka ett meddelande för att komma igång.",
     "emptyDescription": "Att använda {model}. Byt modeller i väljaren ovan.",
     "noModels": "Inga modeller än. Lägg till en API nyckel på sidan Keys för att fylla i denna lista.",

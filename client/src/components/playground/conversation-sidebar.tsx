@@ -27,7 +27,8 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { AppNavFooter, isDesktopApp, navItems, navMenus } from '@/components/app-nav'
+import { AppNavFooter, APP_NAME, isDesktopApp, navItems, navMenus } from '@/components/app-nav'
+import { Tooltip } from '@/components/tooltip'
 import type { ConversationSummary, Project } from '@/lib/playground-conversations'
 import {
   readCollapsedProjectIds,
@@ -44,7 +45,6 @@ import { useI18n } from '@/i18n'
 const LAYER =
   'absolute inset-y-0 start-0 flex flex-col transition-[opacity,visibility] duration-200 ease-out motion-reduce:transition-none'
 
-const LOGO_FULL = `${import.meta.env.BASE_URL}brand/xplication-logo.png`
 const LOGO_ICON = `${import.meta.env.BASE_URL}brand/xplication-icon.png`
 
 const navBtn =
@@ -206,9 +206,13 @@ export function ConversationSidebar({
     setQuery('')
   }
 
-  // Gemini-style: search only opens. A second click on the icon never closes it
-  // (Escape / closing the rail still clears it).
-  const openSearch = () => {
+  // Search toggles: first click opens (and expands the rail if needed),
+  // second click closes. Escape / collapsing the rail still clears it.
+  const toggleSearch = () => {
+    if (searching) {
+      stopSearching()
+      return
+    }
     setSearching(true)
     if (!open) onToggle()
   }
@@ -325,114 +329,121 @@ export function ConversationSidebar({
         }`}
       >
         <div className="flex flex-col items-center gap-1">
-          <button
-            type="button"
-            onClick={onToggle}
-            className={`${iconBtn} group relative`}
-            aria-label={t('playgroundSessions.showSidebar')}
-            title={t('playgroundSessions.showSidebar')}
-          >
-            <img
-              src={LOGO_ICON}
-              alt=""
-              className="size-7 object-contain transition-opacity group-hover:opacity-0 group-focus-visible:opacity-0"
-              draggable={false}
-            />
-            <PanelLeft className="absolute size-4 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100" />
-          </button>
-          <button
-            type="button"
-            onClick={onNew}
-            className={iconBtn}
-            aria-label={t('playgroundSessions.newChat')}
-            title={t('playgroundSessions.newChat')}
-          >
-            <SquarePen className="size-4" />
-          </button>
-          <button
-            type="button"
-            onClick={openSearch}
-            className={iconBtn}
-            aria-label={t('playgroundSessions.searchChats')}
-            title={t('playgroundSessions.searchChats')}
-          >
-            <Search className="size-4" />
-          </button>
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              className={iconBtn}
-              aria-label={t('nav.openMenu')}
-              title={t('nav.openMenu')}
+          <Tooltip text={t('playgroundSessions.showSidebar')} side="right">
+            <button
+              type="button"
+              onClick={onToggle}
+              className={`${iconBtn} group relative`}
+              aria-label={t('playgroundSessions.showSidebar')}
             >
-              <LayoutGrid className="size-4" />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent side="right" align="start" className="w-48">
-              {navItems.map((item) => {
-                const menu = navMenus[item.to]
-                if (menu) {
+              <img
+                src={LOGO_ICON}
+                alt=""
+                className="size-7 object-contain transition-opacity group-hover:opacity-0 group-focus-visible:opacity-0"
+                draggable={false}
+              />
+              <PanelLeft className="absolute size-4 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100" />
+            </button>
+          </Tooltip>
+          <Tooltip text={t('playgroundSessions.newChat')} side="right">
+            <button
+              type="button"
+              onClick={onNew}
+              className={iconBtn}
+              aria-label={t('playgroundSessions.newChat')}
+            >
+              <SquarePen className="size-4" />
+            </button>
+          </Tooltip>
+          <Tooltip text={t('playgroundSessions.searchChats')} side="right">
+            <button
+              type="button"
+              onClick={toggleSearch}
+              className={iconBtn}
+              aria-label={t('playgroundSessions.searchChats')}
+            >
+              <Search className="size-4" />
+            </button>
+          </Tooltip>
+          <Tooltip text={t('nav.openMenu')} side="right">
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                className={iconBtn}
+                aria-label={t('nav.openMenu')}
+              >
+                <LayoutGrid className="size-4" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent side="right" align="start" className="w-48">
+                {navItems.map((item) => {
+                  const menu = navMenus[item.to]
+                  if (menu) {
+                    return (
+                      <DropdownMenuSub key={item.to}>
+                        <DropdownMenuSubTrigger>
+                          {t(item.labelKey)}
+                        </DropdownMenuSubTrigger>
+                        <DropdownMenuSubContent className="w-48">
+                          {menu.items.map((entry) => (
+                            <DropdownMenuItem
+                              key={entry.to}
+                              onClick={() => navigate(entry.to)}
+                            >
+                              {t(entry.labelKey)}
+                            </DropdownMenuItem>
+                          ))}
+                        </DropdownMenuSubContent>
+                      </DropdownMenuSub>
+                    )
+                  }
                   return (
-                    <DropdownMenuSub key={item.to}>
-                      <DropdownMenuSubTrigger>
-                        {t(item.labelKey)}
-                      </DropdownMenuSubTrigger>
-                      <DropdownMenuSubContent className="w-48">
-                        {menu.items.map((entry) => (
-                          <DropdownMenuItem
-                            key={entry.to}
-                            onClick={() => navigate(entry.to)}
-                          >
-                            {t(entry.labelKey)}
-                          </DropdownMenuItem>
-                        ))}
-                      </DropdownMenuSubContent>
-                    </DropdownMenuSub>
+                    <DropdownMenuItem
+                      key={item.to}
+                      onClick={() => navigate(item.to)}
+                      className={location.pathname === item.to ? 'bg-muted' : undefined}
+                    >
+                      {t(item.labelKey)}
+                    </DropdownMenuItem>
                   )
-                }
-                return (
-                  <DropdownMenuItem
-                    key={item.to}
-                    onClick={() => navigate(item.to)}
-                    className={location.pathname === item.to ? 'bg-muted' : undefined}
-                  >
-                    {t(item.labelKey)}
-                  </DropdownMenuItem>
-                )
-              })}
-            </DropdownMenuContent>
-          </DropdownMenu>
-          <button
-            type="button"
-            onClick={openRail}
-            className={iconBtn}
-            aria-label={t('playgroundSessions.allChats')}
-            title={t('playgroundSessions.allChats')}
-          >
-            <History className="size-4" />
-          </button>
+                })}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </Tooltip>
+          <Tooltip text={t('playgroundSessions.allChats')} side="right">
+            <button
+              type="button"
+              onClick={openRail}
+              className={iconBtn}
+              aria-label={t('playgroundSessions.allChats')}
+            >
+              <History className="size-4" />
+            </button>
+          </Tooltip>
         </div>
 
         <div className="min-h-0 flex-1" />
 
         <div className="flex flex-col items-center gap-1">
-          <button
-            type="button"
-            onClick={onOpenSettings}
-            className={iconBtn}
-            aria-label={t('nav.settings')}
-            title={t('nav.settings')}
-          >
-            <Settings className="size-4" />
-          </button>
-          {!isDesktopApp && (
+          <Tooltip text={t('nav.settings')} side="right">
             <button
               type="button"
-              onClick={() => logout()}
+              onClick={onOpenSettings}
               className={iconBtn}
-              aria-label={t('nav.signOut')}
-              title={t('nav.signOut')}
+              aria-label={t('nav.settings')}
             >
-              <LogOut className="size-4" />
+              <Settings className="size-4" />
             </button>
+          </Tooltip>
+          {!isDesktopApp && (
+            <Tooltip text={t('nav.signOut')} side="right">
+              <button
+                type="button"
+                onClick={() => logout()}
+                className={iconBtn}
+                aria-label={t('nav.signOut')}
+              >
+                <LogOut className="size-4" />
+              </button>
+            </Tooltip>
           )}
         </div>
       </div>
@@ -444,19 +455,20 @@ export function ConversationSidebar({
         <div className="flex shrink-0 items-center gap-1 px-3 pt-3 pb-1">
           <Link
             to="/playground"
-            className="min-w-0 flex-1 rounded-lg px-1 py-1 transition-opacity hover:opacity-80"
-            aria-label="Xplication"
+            className="flex min-w-0 flex-1 items-center gap-2 rounded-lg px-1 py-1 transition-opacity hover:opacity-80"
+            aria-label={APP_NAME}
           >
             <img
-              src={LOGO_FULL}
-              alt="Xplication"
-              className="h-8 w-auto max-w-full object-contain object-left brightness-0 dark:brightness-100"
+              src={LOGO_ICON}
+              alt=""
+              className="size-7 shrink-0 object-contain"
               draggable={false}
             />
+            <span className="truncate text-sm font-semibold tracking-tight">{APP_NAME}</span>
           </Link>
           <button
             type="button"
-            onClick={openSearch}
+            onClick={toggleSearch}
             className={iconBtn}
             aria-label={t('playgroundSessions.searchChats')}
             title={t('playgroundSessions.searchChats')}

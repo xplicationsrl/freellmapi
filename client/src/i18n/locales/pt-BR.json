@@ -861,7 +861,7 @@
     "send": "Enviar",
     "sending": "Enviando…",
     "clear": "Limpar",
-    "inputPlaceholder": "Digite uma mensagem… (⏎ para enviar, ⇧⏎ para nova linha)",
+    "inputPlaceholder": "How may I help?",
     "emptyTitle": "Envie uma mensagem para começar.",
     "emptyDescription": "Usando {model}. Troque de modelo no seletor acima.",
     "noModels": "Ainda não há modelos. Adicione uma chave de API na página Chaves para preencher esta lista.",

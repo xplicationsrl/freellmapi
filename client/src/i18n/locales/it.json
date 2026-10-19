@@ -861,7 +861,7 @@
     "send": "Invia",
     "sending": "Invio…",
     "clear": "Cancella",
-    "inputPlaceholder": "Scrivi un messaggio… (⏎ per inviare, ⇧⏎ per nuova riga)",
+    "inputPlaceholder": "How may I help?",
     "emptyTitle": "Invia un messaggio per iniziare.",
     "emptyDescription": "Utilizzando {model}. Cambia modello nel selettore sopra.",
     "noModels": "Nessun modello ancora. Aggiungi una chiave API nella pagina Chiavi per popolare questa lista.",

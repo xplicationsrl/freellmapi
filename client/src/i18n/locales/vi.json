@@ -861,7 +861,7 @@
     "send": "Gửi",
     "sending": "Đang gửi…",
     "clear": "Xóa",
-    "inputPlaceholder": "Nhập tin nhắn… (⏎ để gửi, ⇧⏎ cho dòng mới)",
+    "inputPlaceholder": "How may I help?",
     "emptyTitle": "Gửi tin nhắn để bắt đầu.",
     "emptyDescription": "Sử dụng {model}. Chuyển đổi mô hình trong bộ chọn ở trên.",
     "noModels": "Chưa có mô hình nào. Thêm khóa API trên trang Khóa để điền danh sách này.",

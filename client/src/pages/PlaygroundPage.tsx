@@ -1297,7 +1297,7 @@ export default function PlaygroundPage() {
         </div>
 
         <div
-          className={`mx-auto w-full max-w-3xl px-6 pb-4 pt-1 transition-colors ${dragging ? 'rounded-2xl bg-primary/5 ring-1 ring-inset ring-primary/40' : ''}`}
+          className={`w-full px-2 pb-4 pt-1 transition-colors sm:mx-auto sm:max-w-3xl sm:px-6 ${dragging ? 'rounded-2xl bg-primary/5 ring-1 ring-inset ring-primary/40' : ''}`}
           onDragOver={e => { e.preventDefault(); setDragging(true) }}
           onDragLeave={e => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragging(false) }}
           onDrop={e => {

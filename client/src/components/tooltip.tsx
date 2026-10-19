@@ -8,7 +8,7 @@ import { createPortal } from 'react-dom'
 export function Tooltip({ text, children, side = 'top', className }: {
   text: string
   children: ReactNode
-  side?: 'top' | 'bottom'
+  side?: 'top' | 'bottom' | 'left' | 'right'
   className?: string
 }) {
   const ref = useRef<HTMLSpanElement>(null)
@@ -18,6 +18,13 @@ export function Tooltip({ text, children, side = 'top', className }: {
     const el = ref.current
     if (!el) return
     const r = el.getBoundingClientRect()
+    if (side === 'right' || side === 'left') {
+      setCoords({
+        x: side === 'right' ? r.right + 8 : r.left - 8,
+        y: r.top + r.height / 2,
+      })
+      return
+    }
     const half = 116 // ~half of the w-56 tooltip
     const x = Math.min(Math.max(r.left + r.width / 2, half + 8), window.innerWidth - half - 8)
     setCoords({ x, y: side === 'top' ? r.top : r.bottom })
@@ -76,11 +83,19 @@ export function Tooltip({ text, children, side = 'top', className }: {
           style={{
             position: 'fixed',
             left: coords.x,
-            top: side === 'top' ? coords.y - 8 : coords.y + 8,
-            transform: side === 'top' ? 'translate(-50%, -100%)' : 'translate(-50%, 0)',
+            top: side === 'left' || side === 'right'
+              ? coords.y
+              : side === 'top' ? coords.y - 8 : coords.y + 8,
+            transform: side === 'right'
+              ? 'translate(0, -50%)'
+              : side === 'left'
+                ? 'translate(-100%, -50%)'
+                : side === 'top' ? 'translate(-50%, -100%)' : 'translate(-50%, 0)',
             zIndex: 9999,
           }}
-          className="pointer-events-none w-56 rounded-lg bg-foreground px-2.5 py-1.5 text-xs leading-snug text-background shadow-md whitespace-pre-line"
+          className={`pointer-events-none rounded-lg bg-foreground px-2.5 py-1.5 text-xs leading-snug text-background shadow-md whitespace-pre-line ${
+            side === 'left' || side === 'right' ? 'w-max max-w-56' : 'w-56'
+          }`}
         >
           {text}
         </span>,

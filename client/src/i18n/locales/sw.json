@@ -861,7 +861,7 @@
     "send": "Tuma",
     "sending": "Inatuma...",
     "clear": "Wazi",
-    "inputPlaceholder": "Andika ujumbe… (⏎ kutuma, ⇧⏎ kwa laini mpya)",
+    "inputPlaceholder": "How may I help?",
     "emptyTitle": "Tuma ujumbe ili kuanza.",
     "emptyDescription": "Kwa kutumia {model}. Badili miundo katika kiteuzi hapo juu.",
     "noModels": "Hakuna mifano bado. Ongeza kitufe cha API kwenye ukurasa wa Vifunguo ili kujaza orodha hii.",

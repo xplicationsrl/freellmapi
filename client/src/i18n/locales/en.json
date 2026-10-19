@@ -899,7 +899,7 @@
     "send": "Send",
     "sending": "Sending…",
     "clear": "Clear",
-    "inputPlaceholder": "Type a message… (⏎ to send, ⇧⏎ for newline)",
+    "inputPlaceholder": "How may I help?",
     "emptyTitle": "Send a message to get started.",
     "emptyDescription": "Using {model}. Switch models in the selector above.",
     "noModels": "No models yet. Add an API key on the Keys page to populate this list.",

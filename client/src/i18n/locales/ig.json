@@ -861,7 +861,7 @@
     "send": "Ziga",
     "sending": "Na-eziga…",
     "clear": "Kpochapụ",
-    "inputPlaceholder": "Pịnye ozi… (⏎ izipu, ⇧⏎ maka ahịrị ọhụrụ)",
+    "inputPlaceholder": "How may I help?",
     "emptyTitle": "Zipụ ozi ka ịmalite.",
     "emptyDescription": "Iji {model}. Gbanwee ụdị na nhọpụta dị n'elu.",
     "noModels": "Ọnweghị ụdịdị. Tinye igodo API na ibe igodo iji mejupụta ndepụta a.",

@@ -57,8 +57,12 @@ import {
   createConversation,
   deleteConversation,
   getConversation,
+  createProject,
+  deleteProject,
   listConversations,
+  listProjects,
   readActiveConversationId,
+  renameProject,
   toStoredMessages,
   updateConversation,
   writeActiveConversationId,
@@ -66,6 +70,7 @@ import {
   type WebSearchMeta,
   type ConversationSummary,
   type FusionPanelEntry,
+  type Project,
 } from '@/lib/playground-conversations'
 import { useI18n } from '@/i18n'
 
@@ -309,8 +314,15 @@ export default function PlaygroundPage() {
     queryKey: ['playground-conversations'],
     queryFn: listConversations,
   })
+  const { data: projects = [] } = useQuery<Project[]>({
+    queryKey: ['playground-projects'],
+    queryFn: listProjects,
+  })
   const refreshConversations = () => {
     queryClient.invalidateQueries({ queryKey: ['playground-conversations'] })
+  }
+  const refreshProjects = () => {
+    queryClient.invalidateQueries({ queryKey: ['playground-projects'] })
   }
 
   const { data: keyData } = useQuery<{ apiKey: string }>({
@@ -625,6 +637,47 @@ export default function PlaygroundPage() {
       .catch(err => {
         console.error('[playground] could not delete the conversation', err)
         toast.error(t('playgroundSessions.deleteFailed'))
+      })
+  }
+
+  const handleCreateProject = (name: string) => {
+    createProject(name)
+      .then(() => refreshProjects())
+      .catch(err => {
+        console.error('[playground] could not create the project', err)
+        toast.error(t('playgroundSessions.projectCreateFailed'))
+      })
+  }
+
+  const handleRenameProject = (id: number, name: string) => {
+    renameProject(id, name)
+      .then(() => refreshProjects())
+      .catch(err => {
+        console.error('[playground] could not rename the project', err)
+        toast.error(t('playgroundSessions.projectRenameFailed'))
+      })
+  }
+
+  const handleDeleteProject = (id: number) => {
+    deleteProject(id)
+      .then(() => {
+        refreshProjects()
+        // Chats are unassigned by the server (ON DELETE SET NULL); refresh
+        // so they reappear under the flat list.
+        refreshConversations()
+      })
+      .catch(err => {
+        console.error('[playground] could not delete the project', err)
+        toast.error(t('playgroundSessions.projectDeleteFailed'))
+      })
+  }
+
+  const handleMoveConversation = (id: number, projectId: number | null) => {
+    updateConversation(id, { projectId })
+      .then(() => refreshConversations())
+      .catch(err => {
+        console.error('[playground] could not move the conversation', err)
+        toast.error(t('playgroundSessions.moveFailed'))
       })
   }
 
@@ -1052,6 +1105,7 @@ export default function PlaygroundPage() {
     <div className="flex min-h-0 flex-1 overflow-hidden [&_svg]:stroke-[1.5]">
       <ConversationSidebar
         conversations={conversations}
+        projects={projects}
         activeId={conversationId}
         open={sidebarOpen}
         onToggle={toggleSidebar}
@@ -1059,6 +1113,10 @@ export default function PlaygroundPage() {
         onSelect={handleSelectConversation}
         onRename={handleRenameConversation}
         onDelete={handleDeleteConversation}
+        onCreateProject={handleCreateProject}
+        onRenameProject={handleRenameProject}
+        onDeleteProject={handleDeleteProject}
+        onMoveConversation={handleMoveConversation}
       />
 
       <div className="flex min-w-0 flex-1 flex-col">

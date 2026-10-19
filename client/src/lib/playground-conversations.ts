@@ -68,6 +68,7 @@ export interface ConversationSummary {
   id: number
   title: string
   model: string | null
+  projectId: number | null
   messageCount: number
   createdAt: number
   updatedAt: number
@@ -84,12 +85,23 @@ export interface ConversationPatch {
   messages?: ChatMessage[]
   model?: string | null
   systemPrompt?: string | null
+  projectId?: number | null
+}
+
+/** Named folder in the Playground sidebar that groups conversations. */
+export interface Project {
+  id: number
+  name: string
+  createdAt: number
+  updatedAt: number
 }
 
 /** localStorage key holding the conversation the Playground had open. */
 export const ACTIVE_CONVERSATION_KEY = 'playground.conversationId'
 /** localStorage key holding whether the conversation sidebar is expanded. */
 export const SIDEBAR_OPEN_KEY = 'playground.sidebarOpen'
+/** localStorage key holding which project folders the sidebar left collapsed. */
+export const PROJECTS_COLLAPSED_KEY = 'playground.projectsCollapsed'
 
 /** Roughly a sidebar row's worth of text. */
 export const AUTO_TITLE_MAX = 40
@@ -200,4 +212,47 @@ export function updateConversation(id: number, patch: ConversationPatch): Promis
 
 export function deleteConversation(id: number): Promise<{ success: boolean }> {
   return apiFetch<{ success: boolean }>(`/api/conversations/${id}`, { method: 'DELETE' })
+}
+
+export function listProjects(): Promise<Project[]> {
+  return apiFetch<Project[]>('/api/projects')
+}
+
+export function createProject(name: string): Promise<Project> {
+  return apiFetch<Project>('/api/projects', {
+    method: 'POST',
+    body: JSON.stringify({ name }),
+  })
+}
+
+export function renameProject(id: number, name: string): Promise<Project> {
+  return apiFetch<Project>(`/api/projects/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify({ name }),
+  })
+}
+
+export function deleteProject(id: number): Promise<{ success: boolean }> {
+  return apiFetch<{ success: boolean }>(`/api/projects/${id}`, { method: 'DELETE' })
+}
+
+/** Project folders the sidebar last left collapsed. Missing ids stay open. */
+export function readCollapsedProjectIds(): Set<number> {
+  try {
+    const raw = localStorage.getItem(PROJECTS_COLLAPSED_KEY)
+    if (!raw) return new Set()
+    const parsed = JSON.parse(raw)
+    if (!Array.isArray(parsed)) return new Set()
+    return new Set(parsed.filter((id): id is number => Number.isInteger(id) && id > 0))
+  } catch {
+    return new Set()
+  }
+}
+
+export function writeCollapsedProjectIds(ids: Set<number>): void {
+  try {
+    localStorage.setItem(PROJECTS_COLLAPSED_KEY, JSON.stringify([...ids]))
+  } catch {
+    // Private-mode / quota failures are not worth breaking a chat over.
+  }
 }

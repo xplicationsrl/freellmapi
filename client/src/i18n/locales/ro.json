@@ -930,7 +930,21 @@
     "searchChats": "Caută chat-uri",
     "searchPlaceholder": "Caută chat-uri…",
     "searchEmpty": "Niciun chat nu se potrivește.",
-    "allChats": "Toate"
+    "allChats": "Chat-uri",
+    "projects": "Proiecte",
+    "newProject": "Proiect nou",
+    "projectNamePlaceholder": "Numele proiectului",
+    "renameProject": "Redenumește proiectul",
+    "deleteProject": "Șterge proiectul",
+    "deleteProjectConfirm": "Ștergi proiectul?",
+    "moveToProject": "Mută în proiect",
+    "removeFromProject": "Scoate din proiect",
+    "noProject": "Fără proiect",
+    "emptyProject": "Niciun chat în acest proiect.",
+    "projectCreateFailed": "Nu s-a putut crea acel proiect.",
+    "projectRenameFailed": "Nu s-a putut redenumi acel proiect.",
+    "projectDeleteFailed": "Nu s-a putut șterge acel proiect.",
+    "moveFailed": "Nu s-a putut muta acel chat."
   },
   "embeddings": {
     "title": "Modele",

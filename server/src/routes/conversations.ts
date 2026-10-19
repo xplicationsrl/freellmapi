@@ -72,11 +72,16 @@ const messagesSchema = z.array(messageSchema);
 const modelSchema = z.string().max(200).nullable();
 const systemPromptSchema = z.string().max(32_000).nullable();
 
+// Nullable project folder id. null clears membership; omitted on PUT keeps
+// the stored value. The id must belong to the same account (checked below).
+const projectIdSchema = z.number().int().positive().nullable();
+
 const createSchema = z.object({
   title: z.string().max(MAX_TITLE_LEN).optional(),
   messages: messagesSchema.optional(),
   model: modelSchema.optional(),
   systemPrompt: systemPromptSchema.optional(),
+  projectId: projectIdSchema.optional(),
 }).strict();
 
 // PUT is a full upsert of the mutable state: every field the page owns, written
@@ -87,6 +92,7 @@ const updateSchema = z.object({
   messages: messagesSchema.optional(),
   model: modelSchema.optional(),
   systemPrompt: systemPromptSchema.optional(),
+  projectId: projectIdSchema.optional(),
 }).strict();
 
 interface ConversationRow {
@@ -95,6 +101,7 @@ interface ConversationRow {
   messages_json: string;
   model: string | null;
   system_prompt: string | null;
+  project_id: number | null;
   created_at_ms: number;
   updated_at_ms: number;
 }
@@ -103,6 +110,7 @@ interface SummaryRow {
   id: number;
   title: string;
   model: string | null;
+  project_id: number | null;
   message_count: number | null;
   created_at_ms: number;
   updated_at_ms: number;
@@ -118,6 +126,7 @@ function toJson(row: ConversationRow) {
     messages: parseMessages(row.messages_json),
     model: row.model,
     systemPrompt: row.system_prompt,
+    projectId: row.project_id ?? null,
     createdAt: row.created_at_ms,
     updatedAt: row.updated_at_ms,
   };
@@ -156,6 +165,15 @@ function notFound(res: Response): void {
   res.status(404).json({ error: { message: 'Conversation not found' } });
 }
 
+/** True when the project exists and belongs to this account (or id is null). */
+function ownedProjectId(projectId: number | null, userId: number): boolean {
+  if (projectId === null) return true;
+  const row = getDb()
+    .prepare('SELECT 1 AS ok FROM playground_projects WHERE id = ? AND user_id = ?')
+    .get(projectId, userId) as { ok: number } | undefined;
+  return !!row;
+}
+
 /**
  * Serialise a validated transcript, refusing anything past the storage cap.
  * Returns null after answering with a 413 so callers can `return` on it.
@@ -186,6 +204,7 @@ conversationsRouter.get('/', (req: Request, res: Response) => {
     SELECT id,
            title,
            model,
+           project_id,
            json_array_length(messages_json) AS message_count,
            created_at_ms,
            updated_at_ms
@@ -197,6 +216,7 @@ conversationsRouter.get('/', (req: Request, res: Response) => {
     id: row.id,
     title: row.title,
     model: row.model,
+    projectId: row.project_id ?? null,
     messageCount: row.message_count ?? 0,
     createdAt: row.created_at_ms,
     updatedAt: row.updated_at_ms,
@@ -221,17 +241,23 @@ conversationsRouter.post('/', (req: Request, res: Response) => {
   if (messagesJson === null) return;
 
   const userId = ownerId(req);
+  const projectId = parsed.data.projectId ?? null;
+  if (!ownedProjectId(projectId, userId)) {
+    res.status(400).json({ error: { message: 'Invalid project' } });
+    return;
+  }
   const now = Date.now();
   const info = getDb().prepare(`
     INSERT INTO playground_conversations
-      (user_id, title, messages_json, model, system_prompt, created_at_ms, updated_at_ms)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
+      (user_id, title, messages_json, model, system_prompt, project_id, created_at_ms, updated_at_ms)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     userId,
     parsed.data.title ?? '',
     messagesJson,
     parsed.data.model ?? null,
     parsed.data.systemPrompt ?? null,
+    projectId,
     now,
     now,
   );
@@ -250,24 +276,30 @@ conversationsRouter.put('/:id', (req: Request, res: Response) => {
   const row = getConversation(id, userId);
   if (!row) return notFound(res);
 
-  const { title, messages, model, systemPrompt } = parsed.data;
+  const { title, messages, model, systemPrompt, projectId } = parsed.data;
   const messagesJson = messages === undefined
     ? row.messages_json
     : serialiseMessages(messages, res);
   if (messagesJson === null) return;
+
+  if (projectId !== undefined && !ownedProjectId(projectId, userId)) {
+    res.status(400).json({ error: { message: 'Invalid project' } });
+    return;
+  }
 
   // One statement for the whole conversation: title, transcript, model and
   // system prompt always move together, so a save can never leave a row half
   // updated (the transcript of one exchange under the title of another).
   getDb().prepare(`
     UPDATE playground_conversations
-       SET title = ?, messages_json = ?, model = ?, system_prompt = ?, updated_at_ms = ?
+       SET title = ?, messages_json = ?, model = ?, system_prompt = ?, project_id = ?, updated_at_ms = ?
      WHERE id = ? AND user_id = ?
   `).run(
     title ?? row.title,
     messagesJson,
     model === undefined ? row.model : model,
     systemPrompt === undefined ? row.system_prompt : systemPrompt,
+    projectId === undefined ? row.project_id : projectId,
     Date.now(),
     id,
     userId,

@@ -1,6 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
+  ChevronDown,
+  ChevronRight,
+  Folder,
+  FolderPlus,
   MoreHorizontal,
   PanelLeft,
   PanelLeftClose,
@@ -14,9 +18,16 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import type { ConversationSummary } from '@/lib/playground-conversations'
+import type { ConversationSummary, Project } from '@/lib/playground-conversations'
+import {
+  readCollapsedProjectIds,
+  writeCollapsedProjectIds,
+} from '@/lib/playground-conversations'
 import { useI18n } from '@/i18n'
 
 // The Playground's saved-conversation rail, laid out like a Gemini-style
@@ -37,6 +48,7 @@ const iconBtn =
 
 export function ConversationSidebar({
   conversations,
+  projects,
   activeId,
   open,
   onToggle,
@@ -44,8 +56,13 @@ export function ConversationSidebar({
   onSelect,
   onRename,
   onDelete,
+  onCreateProject,
+  onRenameProject,
+  onDeleteProject,
+  onMoveConversation,
 }: {
   conversations: ConversationSummary[]
+  projects: Project[]
   activeId: number | null
   open: boolean
   onToggle: () => void
@@ -53,19 +70,43 @@ export function ConversationSidebar({
   onSelect: (id: number) => void
   onRename: (id: number, title: string) => void
   onDelete: (id: number) => void
+  onCreateProject: (name: string) => void
+  onRenameProject: (id: number, name: string) => void
+  onDeleteProject: (id: number) => void
+  onMoveConversation: (id: number, projectId: number | null) => void
 }) {
   const { t } = useI18n()
   const [renamingId, setRenamingId] = useState<number | null>(null)
+  const [renamingProjectId, setRenamingProjectId] = useState<number | null>(null)
+  const [creatingProject, setCreatingProject] = useState(false)
   const [armedDeleteId, setArmedDeleteId] = useState<number | null>(null)
+  const [armedProjectDeleteId, setArmedProjectDeleteId] = useState<number | null>(null)
   const [draft, setDraft] = useState('')
+  const [projectDraft, setProjectDraft] = useState('')
   const [searching, setSearching] = useState(false)
   const [query, setQuery] = useState('')
+  const [collapsedProjects, setCollapsedProjects] = useState<Set<number>>(
+    () => readCollapsedProjectIds(),
+  )
   const renameRef = useRef<HTMLInputElement>(null)
+  const projectRenameRef = useRef<HTMLInputElement>(null)
+  const projectCreateRef = useRef<HTMLInputElement>(null)
   const searchRef = useRef<HTMLInputElement>(null)
+  // Enter commits then the input blurs; without this guard both would create.
+  const creatingProjectRef = useRef(false)
 
   useEffect(() => {
     if (renamingId !== null) renameRef.current?.select()
   }, [renamingId])
+
+  useEffect(() => {
+    if (renamingProjectId !== null) projectRenameRef.current?.select()
+  }, [renamingProjectId])
+
+  useEffect(() => {
+    creatingProjectRef.current = creatingProject
+    if (creatingProject) projectCreateRef.current?.select()
+  }, [creatingProject])
 
   useEffect(() => {
     if (searching) searchRef.current?.focus()
@@ -75,6 +116,8 @@ export function ConversationSidebar({
     if (!open) {
       setSearching(false)
       setQuery('')
+      setCreatingProject(false)
+      setProjectDraft('')
     }
   }, [open])
 
@@ -91,6 +134,39 @@ export function ConversationSidebar({
     if (title && title !== previous?.title) onRename(renamingId, title)
   }
 
+  const startRenameProject = (project: Project) => {
+    setRenamingProjectId(project.id)
+    setProjectDraft(project.name)
+  }
+
+  const commitRenameProject = () => {
+    if (renamingProjectId === null) return
+    const name = projectDraft.trim()
+    const previous = projects.find(p => p.id === renamingProjectId)
+    setRenamingProjectId(null)
+    setProjectDraft('')
+    if (name && name !== previous?.name) onRenameProject(renamingProjectId, name)
+  }
+
+  const commitCreateProject = () => {
+    if (!creatingProjectRef.current) return
+    creatingProjectRef.current = false
+    const name = projectDraft.trim()
+    setCreatingProject(false)
+    setProjectDraft('')
+    if (name) onCreateProject(name)
+  }
+
+  const toggleProject = (id: number) => {
+    setCollapsedProjects(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      writeCollapsedProjectIds(next)
+      return next
+    })
+  }
+
   const visible = useMemo(() => {
     const needle = query.trim().toLowerCase()
     if (!needle) return conversations
@@ -99,9 +175,120 @@ export function ConversationSidebar({
     )
   }, [conversations, query, t])
 
+  const ungrouped = useMemo(
+    () => visible.filter(c => c.projectId == null),
+    [visible],
+  )
+
+  const byProject = useMemo(() => {
+    const map = new Map<number, ConversationSummary[]>()
+    for (const c of visible) {
+      if (c.projectId == null) continue
+      const list = map.get(c.projectId)
+      if (list) list.push(c)
+      else map.set(c.projectId, [c])
+    }
+    return map
+  }, [visible])
+
   const stopSearching = () => {
     setSearching(false)
     setQuery('')
+  }
+
+  const renderConversation = (conversation: ConversationSummary) => {
+    const isActive = conversation.id === activeId
+    const armed = armedDeleteId === conversation.id
+    return (
+      <li key={conversation.id}>
+        {renamingId === conversation.id ? (
+          <input
+            ref={renameRef}
+            value={draft}
+            onChange={e => setDraft(e.target.value)}
+            onBlur={commitRename}
+            onKeyDown={e => {
+              if (e.key === 'Enter') { e.preventDefault(); commitRename() }
+              if (e.key === 'Escape') { e.preventDefault(); setRenamingId(null) }
+            }}
+            aria-label={t('playgroundSessions.renamePlaceholder')}
+            placeholder={t('playgroundSessions.renamePlaceholder')}
+            className="w-full rounded-full border bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring/50"
+          />
+        ) : (
+          <div
+            className={`group flex items-center gap-0.5 rounded-full pe-0.5 transition-colors ${
+              isActive ? 'bg-muted' : 'hover:bg-muted/60'
+            }`}
+          >
+            <button
+              type="button"
+              onClick={() => onSelect(conversation.id)}
+              onDoubleClick={() => startRename(conversation)}
+              className="min-w-0 flex-1 px-3 py-2 text-left"
+            >
+              <span className="block truncate text-sm">
+                {conversation.title || t('playgroundSessions.untitled')}
+              </span>
+            </button>
+            <DropdownMenu
+              onOpenChange={menuOpen => { if (!menuOpen) setArmedDeleteId(null) }}
+            >
+              <DropdownMenuTrigger
+                className={`${buttonVariants({ variant: 'ghost', size: 'icon-xs' })} shrink-0 rounded-full opacity-0 transition-opacity focus-visible:opacity-100 group-hover:opacity-100 data-popup-open:opacity-100 data-pressed:opacity-100`}
+                aria-label={t('playgroundSessions.actions')}
+                title={t('playgroundSessions.actions')}
+              >
+                <MoreHorizontal className="size-3.5" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-44">
+                <DropdownMenuItem onClick={() => startRename(conversation)}>
+                  <Pencil />
+                  {t('playgroundSessions.rename')}
+                </DropdownMenuItem>
+                {(projects.length > 0 || conversation.projectId != null) && (
+                  <DropdownMenuSub>
+                    <DropdownMenuSubTrigger>
+                      <Folder className="size-4" />
+                      {t('playgroundSessions.moveToProject')}
+                    </DropdownMenuSubTrigger>
+                    <DropdownMenuSubContent className="w-40">
+                      {conversation.projectId != null && (
+                        <DropdownMenuItem
+                          onClick={() => onMoveConversation(conversation.id, null)}
+                        >
+                          {t('playgroundSessions.noProject')}
+                        </DropdownMenuItem>
+                      )}
+                      {projects.map(project => (
+                        <DropdownMenuItem
+                          key={project.id}
+                          disabled={conversation.projectId === project.id}
+                          onClick={() => onMoveConversation(conversation.id, project.id)}
+                        >
+                          {project.name}
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuSubContent>
+                  </DropdownMenuSub>
+                )}
+                <DropdownMenuItem
+                  variant="destructive"
+                  closeOnClick={armed}
+                  onClick={() => {
+                    if (armed) { setArmedDeleteId(null); onDelete(conversation.id) }
+                    else setArmedDeleteId(conversation.id)
+                  }}
+                >
+                  <Trash2 />
+                  {armed ? t('common.confirm') : t('common.delete')}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        )}
+      </li>
+    )
   }
 
   return (
@@ -171,21 +358,8 @@ export function ConversationSidebar({
         </div>
 
         <div className="flex shrink-0 flex-col gap-0.5 px-2 pt-2 pb-1">
-          <button type="button" onClick={onNew} className={navBtn}>
-            <SquarePen className="size-4 shrink-0" />
-            <span className="truncate">{t('playgroundSessions.newChat')}</span>
-          </button>
-        </div>
-
-        <div className="flex min-h-0 flex-1 flex-col px-2 pt-3">
-          <div className="mb-1 flex shrink-0 items-center justify-between px-3">
-            <span className="text-xs font-medium tracking-wide text-muted-foreground">
-              {t('playgroundSessions.allChats')}
-            </span>
-          </div>
-
           {searching && (
-            <div className="mb-1.5 px-1">
+            <div className="px-1 pb-1">
               <input
                 ref={searchRef}
                 value={query}
@@ -199,89 +373,170 @@ export function ConversationSidebar({
               />
             </div>
           )}
+          <button type="button" onClick={onNew} className={navBtn}>
+            <SquarePen className="size-4 shrink-0" />
+            <span className="truncate">{t('playgroundSessions.newChat')}</span>
+          </button>
+        </div>
 
-          <div className="min-h-0 flex-1 overflow-y-auto pb-2">
-            {conversations.length === 0 ? (
-              <p className="px-3 py-3 text-xs text-muted-foreground">
-                {t('playgroundSessions.empty')}
-              </p>
-            ) : visible.length === 0 ? (
-              <p className="px-3 py-3 text-xs text-muted-foreground">
-                {t('playgroundSessions.searchEmpty')}
-              </p>
-            ) : (
-              <ul className="space-y-0.5">
-                {visible.map(conversation => {
-                  const isActive = conversation.id === activeId
-                  const armed = armedDeleteId === conversation.id
-                  return (
-                    <li key={conversation.id}>
-                      {renamingId === conversation.id ? (
-                        <input
-                          ref={renameRef}
-                          value={draft}
-                          onChange={e => setDraft(e.target.value)}
-                          onBlur={commitRename}
-                          onKeyDown={e => {
-                            if (e.key === 'Enter') { e.preventDefault(); commitRename() }
-                            if (e.key === 'Escape') { e.preventDefault(); setRenamingId(null) }
-                          }}
-                          aria-label={t('playgroundSessions.renamePlaceholder')}
-                          placeholder={t('playgroundSessions.renamePlaceholder')}
-                          className="w-full rounded-full border bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring/50"
-                        />
-                      ) : (
-                        <div
-                          className={`group flex items-center gap-0.5 rounded-full pe-0.5 transition-colors ${
-                            isActive ? 'bg-muted' : 'hover:bg-muted/60'
-                          }`}
-                        >
-                          <button
-                            type="button"
-                            onClick={() => onSelect(conversation.id)}
-                            onDoubleClick={() => startRename(conversation)}
-                            className="min-w-0 flex-1 px-3 py-2 text-left"
-                          >
-                            <span className="block truncate text-sm">
-                              {conversation.title || t('playgroundSessions.untitled')}
-                            </span>
-                          </button>
-                          <DropdownMenu
-                            onOpenChange={menuOpen => { if (!menuOpen) setArmedDeleteId(null) }}
-                          >
-                            <DropdownMenuTrigger
-                              className={`${buttonVariants({ variant: 'ghost', size: 'icon-xs' })} shrink-0 rounded-full opacity-0 transition-opacity focus-visible:opacity-100 group-hover:opacity-100 data-popup-open:opacity-100 data-pressed:opacity-100`}
-                              aria-label={t('playgroundSessions.actions')}
-                              title={t('playgroundSessions.actions')}
-                            >
-                              <MoreHorizontal className="size-3.5" />
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-40">
-                              <DropdownMenuItem onClick={() => startRename(conversation)}>
-                                <Pencil />
-                                {t('playgroundSessions.rename')}
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                variant="destructive"
-                                closeOnClick={armed}
-                                onClick={() => {
-                                  if (armed) { setArmedDeleteId(null); onDelete(conversation.id) }
-                                  else setArmedDeleteId(conversation.id)
-                                }}
-                              >
-                                <Trash2 />
-                                {armed ? t('common.confirm') : t('common.delete')}
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </div>
-                      )}
-                    </li>
-                  )
-                })}
-              </ul>
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-2 pt-3 pb-2">
+          {/* ── Projects ──────────────────────────────────────────────── */}
+          <div className="mb-3">
+            <div className="mb-1 flex shrink-0 items-center justify-between gap-1 px-3">
+              <span className="text-xs font-medium tracking-wide text-muted-foreground">
+                {t('playgroundSessions.projects')}
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  creatingProjectRef.current = true
+                  setCreatingProject(true)
+                  setProjectDraft('')
+                }}
+                className="flex size-6 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted/70 hover:text-foreground"
+                aria-label={t('playgroundSessions.newProject')}
+                title={t('playgroundSessions.newProject')}
+              >
+                <FolderPlus className="size-3.5" />
+              </button>
+            </div>
+
+            {creatingProject && (
+              <div className="mb-1 px-1">
+                <input
+                  ref={projectCreateRef}
+                  value={projectDraft}
+                  onChange={e => setProjectDraft(e.target.value)}
+                  onBlur={commitCreateProject}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') { e.preventDefault(); commitCreateProject() }
+                    if (e.key === 'Escape') {
+                      e.preventDefault()
+                      creatingProjectRef.current = false
+                      setCreatingProject(false)
+                      setProjectDraft('')
+                    }
+                  }}
+                  aria-label={t('playgroundSessions.projectNamePlaceholder')}
+                  placeholder={t('playgroundSessions.projectNamePlaceholder')}
+                  className="w-full rounded-full border bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring/50"
+                />
+              </div>
             )}
+
+            <ul className="space-y-0.5">
+              {projects.map(project => {
+                const expanded = !collapsedProjects.has(project.id)
+                const chats = byProject.get(project.id) ?? []
+                const armedProject = armedProjectDeleteId === project.id
+                return (
+                  <li key={project.id}>
+                    {renamingProjectId === project.id ? (
+                      <input
+                        ref={projectRenameRef}
+                        value={projectDraft}
+                        onChange={e => setProjectDraft(e.target.value)}
+                        onBlur={commitRenameProject}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') { e.preventDefault(); commitRenameProject() }
+                          if (e.key === 'Escape') {
+                            e.preventDefault()
+                            setRenamingProjectId(null)
+                            setProjectDraft('')
+                          }
+                        }}
+                        aria-label={t('playgroundSessions.projectNamePlaceholder')}
+                        placeholder={t('playgroundSessions.projectNamePlaceholder')}
+                        className="w-full rounded-full border bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring/50"
+                      />
+                    ) : (
+                      <div className="group flex items-center gap-0.5 rounded-full pe-0.5 transition-colors hover:bg-muted/60">
+                        <button
+                          type="button"
+                          onClick={() => toggleProject(project.id)}
+                          onDoubleClick={() => startRenameProject(project)}
+                          className="flex min-w-0 flex-1 items-center gap-2 px-2 py-1.5 text-left"
+                        >
+                          {expanded
+                            ? <ChevronDown className="size-3.5 shrink-0 text-muted-foreground" />
+                            : <ChevronRight className="size-3.5 shrink-0 text-muted-foreground" />}
+                          <Folder className="size-3.5 shrink-0 text-muted-foreground" />
+                          <span className="truncate text-sm">{project.name}</span>
+                        </button>
+                        <DropdownMenu
+                          onOpenChange={menuOpen => {
+                            if (!menuOpen) setArmedProjectDeleteId(null)
+                          }}
+                        >
+                          <DropdownMenuTrigger
+                            className={`${buttonVariants({ variant: 'ghost', size: 'icon-xs' })} shrink-0 rounded-full opacity-0 transition-opacity focus-visible:opacity-100 group-hover:opacity-100 data-popup-open:opacity-100 data-pressed:opacity-100`}
+                            aria-label={t('playgroundSessions.renameProject')}
+                          >
+                            <MoreHorizontal className="size-3.5" />
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-44">
+                            <DropdownMenuItem onClick={() => startRenameProject(project)}>
+                              <Pencil />
+                              {t('playgroundSessions.rename')}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              variant="destructive"
+                              closeOnClick={armedProject}
+                              onClick={() => {
+                                if (armedProject) {
+                                  setArmedProjectDeleteId(null)
+                                  onDeleteProject(project.id)
+                                } else {
+                                  setArmedProjectDeleteId(project.id)
+                                }
+                              }}
+                            >
+                              <Trash2 />
+                              {armedProject
+                                ? t('playgroundSessions.deleteProjectConfirm')
+                                : t('playgroundSessions.deleteProject')}
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+                    )}
+                    {expanded && (
+                      <ul className="ms-3 space-y-0.5 border-s border-border/40 ps-1.5">
+                        {chats.length === 0 ? (
+                          <li className="px-3 py-2 text-xs text-muted-foreground">
+                            {t('playgroundSessions.emptyProject')}
+                          </li>
+                        ) : (
+                          chats.map(renderConversation)
+                        )}
+                      </ul>
+                    )}
+                  </li>
+                )
+              })}
+            </ul>
           </div>
+
+          {/* ── Ungrouped chats ───────────────────────────────────────── */}
+          <div className="mb-1 flex shrink-0 items-center justify-between px-3">
+            <span className="text-xs font-medium tracking-wide text-muted-foreground">
+              {t('playgroundSessions.allChats')}
+            </span>
+          </div>
+
+          {conversations.length === 0 && projects.length === 0 && !creatingProject ? (
+            <p className="px-3 py-3 text-xs text-muted-foreground">
+              {t('playgroundSessions.empty')}
+            </p>
+          ) : visible.length === 0 && query.trim() ? (
+            <p className="px-3 py-3 text-xs text-muted-foreground">
+              {t('playgroundSessions.searchEmpty')}
+            </p>
+          ) : ungrouped.length === 0 ? null : (
+            <ul className="space-y-0.5">
+              {ungrouped.map(renderConversation)}
+            </ul>
+          )}
         </div>
       </div>
     </div>

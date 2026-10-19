@@ -968,7 +968,21 @@
     "searchChats": "Search chats",
     "searchPlaceholder": "Search chats…",
     "searchEmpty": "No chats match that search.",
-    "allChats": "All"
+    "allChats": "Chats",
+    "projects": "Projects",
+    "newProject": "New project",
+    "projectNamePlaceholder": "Project name",
+    "renameProject": "Rename project",
+    "deleteProject": "Delete project",
+    "deleteProjectConfirm": "Delete project?",
+    "moveToProject": "Move to project",
+    "removeFromProject": "Remove from project",
+    "noProject": "No project",
+    "emptyProject": "No chats in this project.",
+    "projectCreateFailed": "Couldn't create that project.",
+    "projectRenameFailed": "Couldn't rename that project.",
+    "projectDeleteFailed": "Couldn't delete that project.",
+    "moveFailed": "Couldn't move that chat."
   },
   "embeddings": {
     "title": "Models",

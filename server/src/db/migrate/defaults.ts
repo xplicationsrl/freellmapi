@@ -40,6 +40,7 @@ import * as requestModelAttribution from '../migrations/20260913_000001_request_
 import * as customEndpointGroupLabel from '../migrations/20260930_000001_custom_endpoint_group_label.js';
 import * as searchEngines from '../migrations/20261013_000001_search_engines.js';
 import * as conversationOwner from '../migrations/20261016_000001_conversation_owner.js';
+import * as playgroundProjects from '../migrations/20261019_000001_playground_projects.js';
 
 export interface MigrationModule {
   up(db: Db): void;
@@ -92,6 +93,7 @@ export const KEY_MONTHLY_USAGE_FILENAME = '20260914_000001_key_monthly_usage.ts'
 export const QUOTA_SNAPSHOT_FRESHNESS_FILENAME = '20260915_000001_quota_snapshot_freshness.ts';
 export const SEARCH_ENGINES_FILENAME = '20261013_000001_search_engines.ts';
 export const CONVERSATION_OWNER_FILENAME = '20261016_000001_conversation_owner.ts';
+export const PLAYGROUND_PROJECTS_FILENAME = '20261019_000001_playground_projects.ts';
 
 export const DEFAULT_MIGRATIONS: readonly DefaultMigration[] = [
   { filename: LEGACY_BASELINE_FILENAME, module: legacyBaseline },
@@ -135,4 +137,5 @@ export const DEFAULT_MIGRATIONS: readonly DefaultMigration[] = [
   { filename: CUSTOM_ENDPOINT_GROUP_LABEL_FILENAME, module: customEndpointGroupLabel },
   { filename: SEARCH_ENGINES_FILENAME, module: searchEngines },
   { filename: CONVERSATION_OWNER_FILENAME, module: conversationOwner },
+  { filename: PLAYGROUND_PROJECTS_FILENAME, module: playgroundProjects },
 ];

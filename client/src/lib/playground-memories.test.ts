@@ -12,14 +12,17 @@ describe('playground memories helpers', () => {
       { content: 'Prefers Romanian' },
       { content: 'Works on FreeLLMAPI' },
     ])
-    expect(msg).toContain('durable facts')
+    expect(msg).toContain('durable cross-chat memory')
+    expect(msg).toContain('Never claim you lack long-term memory')
     expect(msg).toContain('- Prefers Romanian')
     expect(msg).toContain('- Works on FreeLLMAPI')
   })
 
-  it('returns empty when there is nothing to inject', () => {
-    expect(memoryContextMessage([])).toBe('')
-    expect(memoryContextMessage([{ content: '  ' }])).toBe('')
+  it('still injects a preamble when there are no facts yet', () => {
+    const empty = memoryContextMessage([])
+    expect(empty).toContain('durable cross-chat memory')
+    expect(empty).toContain('Stored facts: (none yet)')
+    expect(memoryContextMessage([{ content: '  ' }])).toContain('(none yet)')
   })
 
   it('parses a bare JSON array and a fenced one', () => {
@@ -28,6 +31,12 @@ describe('playground memories helpers', () => {
       'Uses zsh',
     ])
     expect(parseExtractedMemories('Sure.\n```json\n["A"]\n```')).toEqual(['A'])
+  })
+
+  it('strips think tags before parsing extraction JSON', () => {
+    expect(parseExtractedMemories('<think>hmm</think>["Owns Xplication"]')).toEqual([
+      'Owns Xplication',
+    ])
   })
 
   it('drops junk and duplicates from extraction output', () => {

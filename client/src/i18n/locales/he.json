@@ -929,7 +929,8 @@
     "newChat": "צ׳אט חדש",
     "searchChats": "חיפוש צ׳אטים",
     "searchPlaceholder": "חיפוש צ׳אטים…",
-    "searchEmpty": "אין צ׳אטים שתואמים לחיפוש."
+    "searchEmpty": "אין צ׳אטים שתואמים לחיפוש.",
+    "allChats": "הכל"
   },
   "embeddings": {
     "title": "דגמים",

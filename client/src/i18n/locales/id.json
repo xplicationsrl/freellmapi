@@ -929,7 +929,8 @@
     "newChat": "Obrolan baru",
     "searchChats": "Cari obrolan",
     "searchPlaceholder": "Cari obrolan…",
-    "searchEmpty": "Tidak ada obrolan yang cocok."
+    "searchEmpty": "Tidak ada obrolan yang cocok.",
+    "allChats": "Semua"
   },
   "embeddings": {
     "title": "Model",

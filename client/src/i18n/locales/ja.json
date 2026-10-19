@@ -929,7 +929,8 @@
     "newChat": "新しいチャット",
     "searchChats": "チャットを検索",
     "searchPlaceholder": "チャットを検索…",
-    "searchEmpty": "一致するチャットはありません。"
+    "searchEmpty": "一致するチャットはありません。",
+    "allChats": "すべて"
   },
   "embeddings": {
     "title": "モデル",

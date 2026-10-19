@@ -929,7 +929,8 @@
     "newChat": "ਨਵੀਂ ਚੈਟ",
     "searchChats": "Search chats",
     "searchPlaceholder": "Search chats…",
-    "searchEmpty": "No chats match that search."
+    "searchEmpty": "No chats match that search.",
+    "allChats": "ਸਭ"
   },
   "embeddings": {
     "title": "ਮਾਡਲ",

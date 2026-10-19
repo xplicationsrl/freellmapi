@@ -929,7 +929,8 @@
     "newChat": "Нов чат",
     "searchChats": "Търсене на чатове",
     "searchPlaceholder": "Търсене на чатове…",
-    "searchEmpty": "Няма чатове, които да съвпадат."
+    "searchEmpty": "Няма чатове, които да съвпадат.",
+    "allChats": "Всички"
   },
   "embeddings": {
     "title": "Модели",

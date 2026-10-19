@@ -929,7 +929,8 @@
     "newChat": "Yeni söhbət",
     "searchChats": "Söhbətləri axtar",
     "searchPlaceholder": "Söhbətləri axtar…",
-    "searchEmpty": "Axtarışa uyğun söhbət yoxdur."
+    "searchEmpty": "Axtarışa uyğun söhbət yoxdur.",
+    "allChats": "Hamısı"
   },
   "embeddings": {
     "title": "Modellər",

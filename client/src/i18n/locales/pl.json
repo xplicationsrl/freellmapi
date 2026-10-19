@@ -929,7 +929,8 @@
     "newChat": "Nowy czat",
     "searchChats": "Szukaj czatów",
     "searchPlaceholder": "Szukaj czatów…",
-    "searchEmpty": "Żaden czat nie pasuje do tego wyszukiwania."
+    "searchEmpty": "Żaden czat nie pasuje do tego wyszukiwania.",
+    "allChats": "Wszystkie"
   },
   "embeddings": {
     "title": "Modele",

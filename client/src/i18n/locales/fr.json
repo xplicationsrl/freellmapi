@@ -929,7 +929,8 @@
     "newChat": "Nouvelle discussion",
     "searchChats": "Rechercher des discussions",
     "searchPlaceholder": "Rechercher des discussions…",
-    "searchEmpty": "Aucune discussion ne correspond."
+    "searchEmpty": "Aucune discussion ne correspond.",
+    "allChats": "Tous"
   },
   "embeddings": {
     "title": "Modèles",

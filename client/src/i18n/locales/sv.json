@@ -929,7 +929,8 @@
     "newChat": "Ny chatt",
     "searchChats": "Sök chattar",
     "searchPlaceholder": "Sök chattar…",
-    "searchEmpty": "Inga chattar matchar sökningen."
+    "searchEmpty": "Inga chattar matchar sökningen.",
+    "allChats": "Alla"
   },
   "embeddings": {
     "title": "Modeller",

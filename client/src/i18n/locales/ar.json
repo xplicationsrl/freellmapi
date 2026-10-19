@@ -929,7 +929,8 @@
     "newChat": "محادثة جديدة",
     "searchChats": "البحث في المحادثات",
     "searchPlaceholder": "البحث في المحادثات…",
-    "searchEmpty": "لا توجد محادثات تطابق هذا البحث."
+    "searchEmpty": "لا توجد محادثات تطابق هذا البحث.",
+    "allChats": "الكل"
   },
   "embeddings": {
     "title": "نماذج",

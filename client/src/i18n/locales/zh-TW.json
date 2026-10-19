@@ -929,7 +929,8 @@
     "newChat": "新對話",
     "searchChats": "搜尋對話",
     "searchPlaceholder": "搜尋對話…",
-    "searchEmpty": "沒有符合的對話。"
+    "searchEmpty": "沒有符合的對話。",
+    "allChats": "全部"
   },
   "embeddings": {
     "title": "模型",

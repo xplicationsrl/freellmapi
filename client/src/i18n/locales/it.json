@@ -929,7 +929,8 @@
     "newChat": "Nuova chat",
     "searchChats": "Cerca chat",
     "searchPlaceholder": "Cerca chat…",
-    "searchEmpty": "Nessuna chat corrisponde alla ricerca."
+    "searchEmpty": "Nessuna chat corrisponde alla ricerca.",
+    "allChats": "Tutti"
   },
   "embeddings": {
     "title": "Modelli",

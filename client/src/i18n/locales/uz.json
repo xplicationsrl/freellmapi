@@ -929,7 +929,8 @@
     "newChat": "Yangi chat",
     "searchChats": "Chatlarni qidirish",
     "searchPlaceholder": "Chatlarni qidirish…",
-    "searchEmpty": "Qidiruvga mos chat yo‘q."
+    "searchEmpty": "Qidiruvga mos chat yo‘q.",
+    "allChats": "Hammasi"
   },
   "embeddings": {
     "title": "Modellar",

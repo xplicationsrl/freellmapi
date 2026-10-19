@@ -929,7 +929,8 @@
     "newChat": "Новий чат",
     "searchChats": "Пошук чатів",
     "searchPlaceholder": "Пошук чатів…",
-    "searchEmpty": "Немає чатів за цим запитом."
+    "searchEmpty": "Немає чатів за цим запитом.",
+    "allChats": "Усі"
   },
   "embeddings": {
     "title": "Моделі",

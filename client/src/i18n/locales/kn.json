@@ -929,7 +929,8 @@
     "newChat": "ಹೊಸ ಚಾಟ್",
     "searchChats": "Search chats",
     "searchPlaceholder": "Search chats…",
-    "searchEmpty": "No chats match that search."
+    "searchEmpty": "No chats match that search.",
+    "allChats": "ಎಲ್ಲಾ"
   },
   "embeddings": {
     "title": "ಮಾದರಿಗಳು",

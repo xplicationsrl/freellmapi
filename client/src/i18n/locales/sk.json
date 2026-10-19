@@ -929,7 +929,8 @@
     "newChat": "Nový chat",
     "searchChats": "Hľadať chaty",
     "searchPlaceholder": "Hľadať chaty…",
-    "searchEmpty": "Žiadny chat nezodpovedá hľadaniu."
+    "searchEmpty": "Žiadny chat nezodpovedá hľadaniu.",
+    "allChats": "Všetky"
   },
   "embeddings": {
     "title": "Modely",

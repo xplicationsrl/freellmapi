@@ -929,7 +929,8 @@
     "newChat": "새 채팅",
     "searchChats": "채팅 검색",
     "searchPlaceholder": "채팅 검색…",
-    "searchEmpty": "검색과 일치하는 채팅이 없습니다."
+    "searchEmpty": "검색과 일치하는 채팅이 없습니다.",
+    "allChats": "전체"
   },
   "embeddings": {
     "title": "모델",

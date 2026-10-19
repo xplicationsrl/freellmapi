@@ -929,7 +929,8 @@
     "newChat": "نئی چیٹ",
     "searchChats": "چیٹس تلاش کریں",
     "searchPlaceholder": "چیٹس تلاش کریں…",
-    "searchEmpty": "اس تلاش سے کوئی چیٹ نہیں ملتی۔"
+    "searchEmpty": "اس تلاش سے کوئی چیٹ نہیں ملتی۔",
+    "allChats": "سب"
   },
   "embeddings": {
     "title": "ماڈلز",

@@ -929,7 +929,8 @@
     "newChat": "新对话",
     "searchChats": "搜索对话",
     "searchPlaceholder": "搜索对话…",
-    "searchEmpty": "没有匹配的对话。"
+    "searchEmpty": "没有匹配的对话。",
+    "allChats": "全部"
   },
   "embeddings": {
     "title": "模型",

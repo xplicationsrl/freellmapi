@@ -929,7 +929,8 @@
     "newChat": "ជជែកថ្មី",
     "searchChats": "Search chats",
     "searchPlaceholder": "Search chats…",
-    "searchEmpty": "No chats match that search."
+    "searchEmpty": "No chats match that search.",
+    "allChats": "ទាំងអស់"
   },
   "embeddings": {
     "title": "ម៉ូដែល",

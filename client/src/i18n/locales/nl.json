@@ -929,7 +929,8 @@
     "newChat": "Nieuwe chat",
     "searchChats": "Chats zoeken",
     "searchPlaceholder": "Chats zoeken…",
-    "searchEmpty": "Geen chats komen overeen met die zoekopdracht."
+    "searchEmpty": "Geen chats komen overeen met die zoekopdracht.",
+    "allChats": "Alles"
   },
   "embeddings": {
     "title": "Modellen",

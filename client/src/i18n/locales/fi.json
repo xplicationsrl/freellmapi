@@ -929,7 +929,8 @@
     "newChat": "Uusi keskustelu",
     "searchChats": "Hae keskusteluja",
     "searchPlaceholder": "Hae keskusteluja…",
-    "searchEmpty": "Ei hakua vastaavia keskusteluja."
+    "searchEmpty": "Ei hakua vastaavia keskusteluja.",
+    "allChats": "Kaikki"
   },
   "embeddings": {
     "title": "Mallit",

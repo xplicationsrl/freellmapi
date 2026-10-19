@@ -929,7 +929,8 @@
     "newChat": "Yeni sohbet",
     "searchChats": "Sohbetleri ara",
     "searchPlaceholder": "Sohbetleri ara…",
-    "searchEmpty": "Bu aramayla eşleşen sohbet yok."
+    "searchEmpty": "Bu aramayla eşleşen sohbet yok.",
+    "allChats": "Tümü"
   },
   "embeddings": {
     "title": "Modeller",

@@ -929,7 +929,8 @@
     "newChat": "گفتگوی جدید",
     "searchChats": "جستجوی گفتگوها",
     "searchPlaceholder": "جستجوی گفتگوها…",
-    "searchEmpty": "هیچ گفتگویی با این جستجو مطابقت ندارد."
+    "searchEmpty": "هیچ گفتگویی با این جستجو مطابقت ندارد.",
+    "allChats": "همه"
   },
   "embeddings": {
     "title": "مدل ها",

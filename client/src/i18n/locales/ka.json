@@ -929,7 +929,8 @@
     "newChat": "ახალი ჩატი",
     "searchChats": "ჩატების ძიება",
     "searchPlaceholder": "ჩატების ძიება…",
-    "searchEmpty": "არცერთი ჩატი არ ემთხვევა ძიებას."
+    "searchEmpty": "არცერთი ჩატი არ ემთხვევა ძიებას.",
+    "allChats": "ყველა"
   },
   "embeddings": {
     "title": "მოდელები",

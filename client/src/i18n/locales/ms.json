@@ -929,7 +929,8 @@
     "newChat": "Sembang baharu",
     "searchChats": "Cari sembang",
     "searchPlaceholder": "Cari sembang…",
-    "searchEmpty": "Tiada sembang yang sepadan."
+    "searchEmpty": "Tiada sembang yang sepadan.",
+    "allChats": "Semua"
   },
   "embeddings": {
     "title": "Model",

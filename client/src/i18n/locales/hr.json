@@ -929,7 +929,8 @@
     "newChat": "Novi razgovor",
     "searchChats": "Pretraži razgovore",
     "searchPlaceholder": "Pretraži razgovore…",
-    "searchEmpty": "Nijedan razgovor ne odgovara pretraživanju."
+    "searchEmpty": "Nijedan razgovor ne odgovara pretraživanju.",
+    "allChats": "Sve"
   },
   "embeddings": {
     "title": "Modeli",

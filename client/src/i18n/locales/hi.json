@@ -929,7 +929,8 @@
     "newChat": "नई चैट",
     "searchChats": "चैट खोजें",
     "searchPlaceholder": "चैट खोजें…",
-    "searchEmpty": "कोई चैट मेल नहीं खाती।"
+    "searchEmpty": "कोई चैट मेल नहीं खाती।",
+    "allChats": "सभी"
   },
   "embeddings": {
     "title": "मॉडल",

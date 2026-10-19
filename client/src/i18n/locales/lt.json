@@ -929,7 +929,8 @@
     "newChat": "Naujas pokalbis",
     "searchChats": "Ieškoti pokalbių",
     "searchPlaceholder": "Ieškoti pokalbių…",
-    "searchEmpty": "Nėra atitinkančių pokalbių."
+    "searchEmpty": "Nėra atitinkančių pokalbių.",
+    "allChats": "Visi"
   },
   "embeddings": {
     "title": "Modeliai",

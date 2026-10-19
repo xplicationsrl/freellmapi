@@ -929,7 +929,8 @@
     "newChat": "নতুন চ্যাট",
     "searchChats": "Search chats",
     "searchPlaceholder": "Search chats…",
-    "searchEmpty": "No chats match that search."
+    "searchEmpty": "No chats match that search.",
+    "allChats": "সব"
   },
   "embeddings": {
     "title": "মডেল",

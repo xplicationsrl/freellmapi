@@ -929,7 +929,8 @@
     "newChat": "Sabuwar tattaunawa",
     "searchChats": "Search chats",
     "searchPlaceholder": "Search chats…",
-    "searchEmpty": "No chats match that search."
+    "searchEmpty": "No chats match that search.",
+    "allChats": "Duka"
   },
   "embeddings": {
     "title": "Samfura",

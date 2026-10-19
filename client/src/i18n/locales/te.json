@@ -929,7 +929,8 @@
     "newChat": "కొత్త చాట్",
     "searchChats": "Search chats",
     "searchPlaceholder": "Search chats…",
-    "searchEmpty": "No chats match that search."
+    "searchEmpty": "No chats match that search.",
+    "allChats": "అన్నీ"
   },
   "embeddings": {
     "title": "మోడల్స్",

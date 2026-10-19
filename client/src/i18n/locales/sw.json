@@ -929,7 +929,8 @@
     "newChat": "Gumzo jipya",
     "searchChats": "Tafuta gumzo",
     "searchPlaceholder": "Tafuta gumzo…",
-    "searchEmpty": "Hakuna gumzo linalolingana na utafutaji huo."
+    "searchEmpty": "Hakuna gumzo linalolingana na utafutaji huo.",
+    "allChats": "Zote"
   },
   "embeddings": {
     "title": "Mifano",

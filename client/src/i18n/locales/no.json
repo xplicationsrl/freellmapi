@@ -929,7 +929,8 @@
     "newChat": "Ny chat",
     "searchChats": "Søk i chatter",
     "searchPlaceholder": "Søk i chatter…",
-    "searchEmpty": "Ingen chatter matcher søket."
+    "searchEmpty": "Ingen chatter matcher søket.",
+    "allChats": "Alle"
   },
   "embeddings": {
     "title": "Modeller",

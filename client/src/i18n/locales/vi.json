@@ -929,7 +929,8 @@
     "newChat": "Cuộc trò chuyện mới",
     "searchChats": "Tìm kiếm cuộc trò chuyện",
     "searchPlaceholder": "Tìm kiếm cuộc trò chuyện…",
-    "searchEmpty": "Không có cuộc trò chuyện nào khớp."
+    "searchEmpty": "Không có cuộc trò chuyện nào khớp.",
+    "allChats": "Tất cả"
   },
   "embeddings": {
     "title": "Người mẫu",

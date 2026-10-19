@@ -929,7 +929,8 @@
     "newChat": "Ìfọ̀rọ̀wérọ̀ tuntun",
     "searchChats": "Wa àwọn ìfọ̀rọ̀wérọ̀",
     "searchPlaceholder": "Wa àwọn ìfọ̀rọ̀wérọ̀…",
-    "searchEmpty": "Kò sí ìfọ̀rọ̀wérọ̀ tó bá ìwárí náà mu."
+    "searchEmpty": "Kò sí ìfọ̀rọ̀wérọ̀ tó bá ìwárí náà mu.",
+    "allChats": "Gbogbo"
   },
   "embeddings": {
     "title": "Awọn awoṣe",

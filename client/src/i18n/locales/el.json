@@ -929,7 +929,8 @@
     "newChat": "Νέα συνομιλία",
     "searchChats": "Αναζήτηση συνομιλιών",
     "searchPlaceholder": "Αναζήτηση συνομιλιών…",
-    "searchEmpty": "Καμία συνομιλία δεν ταιριάζει."
+    "searchEmpty": "Καμία συνομιλία δεν ταιριάζει.",
+    "allChats": "Όλα"
   },
   "embeddings": {
     "title": "Μοντέλα",

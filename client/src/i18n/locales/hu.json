@@ -929,7 +929,8 @@
     "newChat": "Új csevegés",
     "searchChats": "Csevegések keresése",
     "searchPlaceholder": "Csevegések keresése…",
-    "searchEmpty": "Nincs egyező csevegés."
+    "searchEmpty": "Nincs egyező csevegés.",
+    "allChats": "Összes"
   },
   "embeddings": {
     "title": "Modellek",

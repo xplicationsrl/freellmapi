@@ -929,7 +929,8 @@
     "newChat": "แชทใหม่",
     "searchChats": "ค้นหาแชท",
     "searchPlaceholder": "ค้นหาแชท…",
-    "searchEmpty": "ไม่พบแชทที่ตรงกับการค้นหา"
+    "searchEmpty": "ไม่พบแชทที่ตรงกับการค้นหา",
+    "allChats": "ทั้งหมด"
   },
   "embeddings": {
     "title": "โมเดล",

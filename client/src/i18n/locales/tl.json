@@ -929,7 +929,8 @@
     "newChat": "Bagong chat",
     "searchChats": "Maghanap ng mga chat",
     "searchPlaceholder": "Maghanap ng mga chat…",
-    "searchEmpty": "Walang chat na tumutugma sa paghahanap."
+    "searchEmpty": "Walang chat na tumutugma sa paghahanap.",
+    "allChats": "Lahat"
   },
   "embeddings": {
     "title": "Mga Modelo",

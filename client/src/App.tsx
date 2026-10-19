@@ -1,7 +1,7 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, Link, useLocation, useNavigate } from 'react-router-dom'
 import { MutationCache, QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { KeyRound, LogOut, Menu, RefreshCw, Search, Settings, Sparkles } from 'lucide-react'
+import { KeyRound, LogOut, Menu, Search, Settings } from 'lucide-react'
 import { buttonVariants } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -19,12 +19,8 @@ import { CommandPalette } from '@/components/command-palette'
 import { openCommandPalette } from '@/components/command-palette-state'
 import { ErrorBoundary } from '@/components/error-boundary'
 import { SettingsDialog } from '@/components/settings-dialog'
-import { UpdatesDialog } from '@/components/updates-dialog'
-import { OPEN_UPDATES_EVENT } from '@/lib/updates'
 import { Toaster } from '@/components/toaster'
-import { UpdateReminder } from '@/components/update-reminder'
 import { NewBuildPrompt } from '@/components/new-build-prompt'
-import { usePremium } from '@/hooks/use-premium'
 import { I18nProvider, useI18n } from '@/i18n'
 import { logout } from '@/lib/api'
 import { toast } from '@/lib/toast'
@@ -43,7 +39,6 @@ import MediaDetailPage from '@/pages/MediaDetailPage'
 import EmbeddingDetailPage from '@/pages/EmbeddingDetailPage'
 import AnalyticsPage from '@/pages/AnalyticsPage'
 import LogsPage from '@/pages/LogsPage'
-import PremiumPage from '@/pages/PremiumPage'
 import NotFoundPage from '@/pages/NotFoundPage'
 import AgentsPage from '@/pages/AgentsPage'
 
@@ -75,7 +70,6 @@ const navItems = [
   { to: '/keys', labelKey: 'nav.keys' },
   { to: '/agents', labelKey: 'nav.agents' },
   { to: '/analytics', labelKey: 'nav.analytics' },
-  { to: '/premium', labelKey: 'nav.premium' },
 ]
 
 // The modality pages behind "Models"; surfaced in the hamburger submenu so
@@ -155,47 +149,27 @@ if (isDesktopApp) {
 }
 
 function AccountMenuItems({
-  showUpgrade,
-  upgradeLabel,
   settingsLabel,
-  updatesLabel,
   signOutLabel,
   changeEmailLabel,
   changePasswordLabel,
-  onUpgrade,
   onOpenSettings,
-  onOpenUpdates,
   onChangeEmail,
   onChangePassword,
 }: {
-  showUpgrade: boolean
-  upgradeLabel: string
   settingsLabel: string
-  updatesLabel: string
   signOutLabel: string
   changeEmailLabel: string
   changePasswordLabel: string
-  onUpgrade: () => void
   onOpenSettings: () => void
-  onOpenUpdates: () => void
   onChangeEmail: () => void
   onChangePassword: () => void
 }) {
   return (
     <>
-      {showUpgrade && (
-        <DropdownMenuItem onClick={onUpgrade}>
-          <Sparkles />
-          {upgradeLabel}
-        </DropdownMenuItem>
-      )}
       <DropdownMenuItem onClick={onOpenSettings}>
         <Settings />
         {settingsLabel}
-      </DropdownMenuItem>
-      <DropdownMenuItem onClick={onOpenUpdates}>
-        <RefreshCw />
-        {updatesLabel}
       </DropdownMenuItem>
       {/* Desktop signs in with a hidden local account, so it has no credentials
           to change and no session to end. */}
@@ -225,16 +199,7 @@ function Navbar() {
   const location = useLocation()
   const navigate = useNavigate()
   const [settingsOpen, setSettingsOpen] = useState(false)
-  const [updatesOpen, setUpdatesOpen] = useState(false)
-  // The update pill lives outside the navbar; it asks for this dialog by event.
-  useEffect(() => {
-    const open = () => setUpdatesOpen(true)
-    window.addEventListener(OPEN_UPDATES_EVENT, open)
-    return () => window.removeEventListener(OPEN_UPDATES_EVENT, open)
-  }, [])
   const [credentialsMode, setCredentialsMode] = useState<'password' | 'email' | null>(null)
-  const { data: premium, licensed, isLoading: premiumLoading, isError: premiumError } = usePremium()
-  const showUpgrade = Boolean(premium) && !licensed && !premiumLoading && !premiumError
 
   return (
     <>
@@ -304,16 +269,11 @@ function Navbar() {
                 </DropdownMenuGroup>
                 <DropdownMenuSeparator />
                 <AccountMenuItems
-                  showUpgrade={showUpgrade}
-                  upgradeLabel={t('nav.upgrade')}
                   settingsLabel={t('nav.settings')}
-                  updatesLabel={t('settings.checkForUpdates')}
                   signOutLabel={t('nav.signOut')}
                   changeEmailLabel={t('auth.changeEmail')}
                   changePasswordLabel={t('auth.changePassword')}
-                  onUpgrade={() => navigate('/premium')}
                   onOpenSettings={() => setSettingsOpen(true)}
-                  onOpenUpdates={() => setUpdatesOpen(true)}
                   onChangeEmail={() => setCredentialsMode('email')}
                   onChangePassword={() => setCredentialsMode('password')}
                 />
@@ -323,7 +283,6 @@ function Navbar() {
         </div>
       </header>
       <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
-      <UpdatesDialog open={updatesOpen} onOpenChange={setUpdatesOpen} />
       {credentialsMode && (
         <ChangeCredentialsModal mode={credentialsMode} onClose={() => setCredentialsMode(null)} />
       )}
@@ -355,7 +314,7 @@ const FULL_BLEED_ROUTES = new Set(['/playground'])
 // as the widest thing that has finished rendering. On a page that fills in from
 // several independent queries — Analytics fires ten — that turns every arriving
 // response into a visible horizontal jump as the column re-fits, and pages
-// whose content never reaches 72rem (Analytics, Premium) settle narrower than
+// whose content never reaches 72rem (Analytics) settle narrower than
 // they were designed to be. A definite width makes the column 72rem from the
 // first paint, and `mx-auto` goes back to only centring it.
 function PageContainer({ children }: { children: ReactNode }) {
@@ -420,7 +379,7 @@ function App() {
                       <Route path="/fallback" element={<Navigate to="/models/chat" replace />} />
                       <Route path="/analytics" element={<AnalyticsPage />} />
                       <Route path="/logs" element={<LogsPage />} />
-                      <Route path="/premium" element={<PremiumPage />} />
+                      <Route path="/premium" element={<Navigate to="/playground" replace />} />
                       <Route path="/test" element={<Navigate to="/playground" replace />} />
                       <Route path="/health" element={<Navigate to="/keys" replace />} />
                       <Route path="*" element={<NotFoundPage />} />
@@ -429,7 +388,6 @@ function App() {
                 </PageContainer>
                 <Toaster />
                 <CommandPalette />
-                <UpdateReminder />
                 <NewBuildPrompt />
               </AppShell>
             </AuthGate>

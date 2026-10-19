@@ -6,7 +6,6 @@ import { openDashboard } from './window.js';
 import { openLogsFolder, openBackupsFolder } from './logger.js';
 import { dt, type NativeLocale } from './i18n.js';
 import { trayMenuOffersPopover, trayPlatform } from './tray-platform.js';
-import type { UpdateState } from './update-support.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -26,8 +25,6 @@ export function buildTray(
   onToggleLanAccess: () => void,
   getShowInDock: () => boolean,
   onToggleShowInDock: () => void,
-  getUpdateState: () => UpdateState,
-  onUpdateClick: () => void,
 ): Tray {
   const platform = trayPlatform(process.platform);
   const iconPath = path.join(__dirname, '../assets', platform.iconFile);
@@ -71,18 +68,11 @@ export function buildTray(
       // only shows relative paths, so the tray is the discovery point.
       { label: dt(locale, 'openBackups'), click: () => openBackupsFolder() },
       { type: 'separator' },
-      { label: updateLabel(locale, getUpdateState()), click: () => onUpdateClick() },
       { label: dt(locale, 'quitApp'), click: () => app.quit() },
     ]));
   });
 
   return tray;
-}
-
-function updateLabel(locale: NativeLocale, state: UpdateState): string {
-  return state.phase === 'ready'
-    ? dt(locale, 'restartToUpdateTray', { version: state.version })
-    : dt(locale, 'checkForUpdates');
 }
 
 // Update the static tooltip after a locale change (the menu reads the locale

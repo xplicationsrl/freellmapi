@@ -10,7 +10,7 @@ import { shouldOpenDashboardOnLaunch } from './tray-platform.js';
 import { openDashboard } from './window.js';
 import { todayStats, hourlyRequests, successRateToday } from './stats.js';
 import { normalizeLocale, nativeStrings, type NativeLocale } from './i18n.js';
-import { initUpdater, getUpdateState, checkForUpdates, downloadUpdate, installUpdate, checkFromTray } from './updater.js';
+import { initUpdater, getUpdateState, checkForUpdates, downloadUpdate, installUpdate } from './updater.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DEFAULT_PORT = 31415;
@@ -309,8 +309,6 @@ if (!app.requestSingleInstanceLock()) {
           toggleLanAccess,
           () => loadConfig().showInDock ?? true,
           toggleShowInDock,
-          getUpdateState,
-          () => void checkFromTray(),
         );
       } catch (err) {
         console.warn('[desktop] could not create the tray icon:', err);

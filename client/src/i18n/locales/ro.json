@@ -4,8 +4,6 @@
     "playground": "Locul de joacă",
     "keys": "Chei",
     "analytics": "Analiză",
-    "premium": "Premium",
-    "upgrade": "Modernizare",
     "settings": "Setări",
     "signOut": "Deconectează-te",
     "openMenu": "Deschide meniul de navigare",
@@ -693,8 +691,7 @@
     "capEditHint": "Limitele se resetează în ziua 1 la 00:00 UTC. Lasă gol pentru nelimitat.",
     "monthlyUsageLine": "{requests} cereri, {tokens} tokeni luna aceasta",
     "quotaBalanceHint": "Au rămas {remaining} din {limit} {metric}",
-    "quotaBalanceLeft": "Au rămas {remaining}"
-,
+    "quotaBalanceLeft": "Au rămas {remaining}",
     "groupLabel": "Group",
     "groupLabelPlaceholder": "e.g. Relays, Work…",
     "groupLabelHint": "Optional: endpoints in the same group are listed together, and a request can stay inside the group with custom:<model>#<group>. Leave blank for the default Custom group.",

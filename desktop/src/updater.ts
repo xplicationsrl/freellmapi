@@ -4,15 +4,15 @@
 // latest-mac.yml and latest-linux.yml next to the installers, plus the mac
 // .zip (Squirrel.Mac installs from the zip, never the dmg). This module owns the
 // whole lifecycle — check, download, install — and hands one serialisable state
-// to every surface that shows it: the dashboard (through the preload bridge),
-// the tray menu and the native dialogs.
+// to every surface that shows it: the dashboard (through the preload bridge)
+// and native notifications when a background download finishes.
 //
 // Nothing is downloaded or installed without the user asking, with one
 // exception they opt into: when the dashboard's "Check for updates
 // automatically" setting is on, a found update is fetched in the background and
 // the app says it is ready. It still never restarts on its own — agents are
 // routed through this process, and a restart drops their in-flight requests.
-import { app, BrowserWindow, dialog, Notification, shell } from 'electron';
+import { app, BrowserWindow, Notification } from 'electron';
 import electronUpdater from 'electron-updater';
 import { dt, type NativeLocale } from './i18n.js';
 import { updateSupport, updaterProxy, type UpdateState } from './update-support.js';
@@ -21,7 +21,6 @@ export type { UpdateState };
 
 const { autoUpdater } = electronUpdater;
 
-const RELEASES_URL = 'https://github.com/tashfeenahmed/freellmapi/releases/latest';
 const BACKGROUND_INTERVAL_MS = 6 * 60 * 60 * 1000;
 const FIRST_BACKGROUND_CHECK_MS = 60 * 1000;
 
@@ -216,50 +215,4 @@ export async function installUpdate(): Promise<UpdateState> {
   // Let the IPC reply reach the renderer before the process starts to quit.
   setImmediate(() => autoUpdater.quitAndInstall(false, true));
   return state;
-}
-
-/** Tray → "Check for Updates…": the same lifecycle with native dialogs. */
-export async function checkFromTray(): Promise<void> {
-  const locale = hooks?.getLocale() ?? 'en';
-  if (state.phase === 'unsupported') {
-    await shell.openExternal(RELEASES_URL);
-    return;
-  }
-  if (state.phase === 'ready') {
-    await offerRestart(locale, state.version);
-    return;
-  }
-  const result = await checkForUpdates();
-  if (result.phase === 'current') {
-    await dialog.showMessageBox({ type: 'info', message: dt(locale, 'upToDate', { version: app.getVersion() }) });
-  } else if (result.phase === 'available') {
-    const { response } = await dialog.showMessageBox({
-      type: 'info',
-      message: dt(locale, 'updateAvailable', { version: result.version }),
-      detail: dt(locale, 'updateAvailableDetail', { current: app.getVersion() }),
-      buttons: [dt(locale, 'downloadUpdate'), dt(locale, 'releaseNotes'), dt(locale, 'later')],
-      defaultId: 0,
-      cancelId: 2,
-    });
-    if (response === 0) {
-      const downloaded = await downloadUpdate();
-      if (downloaded.phase === 'ready') await offerRestart(locale, downloaded.version);
-    } else if (response === 1) {
-      await shell.openExternal(RELEASES_URL);
-    }
-  } else if (result.phase === 'error') {
-    dialog.showErrorBox(dt(locale, 'updateFailed'), result.message);
-  }
-}
-
-async function offerRestart(locale: NativeLocale, version: string): Promise<void> {
-  const { response } = await dialog.showMessageBox({
-    type: 'info',
-    message: dt(locale, 'updateReadyTitle', { version }),
-    detail: dt(locale, 'updateReadyBody'),
-    buttons: [dt(locale, 'restartToUpdate'), dt(locale, 'later')],
-    defaultId: 0,
-    cancelId: 1,
-  });
-  if (response === 0) await installUpdate();
 }

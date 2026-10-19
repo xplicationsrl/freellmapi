@@ -45,6 +45,7 @@ const QUOTA_SNAPSHOT_FRESHNESS_FILENAME = '20260915_000001_quota_snapshot_freshn
 const CUSTOM_ENDPOINT_GROUP_LABEL_FILENAME = '20260930_000001_custom_endpoint_group_label.ts';
 const SEARCH_ENGINES_FILENAME = '20261013_000001_search_engines.ts';
 const CONVERSATION_OWNER_FILENAME = '20261016_000001_conversation_owner.ts';
+const PLAYGROUND_PROJECTS_FILENAME = '20261019_000001_playground_projects.ts';
 
 interface SchemaRow {
   type: string;
@@ -136,6 +137,7 @@ describe('migration round trip', () => {
         CUSTOM_ENDPOINT_GROUP_LABEL_FILENAME,
         SEARCH_ENGINES_FILENAME,
         CONVERSATION_OWNER_FILENAME,
+        PLAYGROUND_PROJECTS_FILENAME,
       ]);
     } finally {
       db.close();

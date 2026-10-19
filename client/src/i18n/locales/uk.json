@@ -693,8 +693,7 @@
     "capEditHint": "Ліміти скидаються 1-го числа о 00:00 UTC. Залиште порожнім для безліміту.",
     "monthlyUsageLine": "{requests} запитів, {tokens} токенів цього місяця",
     "quotaBalanceHint": "Залишилося {remaining} з {limit} {metric}",
-    "quotaBalanceLeft": "Залишилося {remaining}"
-,
+    "quotaBalanceLeft": "Залишилося {remaining}",
     "groupLabel": "Group",
     "groupLabelPlaceholder": "e.g. Relays, Work…",
     "groupLabelHint": "Optional: endpoints in the same group are listed together, and a request can stay inside the group with custom:<model>#<group>. Leave blank for the default Custom group.",
@@ -929,7 +928,10 @@
     "renameFailed": "Не вдалося перейменувати цей чат.",
     "deleteFailed": "Не вдалося видалити цей чат.",
     "actions": "Дії з розмовою",
-    "newChat": "Новий чат"
+    "newChat": "Новий чат",
+    "searchChats": "Пошук чатів",
+    "searchPlaceholder": "Пошук чатів…",
+    "searchEmpty": "Немає чатів за цим запитом."
   },
   "embeddings": {
     "title": "Моделі",

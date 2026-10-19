@@ -693,8 +693,7 @@
     "capEditHint": "تُصفَّر الحدود في 1 من الشهر 00:00 بتوقيت UTC. اتركه فارغًا بلا حد.",
     "monthlyUsageLine": "{requests} طلبًا، {tokens} رمز هذا الشهر",
     "quotaBalanceHint": "متبقٍ {remaining} من {limit} {metric}",
-    "quotaBalanceLeft": "متبقٍ {remaining}"
-,
+    "quotaBalanceLeft": "متبقٍ {remaining}",
     "groupLabel": "Group",
     "groupLabelPlaceholder": "e.g. Relays, Work…",
     "groupLabelHint": "Optional: endpoints in the same group are listed together, and a request can stay inside the group with custom:<model>#<group>. Leave blank for the default Custom group.",
@@ -929,7 +928,10 @@
     "renameFailed": "تعذّرت إعادة تسمية تلك المحادثة.",
     "deleteFailed": "تعذّر حذف تلك المحادثة.",
     "actions": "إجراءات المحادثة",
-    "newChat": "محادثة جديدة"
+    "newChat": "محادثة جديدة",
+    "searchChats": "البحث في المحادثات",
+    "searchPlaceholder": "البحث في المحادثات…",
+    "searchEmpty": "لا توجد محادثات تطابق هذا البحث."
   },
   "embeddings": {
     "title": "نماذج",

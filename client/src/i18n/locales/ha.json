@@ -693,8 +693,7 @@
     "capEditHint": "Ana saita iyakoki a ranar 1 00:00 UTC. Bara komai don mara iyaka.",
     "monthlyUsageLine": "Buƙatotu {requests}, token {tokens} wannan wata",
     "quotaBalanceHint": "Saura {remaining} daga {limit} {metric}",
-    "quotaBalanceLeft": "Saura {remaining}"
-,
+    "quotaBalanceLeft": "Saura {remaining}",
     "groupLabel": "Group",
     "groupLabelPlaceholder": "e.g. Relays, Work…",
     "groupLabelHint": "Optional: endpoints in the same group are listed together, and a request can stay inside the group with custom:<model>#<group>. Leave blank for the default Custom group.",
@@ -929,7 +928,10 @@
     "renameFailed": "Ba a iya sauya sunan wannan tattaunawar ba.",
     "deleteFailed": "Ba a iya share wannan tattaunawar ba.",
     "actions": "Ayyukan tattaunawa",
-    "newChat": "Sabuwar tattaunawa"
+    "newChat": "Sabuwar tattaunawa",
+    "searchChats": "Search chats",
+    "searchPlaceholder": "Search chats…",
+    "searchEmpty": "No chats match that search."
   },
   "embeddings": {
     "title": "Samfura",

@@ -693,8 +693,7 @@
     "capEditHint": "සීමාවන් සෑම මාසයකම 1 වන දා 00:00 UTC ට යළි සකසයි. සීමා රහිතට හිස්ව තබන්න.",
     "monthlyUsageLine": "මෙම මාසය ඉල්ලීම් {requests}, ටෝකන් {tokens}",
     "quotaBalanceHint": "{limit} {metric} න් {remaining} ඉතිරියි",
-    "quotaBalanceLeft": "{remaining} ඉතිරියි"
-,
+    "quotaBalanceLeft": "{remaining} ඉතිරියි",
     "groupLabel": "Group",
     "groupLabelPlaceholder": "e.g. Relays, Work…",
     "groupLabelHint": "Optional: endpoints in the same group are listed together, and a request can stay inside the group with custom:<model>#<group>. Leave blank for the default Custom group.",
@@ -929,7 +928,10 @@
     "renameFailed": "එම සංවාදයේ නම වෙනස් කළ නොහැකි විය.",
     "deleteFailed": "එම සංවාදය මැකිය නොහැකි විය.",
     "actions": "සංවාද ක්‍රියා",
-    "newChat": "නව කතාබහ"
+    "newChat": "නව කතාබහ",
+    "searchChats": "Search chats",
+    "searchPlaceholder": "Search chats…",
+    "searchEmpty": "No chats match that search."
   },
   "embeddings": {
     "title": "ආකෘති",

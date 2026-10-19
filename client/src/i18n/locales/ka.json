@@ -693,8 +693,7 @@
     "capEditHint": "ლიმიტები სათითაო თვის 1-ს 00:00 UTC აღდგება. დატოვეთ ცარიელი შეუზღუდავისთვის.",
     "monthlyUsageLine": "ამ თვეში {requests} მოთხოვნა, {tokens} ტოკენი",
     "quotaBalanceHint": "დარჩა {remaining} / {limit} {metric}",
-    "quotaBalanceLeft": "დარჩა {remaining}"
-,
+    "quotaBalanceLeft": "დარჩა {remaining}",
     "groupLabel": "Group",
     "groupLabelPlaceholder": "e.g. Relays, Work…",
     "groupLabelHint": "Optional: endpoints in the same group are listed together, and a request can stay inside the group with custom:<model>#<group>. Leave blank for the default Custom group.",
@@ -929,7 +928,10 @@
     "renameFailed": "ამ საუბრის გადარქმევა ვერ მოხერხდა.",
     "deleteFailed": "ამ საუბრის წაშლა ვერ მოხერხდა.",
     "actions": "საუბრის მოქმედებები",
-    "newChat": "ახალი ჩატი"
+    "newChat": "ახალი ჩატი",
+    "searchChats": "ჩატების ძიება",
+    "searchPlaceholder": "ჩატების ძიება…",
+    "searchEmpty": "არცერთი ჩატი არ ემთხვევა ძიებას."
   },
   "embeddings": {
     "title": "მოდელები",

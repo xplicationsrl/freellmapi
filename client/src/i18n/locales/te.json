@@ -693,8 +693,7 @@
     "capEditHint": "ప్రతి నెలా 1వ తేదీన 00:00 UTCకు పరిమితులు రీసెట్ అవుతాయి. అపరిమితంగా కావాలంటే ఖాళీగా వదిలండి.",
     "monthlyUsageLine": "ఈ నెల {requests} అభ్యర్థనలు, {tokens} టోకెన్లు",
     "quotaBalanceHint": "{limit} {metric}లో {remaining} మిగిలింది",
-    "quotaBalanceLeft": "{remaining} మిగిలింది"
-,
+    "quotaBalanceLeft": "{remaining} మిగిలింది",
     "groupLabel": "Group",
     "groupLabelPlaceholder": "e.g. Relays, Work…",
     "groupLabelHint": "Optional: endpoints in the same group are listed together, and a request can stay inside the group with custom:<model>#<group>. Leave blank for the default Custom group.",
@@ -929,7 +928,10 @@
     "renameFailed": "ఆ సంభాషణ పేరును మార్చడం సాధ్యం కాలేదు.",
     "deleteFailed": "ఆ సంభాషణను తొలగించడం సాధ్యం కాలేదు.",
     "actions": "సంభాషణ చర్యలు",
-    "newChat": "కొత్త చాట్"
+    "newChat": "కొత్త చాట్",
+    "searchChats": "Search chats",
+    "searchPlaceholder": "Search chats…",
+    "searchEmpty": "No chats match that search."
   },
   "embeddings": {
     "title": "మోడల్స్",

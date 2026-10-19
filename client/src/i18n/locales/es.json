@@ -693,8 +693,7 @@
     "capEditHint": "Los límites se reinician el día 1 a las 00:00 UTC. Déjelo en blanco para ilimitado.",
     "monthlyUsageLine": "{requests} solicitudes, {tokens} tokens este mes",
     "quotaBalanceHint": "Quedan {remaining} de {limit} {metric}",
-    "quotaBalanceLeft": "Quedan {remaining}"
-,
+    "quotaBalanceLeft": "Quedan {remaining}",
     "groupLabel": "Group",
     "groupLabelPlaceholder": "e.g. Relays, Work…",
     "groupLabelHint": "Optional: endpoints in the same group are listed together, and a request can stay inside the group with custom:<model>#<group>. Leave blank for the default Custom group.",
@@ -929,7 +928,10 @@
     "renameFailed": "No se pudo cambiar el nombre de esa conversación.",
     "deleteFailed": "No se pudo eliminar esa conversación.",
     "actions": "Acciones de la conversación",
-    "newChat": "Nuevo chat"
+    "newChat": "Nuevo chat",
+    "searchChats": "Buscar chats",
+    "searchPlaceholder": "Buscar chats…",
+    "searchEmpty": "Ningún chat coincide con esa búsqueda."
   },
   "embeddings": {
     "title": "Modelos",

@@ -693,8 +693,7 @@
     "capEditHint": "Grensene nullstilles den 1. kl. 00:00 UTC. La stå tomt for ubegrenset.",
     "monthlyUsageLine": "{requests} forespørsler, {tokens} tokens denne måneden",
     "quotaBalanceHint": "{remaining} av {limit} {metric} igjen",
-    "quotaBalanceLeft": "{remaining} igjen"
-,
+    "quotaBalanceLeft": "{remaining} igjen",
     "groupLabel": "Group",
     "groupLabelPlaceholder": "e.g. Relays, Work…",
     "groupLabelHint": "Optional: endpoints in the same group are listed together, and a request can stay inside the group with custom:<model>#<group>. Leave blank for the default Custom group.",
@@ -929,7 +928,10 @@
     "renameFailed": "Kunne ikke gi den samtalen nytt navn.",
     "deleteFailed": "Kunne ikke slette den samtalen.",
     "actions": "Samtalehandlinger",
-    "newChat": "Ny chat"
+    "newChat": "Ny chat",
+    "searchChats": "Søk i chatter",
+    "searchPlaceholder": "Søk i chatter…",
+    "searchEmpty": "Ingen chatter matcher søket."
   },
   "embeddings": {
     "title": "Modeller",

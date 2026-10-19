@@ -693,8 +693,7 @@
     "capEditHint": "Batas disetel ulang pada tanggal 1 pukul 00:00 UTC. Kosongkan untuk tanpa batas.",
     "monthlyUsageLine": "{requests} permintaan, {tokens} token bulan ini",
     "quotaBalanceHint": "Tersisa {remaining} dari {limit} {metric}",
-    "quotaBalanceLeft": "Tersisa {remaining}"
-,
+    "quotaBalanceLeft": "Tersisa {remaining}",
     "groupLabel": "Group",
     "groupLabelPlaceholder": "e.g. Relays, Work…",
     "groupLabelHint": "Optional: endpoints in the same group are listed together, and a request can stay inside the group with custom:<model>#<group>. Leave blank for the default Custom group.",
@@ -929,7 +928,10 @@
     "renameFailed": "Tidak dapat mengganti nama percakapan itu.",
     "deleteFailed": "Tidak dapat menghapus percakapan itu.",
     "actions": "Tindakan percakapan",
-    "newChat": "Obrolan baru"
+    "newChat": "Obrolan baru",
+    "searchChats": "Cari obrolan",
+    "searchPlaceholder": "Cari obrolan…",
+    "searchEmpty": "Tidak ada obrolan yang cocok."
   },
   "embeddings": {
     "title": "Model",

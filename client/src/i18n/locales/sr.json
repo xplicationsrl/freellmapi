@@ -693,8 +693,7 @@
     "capEditHint": "Лимити се ресетују 1. у 00:00 UTC. Оставите празно за неограничено.",
     "monthlyUsageLine": "{requests} захтева, {tokens} токена овог месеца",
     "quotaBalanceHint": "Преостало {remaining} од {limit} {metric}",
-    "quotaBalanceLeft": "Преостало {remaining}"
-,
+    "quotaBalanceLeft": "Преостало {remaining}",
     "groupLabel": "Group",
     "groupLabelPlaceholder": "e.g. Relays, Work…",
     "groupLabelHint": "Optional: endpoints in the same group are listed together, and a request can stay inside the group with custom:<model>#<group>. Leave blank for the default Custom group.",
@@ -929,7 +928,10 @@
     "renameFailed": "Није могуће преименовати тај разговор.",
     "deleteFailed": "Није могуће избрисати тај разговор.",
     "actions": "Радње разговора",
-    "newChat": "Нови разговор"
+    "newChat": "Нови разговор",
+    "searchChats": "Претражи разговоре",
+    "searchPlaceholder": "Претражи разговоре…",
+    "searchEmpty": "Ниједан разговор не одговара претрази."
   },
   "embeddings": {
     "title": "Модели",

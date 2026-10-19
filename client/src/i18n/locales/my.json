@@ -693,8 +693,7 @@
     "capEditHint": "အကန့်အသတ်များကို လ၏ ပထမရက် ၀၀:၀၀ UTC တွင် ပြန်ချမှတ်သည်။ မရှိလိုပါက ဗလာထားပါ။",
     "monthlyUsageLine": "ယခုလ တောင်းဆိုမှု {requests}၊ တိုကင် {tokens}",
     "quotaBalanceHint": "{limit} {metric} အနက် {remaining} ကျန်သည်",
-    "quotaBalanceLeft": "{remaining} ကျန်သည်"
-,
+    "quotaBalanceLeft": "{remaining} ကျန်သည်",
     "groupLabel": "Group",
     "groupLabelPlaceholder": "e.g. Relays, Work…",
     "groupLabelHint": "Optional: endpoints in the same group are listed together, and a request can stay inside the group with custom:<model>#<group>. Leave blank for the default Custom group.",
@@ -929,7 +928,10 @@
     "renameFailed": "ထိုစကားဝိုင်း၏ အမည်ကို ပြောင်း၍မရပါ။",
     "deleteFailed": "ထိုစကားဝိုင်းကို ဖျက်၍မရပါ။",
     "actions": "စကားဝိုင်း လုပ်ဆောင်ချက်များ",
-    "newChat": "ချတ်အသစ်"
+    "newChat": "ချတ်အသစ်",
+    "searchChats": "Search chats",
+    "searchPlaceholder": "Search chats…",
+    "searchEmpty": "No chats match that search."
   },
   "embeddings": {
     "title": "မော်ဒယ်များ",

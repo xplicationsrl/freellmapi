@@ -693,8 +693,7 @@
     "capEditHint": "सीमा हरेक महिनाको १ गते ००:०० UTC मा रिसेट हुन्छ। असीमितका लागि खाली राख्नुहोस्।",
     "monthlyUsageLine": "यस महिना {requests} अनुरोध, {tokens} टोकन",
     "quotaBalanceHint": "{limit} {metric} मध्ये {remaining} बाँकी",
-    "quotaBalanceLeft": "{remaining} बाँकी"
-,
+    "quotaBalanceLeft": "{remaining} बाँकी",
     "groupLabel": "Group",
     "groupLabelPlaceholder": "e.g. Relays, Work…",
     "groupLabelHint": "Optional: endpoints in the same group are listed together, and a request can stay inside the group with custom:<model>#<group>. Leave blank for the default Custom group.",
@@ -929,7 +928,10 @@
     "renameFailed": "त्यो कुराकानीको नाम बदल्न सकिएन।",
     "deleteFailed": "त्यो कुराकानी मेट्न सकिएन।",
     "actions": "वार्तालाप कार्यहरू",
-    "newChat": "नयाँ च्याट"
+    "newChat": "नयाँ च्याट",
+    "searchChats": "Search chats",
+    "searchPlaceholder": "Search chats…",
+    "searchEmpty": "No chats match that search."
   },
   "embeddings": {
     "title": "नमूनाहरू",

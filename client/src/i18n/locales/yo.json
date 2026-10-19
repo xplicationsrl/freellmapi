@@ -693,8 +693,7 @@
     "capEditHint": "A tún òpín ṣe ní ọjọ́ kìíní ní 00:00 UTC. Fi sílẹ̀ ṣófo fún aláìlópin.",
     "monthlyUsageLine": "{requests} ìbéèrè, {tokens} token oṣù yìí",
     "quotaBalanceHint": "{remaining} nínú {limit} {metric} ló kù",
-    "quotaBalanceLeft": "{remaining} ló kù"
-,
+    "quotaBalanceLeft": "{remaining} ló kù",
     "groupLabel": "Group",
     "groupLabelPlaceholder": "e.g. Relays, Work…",
     "groupLabelHint": "Optional: endpoints in the same group are listed together, and a request can stay inside the group with custom:<model>#<group>. Leave blank for the default Custom group.",
@@ -929,7 +928,10 @@
     "renameFailed": "A kò lè tún orúkọ ìjíròrò yẹn sọ.",
     "deleteFailed": "A kò lè pa ìjíròrò yẹn rẹ́.",
     "actions": "Àwọn ìṣe ìjíròrò",
-    "newChat": "Ìfọ̀rọ̀wérọ̀ tuntun"
+    "newChat": "Ìfọ̀rọ̀wérọ̀ tuntun",
+    "searchChats": "Wa àwọn ìfọ̀rọ̀wérọ̀",
+    "searchPlaceholder": "Wa àwọn ìfọ̀rọ̀wérọ̀…",
+    "searchEmpty": "Kò sí ìfọ̀rọ̀wérọ̀ tó bá ìwárí náà mu."
   },
   "embeddings": {
     "title": "Awọn awoṣe",

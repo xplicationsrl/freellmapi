@@ -693,8 +693,7 @@
     "capEditHint": "Had diset semula pada 1 haribulan 00:00 UTC. Biarkan kosong untuk tanpa had.",
     "monthlyUsageLine": "{requests} permintaan, {tokens} token bulan ini",
     "quotaBalanceHint": "Baki {remaining} daripada {limit} {metric}",
-    "quotaBalanceLeft": "Baki {remaining}"
-,
+    "quotaBalanceLeft": "Baki {remaining}",
     "groupLabel": "Group",
     "groupLabelPlaceholder": "e.g. Relays, Work…",
     "groupLabelHint": "Optional: endpoints in the same group are listed together, and a request can stay inside the group with custom:<model>#<group>. Leave blank for the default Custom group.",
@@ -929,7 +928,10 @@
     "renameFailed": "Tidak dapat menukar nama perbualan itu.",
     "deleteFailed": "Tidak dapat memadam perbualan itu.",
     "actions": "Tindakan perbualan",
-    "newChat": "Sembang baharu"
+    "newChat": "Sembang baharu",
+    "searchChats": "Cari sembang",
+    "searchPlaceholder": "Cari sembang…",
+    "searchEmpty": "Tiada sembang yang sepadan."
   },
   "embeddings": {
     "title": "Model",

@@ -693,8 +693,7 @@
     "capEditHint": "上限は毎月1日 00:00 UTC にリセットされます。無制限は空欄のままにしてください。",
     "monthlyUsageLine": "今月 {requests} リクエスト、{tokens} トークン",
     "quotaBalanceHint": "{limit} {metric}中 残り {remaining}",
-    "quotaBalanceLeft": "残り {remaining}"
-,
+    "quotaBalanceLeft": "残り {remaining}",
     "groupLabel": "Group",
     "groupLabelPlaceholder": "e.g. Relays, Work…",
     "groupLabelHint": "Optional: endpoints in the same group are listed together, and a request can stay inside the group with custom:<model>#<group>. Leave blank for the default Custom group.",
@@ -929,7 +928,10 @@
     "renameFailed": "この会話の名前を変更できませんでした。",
     "deleteFailed": "この会話を削除できませんでした。",
     "actions": "会話の操作",
-    "newChat": "新しいチャット"
+    "newChat": "新しいチャット",
+    "searchChats": "チャットを検索",
+    "searchPlaceholder": "チャットを検索…",
+    "searchEmpty": "一致するチャットはありません。"
   },
   "embeddings": {
     "title": "モデル",

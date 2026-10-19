@@ -693,8 +693,7 @@
     "capEditHint": "Gränserna nollställs den 1:a kl 00:00 UTC. Lämna tomt för obegränsat.",
     "monthlyUsageLine": "{requests} förfrågningar, {tokens} tokens denna månad",
     "quotaBalanceHint": "{remaining} av {limit} {metric} kvar",
-    "quotaBalanceLeft": "{remaining} kvar"
-,
+    "quotaBalanceLeft": "{remaining} kvar",
     "groupLabel": "Group",
     "groupLabelPlaceholder": "e.g. Relays, Work…",
     "groupLabelHint": "Optional: endpoints in the same group are listed together, and a request can stay inside the group with custom:<model>#<group>. Leave blank for the default Custom group.",
@@ -929,7 +928,10 @@
     "renameFailed": "Det gick inte att byta namn på den konversationen.",
     "deleteFailed": "Det gick inte att radera den konversationen.",
     "actions": "Samtalsåtgärder",
-    "newChat": "Ny chatt"
+    "newChat": "Ny chatt",
+    "searchChats": "Sök chattar",
+    "searchPlaceholder": "Sök chattar…",
+    "searchEmpty": "Inga chattar matchar sökningen."
   },
   "embeddings": {
     "title": "Modeller",

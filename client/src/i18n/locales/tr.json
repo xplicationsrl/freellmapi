@@ -693,8 +693,7 @@
     "capEditHint": "Sınırlar her ayın 1'inde 00:00 UTC'de sıfırlanır. Sınırsız için boş bırakın.",
     "monthlyUsageLine": "Bu ay {requests} istek, {tokens} token",
     "quotaBalanceHint": "{limit} {metric} içinden {remaining} kaldı",
-    "quotaBalanceLeft": "{remaining} kaldı"
-,
+    "quotaBalanceLeft": "{remaining} kaldı",
     "groupLabel": "Group",
     "groupLabelPlaceholder": "e.g. Relays, Work…",
     "groupLabelHint": "Optional: endpoints in the same group are listed together, and a request can stay inside the group with custom:<model>#<group>. Leave blank for the default Custom group.",
@@ -929,7 +928,10 @@
     "renameFailed": "Bu sohbet yeniden adlandırılamadı.",
     "deleteFailed": "Bu sohbet silinemedi.",
     "actions": "Sohbet işlemleri",
-    "newChat": "Yeni sohbet"
+    "newChat": "Yeni sohbet",
+    "searchChats": "Sohbetleri ara",
+    "searchPlaceholder": "Sohbetleri ara…",
+    "searchEmpty": "Bu aramayla eşleşen sohbet yok."
   },
   "embeddings": {
     "title": "Modeller",

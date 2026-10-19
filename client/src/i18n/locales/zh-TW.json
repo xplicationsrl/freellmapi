@@ -693,8 +693,7 @@
     "capEditHint": "配額在每月 1 日 00:00 UTC 重設。留空表示無限制。",
     "monthlyUsageLine": "本月 {requests} 次請求，{tokens} tokens",
     "quotaBalanceHint": "剩餘 {remaining} / {limit} {metric}",
-    "quotaBalanceLeft": "剩餘 {remaining}"
-,
+    "quotaBalanceLeft": "剩餘 {remaining}",
     "groupLabel": "Group",
     "groupLabelPlaceholder": "e.g. Relays, Work…",
     "groupLabelHint": "Optional: endpoints in the same group are listed together, and a request can stay inside the group with custom:<model>#<group>. Leave blank for the default Custom group.",
@@ -929,7 +928,10 @@
     "renameFailed": "無法重新命名該對話。",
     "deleteFailed": "無法刪除該對話。",
     "actions": "對話操作",
-    "newChat": "新對話"
+    "newChat": "新對話",
+    "searchChats": "搜尋對話",
+    "searchPlaceholder": "搜尋對話…",
+    "searchEmpty": "沒有符合的對話。"
   },
   "embeddings": {
     "title": "模型",

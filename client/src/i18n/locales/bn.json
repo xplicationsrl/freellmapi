@@ -693,8 +693,7 @@
     "capEditHint": "সীমা প্রতি মাসের ১ তারিখে ০০:০০ UTC-তে রিসেট হয়। সীমাহীন রাখতে খালি রাখুন।",
     "monthlyUsageLine": "এই মাসে {requests} অনুরোধ, {tokens} টোকেন",
     "quotaBalanceHint": "{limit} {metric}-এর মধ্যে {remaining} বাকি",
-    "quotaBalanceLeft": "{remaining} বাকি"
-,
+    "quotaBalanceLeft": "{remaining} বাকি",
     "groupLabel": "Group",
     "groupLabelPlaceholder": "e.g. Relays, Work…",
     "groupLabelHint": "Optional: endpoints in the same group are listed together, and a request can stay inside the group with custom:<model>#<group>. Leave blank for the default Custom group.",
@@ -929,7 +928,10 @@
     "renameFailed": "সেই কথোপকথনের নাম পরিবর্তন করা গেল না।",
     "deleteFailed": "সেই কথোপকথনটি মুছে দেওয়া গেল না।",
     "actions": "কথোপকথনের ক্রিয়া",
-    "newChat": "নতুন চ্যাট"
+    "newChat": "নতুন চ্যাট",
+    "searchChats": "Search chats",
+    "searchPlaceholder": "Search chats…",
+    "searchEmpty": "No chats match that search."
   },
   "embeddings": {
     "title": "মডেল",

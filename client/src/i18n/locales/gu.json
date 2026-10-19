@@ -693,8 +693,7 @@
     "capEditHint": "મર્યાદા દર મહિને 1 તારીખે 00:00 UTC પર રીસેટ થાય છે. અમર્યાદિત માટે ખાલી રાખો.",
     "monthlyUsageLine": "આ મહિને {requests} વિનંતીઓ, {tokens} ટોકન",
     "quotaBalanceHint": "{limit} {metric}માંથી {remaining} બાકી",
-    "quotaBalanceLeft": "{remaining} બાકી"
-,
+    "quotaBalanceLeft": "{remaining} બાકી",
     "groupLabel": "Group",
     "groupLabelPlaceholder": "e.g. Relays, Work…",
     "groupLabelHint": "Optional: endpoints in the same group are listed together, and a request can stay inside the group with custom:<model>#<group>. Leave blank for the default Custom group.",
@@ -929,7 +928,10 @@
     "renameFailed": "તે વાતચીતનું નામ બદલી શકાયું નહીં.",
     "deleteFailed": "તે વાતચીત કાઢી શકાઈ નહીં.",
     "actions": "વાતચીત ક્રિયાઓ",
-    "newChat": "નવી ચેટ"
+    "newChat": "નવી ચેટ",
+    "searchChats": "Search chats",
+    "searchPlaceholder": "Search chats…",
+    "searchEmpty": "No chats match that search."
   },
   "embeddings": {
     "title": "મોડલ્સ",

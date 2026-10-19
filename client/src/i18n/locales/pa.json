@@ -693,8 +693,7 @@
     "capEditHint": "ਸੀਮਾਵਾਂ ਹਰ ਮਹੀਨੇ 1 ਤਾਰੀਖ਼ ਨੂੰ 00:00 UTC 'ਤੇ ਰੀਸੈੱਟ ਹੁੰਦੀਆਂ ਹਨ। ਅਸੀਮਤ ਲਈ ਖਾਲੀ ਛੱਡੋ।",
     "monthlyUsageLine": "ਇਸ ਮਹੀਨੇ {requests} ਬੇਨਤੀਆਂ, {tokens} ਟੋਕਨ",
     "quotaBalanceHint": "{limit} {metric} ਵਿੱਚੋਂ {remaining} ਬਾਕੀ",
-    "quotaBalanceLeft": "{remaining} ਬਾਕੀ"
-,
+    "quotaBalanceLeft": "{remaining} ਬਾਕੀ",
     "groupLabel": "Group",
     "groupLabelPlaceholder": "e.g. Relays, Work…",
     "groupLabelHint": "Optional: endpoints in the same group are listed together, and a request can stay inside the group with custom:<model>#<group>. Leave blank for the default Custom group.",
@@ -929,7 +928,10 @@
     "renameFailed": "ਉਸ ਗੱਲਬਾਤ ਦਾ ਨਾਂ ਨਹੀਂ ਬਦਲਿਆ ਜਾ ਸਕਿਆ।",
     "deleteFailed": "ਉਹ ਗੱਲਬਾਤ ਮਿਟਾਈ ਨਹੀਂ ਜਾ ਸਕੀ।",
     "actions": "ਗੱਲਬਾਤ ਕਾਰਵਾਈਆਂ",
-    "newChat": "ਨਵੀਂ ਚੈਟ"
+    "newChat": "ਨਵੀਂ ਚੈਟ",
+    "searchChats": "Search chats",
+    "searchPlaceholder": "Search chats…",
+    "searchEmpty": "No chats match that search."
   },
   "embeddings": {
     "title": "ਮਾਡਲ",

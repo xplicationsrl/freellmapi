@@ -693,8 +693,7 @@
     "capEditHint": "ขีดจำกัดจะรีเซ็ตวันที่ 1 เวลา 00:00 UTC เว้นว่างไว้หากไม่จำกัด",
     "monthlyUsageLine": "เดือนนี้ {requests} คำขอ {tokens} โทเคน",
     "quotaBalanceHint": "เหลือ {remaining} จาก {limit} {metric}",
-    "quotaBalanceLeft": "เหลือ {remaining}"
-,
+    "quotaBalanceLeft": "เหลือ {remaining}",
     "groupLabel": "Group",
     "groupLabelPlaceholder": "e.g. Relays, Work…",
     "groupLabelHint": "Optional: endpoints in the same group are listed together, and a request can stay inside the group with custom:<model>#<group>. Leave blank for the default Custom group.",
@@ -929,7 +928,10 @@
     "renameFailed": "ไม่สามารถเปลี่ยนชื่อบทสนทนานั้นได้",
     "deleteFailed": "ไม่สามารถลบบทสนทนานั้นได้",
     "actions": "การดำเนินการของการสนทนา",
-    "newChat": "แชทใหม่"
+    "newChat": "แชทใหม่",
+    "searchChats": "ค้นหาแชท",
+    "searchPlaceholder": "ค้นหาแชท…",
+    "searchEmpty": "ไม่พบแชทที่ตรงกับการค้นหา"
   },
   "embeddings": {
     "title": "โมเดล",

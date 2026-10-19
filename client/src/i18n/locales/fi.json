@@ -693,8 +693,7 @@
     "capEditHint": "Rajat nollautuvat kuun 1. päivänä 00:00 UTC. Jätä tyhjäksi rajoittamattomaan.",
     "monthlyUsageLine": "{requests} pyyntöä, {tokens} tokenia tässä kuussa",
     "quotaBalanceHint": "{remaining}/{limit} {metric} jäljellä",
-    "quotaBalanceLeft": "{remaining} jäljellä"
-,
+    "quotaBalanceLeft": "{remaining} jäljellä",
     "groupLabel": "Group",
     "groupLabelPlaceholder": "e.g. Relays, Work…",
     "groupLabelHint": "Optional: endpoints in the same group are listed together, and a request can stay inside the group with custom:<model>#<group>. Leave blank for the default Custom group.",
@@ -929,7 +928,10 @@
     "renameFailed": "Keskustelua ei voitu nimetä uudelleen.",
     "deleteFailed": "Keskustelua ei voitu poistaa.",
     "actions": "Keskustelun toiminnot",
-    "newChat": "Uusi keskustelu"
+    "newChat": "Uusi keskustelu",
+    "searchChats": "Hae keskusteluja",
+    "searchPlaceholder": "Hae keskusteluja…",
+    "searchEmpty": "Ei hakua vastaavia keskusteluja."
   },
   "embeddings": {
     "title": "Mallit",

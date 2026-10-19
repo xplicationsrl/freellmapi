@@ -693,8 +693,7 @@
     "capEditHint": "ସୀମା ପ୍ରତି ମାସର ୧ ତାରିଖରେ ୦୦:୦୦ UTC ରେ ରିସେଟ୍ ହୁଏ। ଅସୀମିତ ପାଇଁ ଖାଲି ରଖନ୍ତୁ।",
     "monthlyUsageLine": "ଏହି ମାସରେ {requests} ଅନୁରୋଧ, {tokens} ଟୋକେନ୍",
     "quotaBalanceHint": "{limit} {metric} ମଧ୍ୟରୁ {remaining} ବାକି",
-    "quotaBalanceLeft": "{remaining} ବାକି"
-,
+    "quotaBalanceLeft": "{remaining} ବାକି",
     "groupLabel": "Group",
     "groupLabelPlaceholder": "e.g. Relays, Work…",
     "groupLabelHint": "Optional: endpoints in the same group are listed together, and a request can stay inside the group with custom:<model>#<group>. Leave blank for the default Custom group.",
@@ -929,7 +928,10 @@
     "renameFailed": "ସେହି ବାର୍ତ୍ତାଳାପର ନାମ ବଦଳାଯାଇପାରିଲା ନାହିଁ।",
     "deleteFailed": "ସେହି ବାର୍ତ୍ତାଳାପ ବିଲୋପ କରାଯାଇପାରିଲା ନାହିଁ।",
     "actions": "ବାର୍ତ୍ତାଳାପ କାର୍ଯ୍ୟ",
-    "newChat": "ନୂଆ ଚାଟ୍"
+    "newChat": "ନୂଆ ଚାଟ୍",
+    "searchChats": "Search chats",
+    "searchPlaceholder": "Search chats…",
+    "searchEmpty": "No chats match that search."
   },
   "embeddings": {
     "title": "ମଡେଲଗୁଡିକ",

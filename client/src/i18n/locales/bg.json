@@ -693,8 +693,7 @@
     "capEditHint": "Лимитите се нулират на 1-во число 00:00 UTC. Оставете празно за неограничен.",
     "monthlyUsageLine": "{requests} заявки, {tokens} токени този месец",
     "quotaBalanceHint": "Остават {remaining} от {limit} {metric}",
-    "quotaBalanceLeft": "Остават {remaining}"
-,
+    "quotaBalanceLeft": "Остават {remaining}",
     "groupLabel": "Group",
     "groupLabelPlaceholder": "e.g. Relays, Work…",
     "groupLabelHint": "Optional: endpoints in the same group are listed together, and a request can stay inside the group with custom:<model>#<group>. Leave blank for the default Custom group.",
@@ -929,7 +928,10 @@
     "renameFailed": "Разговорът не можа да бъде преименуван.",
     "deleteFailed": "Разговорът не можа да бъде изтрит.",
     "actions": "Действия за разговора",
-    "newChat": "Нов чат"
+    "newChat": "Нов чат",
+    "searchChats": "Търсене на чатове",
+    "searchPlaceholder": "Търсене на чатове…",
+    "searchEmpty": "Няма чатове, които да съвпадат."
   },
   "embeddings": {
     "title": "Модели",

@@ -693,8 +693,7 @@
     "capEditHint": "Τα όρια μηδενίζονται την 1η στις 00:00 UTC. Αφήστε κενό για απεριόριστο.",
     "monthlyUsageLine": "{requests} αιτήματα, {tokens} tokens αυτόν τον μήνα",
     "quotaBalanceHint": "Απομένουν {remaining} από {limit} {metric}",
-    "quotaBalanceLeft": "Απομένουν {remaining}"
-,
+    "quotaBalanceLeft": "Απομένουν {remaining}",
     "groupLabel": "Group",
     "groupLabelPlaceholder": "e.g. Relays, Work…",
     "groupLabelHint": "Optional: endpoints in the same group are listed together, and a request can stay inside the group with custom:<model>#<group>. Leave blank for the default Custom group.",
@@ -929,7 +928,10 @@
     "renameFailed": "Δεν ήταν δυνατή η μετονομασία αυτής της συνομιλίας.",
     "deleteFailed": "Δεν ήταν δυνατή η διαγραφή αυτής της συνομιλίας.",
     "actions": "Ενέργειες συνομιλίας",
-    "newChat": "Νέα συνομιλία"
+    "newChat": "Νέα συνομιλία",
+    "searchChats": "Αναζήτηση συνομιλιών",
+    "searchPlaceholder": "Αναζήτηση συνομιλιών…",
+    "searchEmpty": "Καμία συνομιλία δεν ταιριάζει."
   },
   "embeddings": {
     "title": "Μοντέλα",

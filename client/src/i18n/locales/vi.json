@@ -693,8 +693,7 @@
     "capEditHint": "Giới hạn đặt lại vào ngày 1 lúc 00:00 UTC. Để trống để không giới hạn.",
     "monthlyUsageLine": "{requests} yêu cầu, {tokens} token tháng này",
     "quotaBalanceHint": "Còn {remaining}/{limit} {metric}",
-    "quotaBalanceLeft": "Còn {remaining}"
-,
+    "quotaBalanceLeft": "Còn {remaining}",
     "groupLabel": "Group",
     "groupLabelPlaceholder": "e.g. Relays, Work…",
     "groupLabelHint": "Optional: endpoints in the same group are listed together, and a request can stay inside the group with custom:<model>#<group>. Leave blank for the default Custom group.",
@@ -929,7 +928,10 @@
     "renameFailed": "Không thể đổi tên cuộc trò chuyện đó.",
     "deleteFailed": "Không thể xóa cuộc trò chuyện đó.",
     "actions": "Thao tác hội thoại",
-    "newChat": "Cuộc trò chuyện mới"
+    "newChat": "Cuộc trò chuyện mới",
+    "searchChats": "Tìm kiếm cuộc trò chuyện",
+    "searchPlaceholder": "Tìm kiếm cuộc trò chuyện…",
+    "searchEmpty": "Không có cuộc trò chuyện nào khớp."
   },
   "embeddings": {
     "title": "Người mẫu",

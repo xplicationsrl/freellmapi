@@ -693,8 +693,7 @@
     "capEditHint": "मर्यादा दर महिन्याच्या 1 रोजी 00:00 UTC ला रीसेट होतात. अमर्यादसाठी रिकामे ठेवा.",
     "monthlyUsageLine": "या महिन्यात {requests} विनंत्या, {tokens} टोकन",
     "quotaBalanceHint": "{limit} {metric} पैकी {remaining} बाकी",
-    "quotaBalanceLeft": "{remaining} बाकी"
-,
+    "quotaBalanceLeft": "{remaining} बाकी",
     "groupLabel": "Group",
     "groupLabelPlaceholder": "e.g. Relays, Work…",
     "groupLabelHint": "Optional: endpoints in the same group are listed together, and a request can stay inside the group with custom:<model>#<group>. Leave blank for the default Custom group.",
@@ -929,7 +928,10 @@
     "renameFailed": "त्या संभाषणाचे नाव बदलता आले नाही.",
     "deleteFailed": "ते संभाषण हटवता आले नाही.",
     "actions": "संवाद क्रिया",
-    "newChat": "नवीन चॅट"
+    "newChat": "नवीन चॅट",
+    "searchChats": "Search chats",
+    "searchPlaceholder": "Search chats…",
+    "searchEmpty": "No chats match that search."
   },
   "embeddings": {
     "title": "मॉडेल्स",

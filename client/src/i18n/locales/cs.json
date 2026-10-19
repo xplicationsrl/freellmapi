@@ -693,8 +693,7 @@
     "capEditHint": "Limity se resetují 1. dne v 00:00 UTC. Nechte prázdné pro neomezeno.",
     "monthlyUsageLine": "{requests} požadavků, {tokens} tokenů tento měsíc",
     "quotaBalanceHint": "Zbývá {remaining} z {limit} {metric}",
-    "quotaBalanceLeft": "Zbývá {remaining}"
-,
+    "quotaBalanceLeft": "Zbývá {remaining}",
     "groupLabel": "Group",
     "groupLabelPlaceholder": "e.g. Relays, Work…",
     "groupLabelHint": "Optional: endpoints in the same group are listed together, and a request can stay inside the group with custom:<model>#<group>. Leave blank for the default Custom group.",
@@ -929,7 +928,10 @@
     "renameFailed": "Konverzaci se nepodařilo přejmenovat.",
     "deleteFailed": "Konverzaci se nepodařilo smazat.",
     "actions": "Akce konverzace",
-    "newChat": "Nový chat"
+    "newChat": "Nový chat",
+    "searchChats": "Hledat chaty",
+    "searchPlaceholder": "Hledat chaty…",
+    "searchEmpty": "Žádný chat neodpovídá hledání."
   },
   "embeddings": {
     "title": "Modely",

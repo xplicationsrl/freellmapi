@@ -693,8 +693,7 @@
     "capEditHint": "ገደቦች በእያንዳንዱ ወር 1 ቀን 00:00 UTC ዳግም ይጀምራሉ። ለወሰን አልባ ባዶ ይተዉ።",
     "monthlyUsageLine": "በዚህ ወር {requests} ጥያቄዎች፣ {tokens} ቶከኖች",
     "quotaBalanceHint": "ከ{limit} {metric} {remaining} ቀርቷል",
-    "quotaBalanceLeft": "{remaining} ቀርቷል"
-,
+    "quotaBalanceLeft": "{remaining} ቀርቷል",
     "groupLabel": "Group",
     "groupLabelPlaceholder": "e.g. Relays, Work…",
     "groupLabelHint": "Optional: endpoints in the same group are listed together, and a request can stay inside the group with custom:<model>#<group>. Leave blank for the default Custom group.",
@@ -929,7 +928,10 @@
     "renameFailed": "ያንን ውይይት እንደገና መሰየም አልተቻለም።",
     "deleteFailed": "ያንን ውይይት መሰረዝ አልተቻለም።",
     "actions": "የውይይት ተግባራት",
-    "newChat": "አዲስ ውይይት"
+    "newChat": "አዲስ ውይይት",
+    "searchChats": "Search chats",
+    "searchPlaceholder": "Search chats…",
+    "searchEmpty": "No chats match that search."
   },
   "embeddings": {
     "title": "ሞዴሎች",

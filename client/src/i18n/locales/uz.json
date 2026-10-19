@@ -693,8 +693,7 @@
     "capEditHint": "Chegaralar har oyning 1-sana 00:00 UTC da tiklanadi. Cheksiz uchun bo‘sh qoldiring.",
     "monthlyUsageLine": "Bu oy {requests} so‘rov, {tokens} token",
     "quotaBalanceHint": "{limit} {metric} dan {remaining} qoldi",
-    "quotaBalanceLeft": "{remaining} qoldi"
-,
+    "quotaBalanceLeft": "{remaining} qoldi",
     "groupLabel": "Group",
     "groupLabelPlaceholder": "e.g. Relays, Work…",
     "groupLabelHint": "Optional: endpoints in the same group are listed together, and a request can stay inside the group with custom:<model>#<group>. Leave blank for the default Custom group.",
@@ -929,7 +928,10 @@
     "renameFailed": "Bu suhbat nomini o‘zgartirib bo‘lmadi.",
     "deleteFailed": "Bu suhbatni o‘chirib bo‘lmadi.",
     "actions": "Suhbat amallari",
-    "newChat": "Yangi chat"
+    "newChat": "Yangi chat",
+    "searchChats": "Chatlarni qidirish",
+    "searchPlaceholder": "Chatlarni qidirish…",
+    "searchEmpty": "Qidiruvga mos chat yo‘q."
   },
   "embeddings": {
     "title": "Modellar",

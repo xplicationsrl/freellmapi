@@ -693,8 +693,7 @@
     "capEditHint": "Limitai atstatomi 1 d. 00:00 UTC. Palikite tuščią neribotam.",
     "monthlyUsageLine": "{requests} užklausos, {tokens} žetonai šį mėnesį",
     "quotaBalanceHint": "Liko {remaining} iš {limit} {metric}",
-    "quotaBalanceLeft": "Liko {remaining}"
-,
+    "quotaBalanceLeft": "Liko {remaining}",
     "groupLabel": "Group",
     "groupLabelPlaceholder": "e.g. Relays, Work…",
     "groupLabelHint": "Optional: endpoints in the same group are listed together, and a request can stay inside the group with custom:<model>#<group>. Leave blank for the default Custom group.",
@@ -929,7 +928,10 @@
     "renameFailed": "Nepavyko pervadinti šio pokalbio.",
     "deleteFailed": "Nepavyko ištrinti šio pokalbio.",
     "actions": "Pokalbio veiksmai",
-    "newChat": "Naujas pokalbis"
+    "newChat": "Naujas pokalbis",
+    "searchChats": "Ieškoti pokalbių",
+    "searchPlaceholder": "Ieškoti pokalbių…",
+    "searchEmpty": "Nėra atitinkančių pokalbių."
   },
   "embeddings": {
     "title": "Modeliai",

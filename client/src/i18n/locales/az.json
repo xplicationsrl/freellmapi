@@ -693,8 +693,7 @@
     "capEditHint": "Limitlər hər ayın 1-i 00:00 UTC-də sıfırlanır. Limitsiz üçün boş buraxın.",
     "monthlyUsageLine": "Bu ay {requests} sorğu, {tokens} token",
     "quotaBalanceHint": "{limit} {metric} içindən {remaining} qalıb",
-    "quotaBalanceLeft": "{remaining} qalıb"
-,
+    "quotaBalanceLeft": "{remaining} qalıb",
     "groupLabel": "Group",
     "groupLabelPlaceholder": "e.g. Relays, Work…",
     "groupLabelHint": "Optional: endpoints in the same group are listed together, and a request can stay inside the group with custom:<model>#<group>. Leave blank for the default Custom group.",
@@ -929,7 +928,10 @@
     "renameFailed": "Həmin söhbətin adını dəyişmək alınmadı.",
     "deleteFailed": "Həmin söhbəti silmək alınmadı.",
     "actions": "Söhbət əməliyyatları",
-    "newChat": "Yeni söhbət"
+    "newChat": "Yeni söhbət",
+    "searchChats": "Söhbətləri axtar",
+    "searchPlaceholder": "Söhbətləri axtar…",
+    "searchEmpty": "Axtarışa uyğun söhbət yoxdur."
   },
   "embeddings": {
     "title": "Modellər",

@@ -693,8 +693,7 @@
     "capEditHint": "המכסות מתאפסות ב-1 בחודש ב-00:00 UTC. השאירו ריק כדי להישאר ללא הגבלה.",
     "monthlyUsageLine": "{requests} בקשות, {tokens} טוקנים החודש",
     "quotaBalanceHint": "נותרו {remaining} מתוך {limit} {metric}",
-    "quotaBalanceLeft": "נותרו {remaining}"
-,
+    "quotaBalanceLeft": "נותרו {remaining}",
     "groupLabel": "Group",
     "groupLabelPlaceholder": "e.g. Relays, Work…",
     "groupLabelHint": "Optional: endpoints in the same group are listed together, and a request can stay inside the group with custom:<model>#<group>. Leave blank for the default Custom group.",
@@ -929,7 +928,10 @@
     "renameFailed": "לא ניתן לשנות את שם השיחה.",
     "deleteFailed": "לא ניתן למחוק את השיחה.",
     "actions": "פעולות שיחה",
-    "newChat": "צ׳אט חדש"
+    "newChat": "צ׳אט חדש",
+    "searchChats": "חיפוש צ׳אטים",
+    "searchPlaceholder": "חיפוש צ׳אטים…",
+    "searchEmpty": "אין צ׳אטים שתואמים לחיפוש."
   },
   "embeddings": {
     "title": "דגמים",

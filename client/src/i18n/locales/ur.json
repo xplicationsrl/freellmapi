@@ -693,8 +693,7 @@
     "capEditHint": "حدیں ہر مہینے کی 1 تاریخ کو 00:00 UTC پر ری سیٹ ہوتی ہیں۔ لامحدود کے لیے خالی چھوڑیں۔",
     "monthlyUsageLine": "اس مہینے {requests} درخواستیں، {tokens} ٹوکن",
     "quotaBalanceHint": "{limit} {metric} میں سے {remaining} باقی",
-    "quotaBalanceLeft": "{remaining} باقی"
-,
+    "quotaBalanceLeft": "{remaining} باقی",
     "groupLabel": "Group",
     "groupLabelPlaceholder": "e.g. Relays, Work…",
     "groupLabelHint": "Optional: endpoints in the same group are listed together, and a request can stay inside the group with custom:<model>#<group>. Leave blank for the default Custom group.",
@@ -929,7 +928,10 @@
     "renameFailed": "اس گفتگو کا نام تبدیل نہیں ہو سکا۔",
     "deleteFailed": "وہ گفتگو حذف نہیں ہو سکی۔",
     "actions": "گفتگو کے اعمال",
-    "newChat": "نئی چیٹ"
+    "newChat": "نئی چیٹ",
+    "searchChats": "چیٹس تلاش کریں",
+    "searchPlaceholder": "چیٹس تلاش کریں…",
+    "searchEmpty": "اس تلاش سے کوئی چیٹ نہیں ملتی۔"
   },
   "embeddings": {
     "title": "ماڈلز",

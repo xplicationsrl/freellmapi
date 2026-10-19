@@ -693,8 +693,7 @@
     "capEditHint": "Limieten worden op de 1e om 00:00 UTC gereset. Laat leeg voor onbeperkt.",
     "monthlyUsageLine": "{requests} verzoeken, {tokens} tokens deze maand",
     "quotaBalanceHint": "{remaining} van {limit} {metric} over",
-    "quotaBalanceLeft": "{remaining} over"
-,
+    "quotaBalanceLeft": "{remaining} over",
     "groupLabel": "Group",
     "groupLabelPlaceholder": "e.g. Relays, Work…",
     "groupLabelHint": "Optional: endpoints in the same group are listed together, and a request can stay inside the group with custom:<model>#<group>. Leave blank for the default Custom group.",
@@ -929,7 +928,10 @@
     "renameFailed": "Kan de naam van dat gesprek niet wijzigen.",
     "deleteFailed": "Kan dat gesprek niet verwijderen.",
     "actions": "Gespreksacties",
-    "newChat": "Nieuwe chat"
+    "newChat": "Nieuwe chat",
+    "searchChats": "Chats zoeken",
+    "searchPlaceholder": "Chats zoeken…",
+    "searchEmpty": "Geen chats komen overeen met die zoekopdracht."
   },
   "embeddings": {
     "title": "Modellen",

@@ -693,8 +693,7 @@
     "capEditHint": "A na-ebugharị oke ụbọchị nke 1, 00:00 UTC. Hapụ oghere maka enweghị oke.",
     "monthlyUsageLine": "Arịrịọ {requests}, token {tokens} ọnwa a",
     "quotaBalanceHint": "{remaining} n'ime {limit} {metric} fọdụrụ",
-    "quotaBalanceLeft": "{remaining} fọdụrụ"
-,
+    "quotaBalanceLeft": "{remaining} fọdụrụ",
     "groupLabel": "Group",
     "groupLabelPlaceholder": "e.g. Relays, Work…",
     "groupLabelHint": "Optional: endpoints in the same group are listed together, and a request can stay inside the group with custom:<model>#<group>. Leave blank for the default Custom group.",
@@ -929,7 +928,10 @@
     "renameFailed": "Enweghị ike ịnyegharị aha mkparịta ụka ahụ.",
     "deleteFailed": "Enweghị ike ihichapụ mkparịta ụka ahụ.",
     "actions": "Omume mkparịta ụka",
-    "newChat": "Nkata ọhụrụ"
+    "newChat": "Nkata ọhụrụ",
+    "searchChats": "Search chats",
+    "searchPlaceholder": "Search chats…",
+    "searchEmpty": "No chats match that search."
   },
   "embeddings": {
     "title": "Ụdị",

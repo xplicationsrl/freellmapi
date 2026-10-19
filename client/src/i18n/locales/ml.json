@@ -693,8 +693,7 @@
     "capEditHint": "പരിധികൾ ഓരോ മാസവും 1-ന് 00:00 UTC-ന് റീസെറ്റ് ചെയ്യും. പരിധിയില്ലാതെ വെച്ചാൽ മതി.",
     "monthlyUsageLine": "ഈ മാസം {requests} അഭ്യർത്ഥനകൾ, {tokens} ടോക്കണുകൾ",
     "quotaBalanceHint": "{limit} {metric}-ൽ {remaining} ശേഷിക്കുന്നു",
-    "quotaBalanceLeft": "{remaining} ശേഷിക്കുന്നു"
-,
+    "quotaBalanceLeft": "{remaining} ശേഷിക്കുന്നു",
     "groupLabel": "Group",
     "groupLabelPlaceholder": "e.g. Relays, Work…",
     "groupLabelHint": "Optional: endpoints in the same group are listed together, and a request can stay inside the group with custom:<model>#<group>. Leave blank for the default Custom group.",
@@ -929,7 +928,10 @@
     "renameFailed": "ആ സംഭാഷണത്തിന്റെ പേര് മാറ്റാനായില്ല.",
     "deleteFailed": "ആ സംഭാഷണം ഇല്ലാതാക്കാനായില്ല.",
     "actions": "സംഭാഷണ പ്രവർത്തനങ്ങൾ",
-    "newChat": "പുതിയ ചാറ്റ്"
+    "newChat": "പുതിയ ചാറ്റ്",
+    "searchChats": "Search chats",
+    "searchPlaceholder": "Search chats…",
+    "searchEmpty": "No chats match that search."
   },
   "embeddings": {
     "title": "മോഡലുകൾ",

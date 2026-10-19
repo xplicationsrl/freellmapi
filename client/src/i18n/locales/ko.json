@@ -693,8 +693,7 @@
     "capEditHint": "한도는 매월 1일 00:00 UTC에 초기화됩니다. 무제한이려면 비워 두세요.",
     "monthlyUsageLine": "이번 달 요청 {requests}회, 토큰 {tokens}",
     "quotaBalanceHint": "{limit} {metric} 중 {remaining} 남음",
-    "quotaBalanceLeft": "{remaining} 남음"
-,
+    "quotaBalanceLeft": "{remaining} 남음",
     "groupLabel": "Group",
     "groupLabelPlaceholder": "e.g. Relays, Work…",
     "groupLabelHint": "Optional: endpoints in the same group are listed together, and a request can stay inside the group with custom:<model>#<group>. Leave blank for the default Custom group.",
@@ -929,7 +928,10 @@
     "renameFailed": "해당 대화의 이름을 변경하지 못했습니다.",
     "deleteFailed": "해당 대화를 삭제하지 못했습니다.",
     "actions": "대화 작업",
-    "newChat": "새 채팅"
+    "newChat": "새 채팅",
+    "searchChats": "채팅 검색",
+    "searchPlaceholder": "채팅 검색…",
+    "searchEmpty": "검색과 일치하는 채팅이 없습니다."
   },
   "embeddings": {
     "title": "모델",

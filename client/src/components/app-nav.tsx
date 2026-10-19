@@ -10,7 +10,7 @@ import { logout } from '@/lib/api'
 import { useI18n } from '@/i18n'
 
 export const APP_NAME = 'AI Xplication'
-const LOGO_ICON = `${import.meta.env.BASE_URL}brand/xplication-icon.png`
+const LOGO_FULL = `${import.meta.env.BASE_URL}brand/xplication-logo.png`
 
 // App pages behind the left-rail nav. Playground is the home surface (logo /
 // new chat), so it is not listed here.
@@ -127,16 +127,15 @@ export function AppNavSidebar({ onOpenSettings }: { onOpenSettings: () => void }
       <div className="flex shrink-0 items-center px-3 pt-3 pb-2">
         <Link
           to="/playground"
-          className="flex min-w-0 flex-1 items-center gap-2 rounded-lg px-1 py-1 transition-opacity hover:opacity-80"
+          className="min-w-0 flex-1 rounded-lg px-1 py-1 transition-opacity hover:opacity-80"
           aria-label={APP_NAME}
         >
           <img
-            src={LOGO_ICON}
-            alt=""
-            className="size-7 shrink-0 object-contain"
+            src={LOGO_FULL}
+            alt={APP_NAME}
+            className="h-8 w-auto max-w-full object-contain object-left brightness-0 dark:brightness-100"
             draggable={false}
           />
-          <span className="truncate text-sm font-semibold tracking-tight">{APP_NAME}</span>
         </Link>
       </div>
       <div className="min-h-0 flex-1" />

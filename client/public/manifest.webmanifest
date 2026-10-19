@@ -1,7 +1,7 @@
 {
   "id": "/",
-  "name": "FreeLLMAPI",
-  "short_name": "FreeLLMAPI",
+  "name": "AI Xplication",
+  "short_name": "AI Xplication",
   "description": "Unified LLM router: chat, keys, models and analytics.",
   "start_url": "/",
   "scope": "/",

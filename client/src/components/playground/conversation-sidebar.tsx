@@ -45,6 +45,7 @@ import { useI18n } from '@/i18n'
 const LAYER =
   'absolute inset-y-0 start-0 flex flex-col transition-[opacity,visibility] duration-200 ease-out motion-reduce:transition-none'
 
+const LOGO_FULL = `${import.meta.env.BASE_URL}brand/xplication-logo.png`
 const LOGO_ICON = `${import.meta.env.BASE_URL}brand/xplication-icon.png`
 
 const navBtn =
@@ -455,16 +456,15 @@ export function ConversationSidebar({
         <div className="flex shrink-0 items-center gap-1 px-3 pt-3 pb-1">
           <Link
             to="/playground"
-            className="flex min-w-0 flex-1 items-center gap-2 rounded-lg px-1 py-1 transition-opacity hover:opacity-80"
+            className="min-w-0 flex-1 rounded-lg px-1 py-1 transition-opacity hover:opacity-80"
             aria-label={APP_NAME}
           >
             <img
-              src={LOGO_ICON}
-              alt=""
-              className="size-7 shrink-0 object-contain"
+              src={LOGO_FULL}
+              alt={APP_NAME}
+              className="h-8 w-auto max-w-full object-contain object-left brightness-0 dark:brightness-100"
               draggable={false}
             />
-            <span className="truncate text-sm font-semibold tracking-tight">{APP_NAME}</span>
           </Link>
           <button
             type="button"

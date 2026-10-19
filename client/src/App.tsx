@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react'
-import { BrowserRouter, Routes, Route, Navigate, NavLink, Link, useLocation, useNavigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, Link, useLocation, useNavigate } from 'react-router-dom'
 import { MutationCache, QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { ChevronDown, KeyRound, LogOut, Menu, MoreHorizontal, RefreshCw, Search, Settings, Sparkles } from 'lucide-react'
+import { KeyRound, LogOut, Menu, RefreshCw, Search, Settings, Sparkles } from 'lucide-react'
 import { buttonVariants } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -68,18 +68,19 @@ const queryClient = new QueryClient({
   }),
 })
 
+// Playground is the home page; everything else lives in the right-side hamburger.
 const navItems = [
-  { to: '/models', labelKey: 'nav.models' },
   { to: '/playground', labelKey: 'nav.playground' },
+  { to: '/models', labelKey: 'nav.models' },
   { to: '/keys', labelKey: 'nav.keys' },
   { to: '/agents', labelKey: 'nav.agents' },
   { to: '/analytics', labelKey: 'nav.analytics' },
   { to: '/premium', labelKey: 'nav.premium' },
 ]
 
-// The modality pages behind "Models"; surfaced in the nav dropdown and
-// the mobile submenu so Fusion/Embeddings/Image/Audio are discoverable without
-// first landing on the chat table.
+// The modality pages behind "Models"; surfaced in the hamburger submenu so
+// Fusion/Embeddings/Image/Audio are discoverable without first landing on the
+// chat table.
 const modelItems = [
   { to: '/models/chat', labelKey: 'models.chatModelsTab' },
   { to: '/models/embeddings', labelKey: 'models.embeddingsTab' },
@@ -90,51 +91,29 @@ const modelItems = [
   { to: '/models/fusion', labelKey: 'models.fusionTab' },
 ]
 
-// The pages that hang off "Analytics". Logs is reachable only from here — it is
-// deliberately kept out of navItems so the top bar does not grow a seventh entry.
+// The pages that hang off "Analytics". Logs is reachable only from here.
 const analyticsItems = [
   { to: '/analytics', labelKey: 'nav.analytics' },
   { to: '/logs', labelKey: 'nav.logs' },
 ]
 
-// Nav entries rendered as a split control: the label still navigates, and a
-// chevron (desktop) / submenu (mobile) reveals the pages behind it. Keyed by the
-// nav entry's `to` so both branches below stay one lookup, not two hardcoded
-// special cases.
+// Nav entries rendered as a submenu in the hamburger. Keyed by the nav entry's
+// `to` so the menu stays one lookup.
 const navMenus: Record<
   string,
-  { ariaKey: string; items: { to: string; labelKey: string }[]; isActive: (pathname: string) => boolean }
+  { items: { to: string; labelKey: string }[]; isActive: (pathname: string) => boolean }
 > = {
   '/models': {
-    ariaKey: 'nav.modelsMenu',
     items: modelItems,
     isActive: (pathname) => pathname.startsWith('/models'),
   },
   '/analytics': {
-    ariaKey: 'nav.analyticsMenu',
     items: analyticsItems,
     isActive: (pathname) => pathname.startsWith('/analytics') || pathname.startsWith('/logs'),
   },
 }
 
 const isMac = typeof navigator !== 'undefined' && /mac/i.test(navigator.platform)
-
-function NavItem({ to, children }: { to: string; children: React.ReactNode }) {
-  return (
-    <NavLink
-      to={to}
-      className={({ isActive }) =>
-        `relative text-sm px-1 py-4 transition-colors ${
-          isActive
-            ? 'text-foreground after:absolute after:inset-x-0 after:-bottom-px after:h-px after:bg-foreground'
-            : 'text-muted-foreground hover:text-foreground'
-        }`
-      }
-    >
-      {children}
-    </NavLink>
-  )
-}
 
 function Brand() {
   return (
@@ -268,42 +247,8 @@ function Navbar() {
           style={isMacDesktop ? { minHeight: 52 } : undefined}
         >
           <Brand />
-          <nav
-            className="ms-10 hidden items-center gap-6 md:flex"
-            style={isDesktopApp ? ({ WebkitAppRegion: 'no-drag' } as React.CSSProperties) : undefined}
-          >
-            {navItems.map((item) => {
-              const menu = navMenus[item.to]
-              return menu ? (
-                // Split control: the label navigates, the chevron reveals the
-                // pages hiding behind it.
-                <div key={item.to} className="flex items-center gap-0.5">
-                  <NavItem to={item.to}>{t(item.labelKey)}</NavItem>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger
-                      aria-label={t(menu.ariaKey)}
-                      className="rounded-md p-1 text-muted-foreground transition-colors hover:text-foreground"
-                    >
-                      <ChevronDown className="size-3.5" />
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="start" className="w-44">
-                      {menu.items.map((entry) => (
-                        <DropdownMenuItem key={entry.to} onClick={() => navigate(entry.to)}>
-                          {t(entry.labelKey)}
-                        </DropdownMenuItem>
-                      ))}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-              ) : (
-                <NavItem key={item.to} to={item.to}>
-                  {t(item.labelKey)}
-                </NavItem>
-              )
-            })}
-          </nav>
           <div
-            className="ms-auto hidden items-center gap-1 md:flex"
+            className="ms-auto flex items-center gap-1"
             style={isDesktopApp ? ({ WebkitAppRegion: 'no-drag' } as React.CSSProperties) : undefined}
           >
             <button
@@ -313,34 +258,8 @@ function Navbar() {
               className={buttonVariants({ variant: 'ghost', size: 'sm' })}
             >
               <Search className="size-3.5" />
-              <kbd className="text-[10px] text-muted-foreground">{isMac ? '⌘K' : 'Ctrl K'}</kbd>
+              <kbd className="hidden text-[10px] text-muted-foreground sm:inline">{isMac ? '⌘K' : 'Ctrl K'}</kbd>
             </button>
-            <DropdownMenu>
-              <DropdownMenuTrigger
-                className={buttonVariants({ variant: 'ghost', size: 'icon' })}
-                aria-label={t('nav.openMenu')}
-              >
-                <MoreHorizontal />
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
-                <AccountMenuItems
-                  showUpgrade={showUpgrade}
-                  upgradeLabel={t('nav.upgrade')}
-                  settingsLabel={t('nav.settings')}
-                  updatesLabel={t('settings.checkForUpdates')}
-                  signOutLabel={t('nav.signOut')}
-                  changeEmailLabel={t('auth.changeEmail')}
-                  changePasswordLabel={t('auth.changePassword')}
-                  onUpgrade={() => navigate('/premium')}
-                  onOpenSettings={() => setSettingsOpen(true)}
-                  onOpenUpdates={() => setUpdatesOpen(true)}
-                  onChangeEmail={() => setCredentialsMode('email')}
-                  onChangePassword={() => setCredentialsMode('password')}
-                />
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-          <div className="ms-auto md:hidden">
             <DropdownMenu>
               <DropdownMenuTrigger
                 className={buttonVariants({ variant: 'ghost', size: 'icon' })}
@@ -475,7 +394,7 @@ function App() {
                 <PageContainer>
                   <PageBoundary>
                     <Routes>
-                      <Route path="/" element={<Navigate to="/models/chat" replace />} />
+                      <Route path="/" element={<Navigate to="/playground" replace />} />
                       <Route path="/models" element={<Navigate to="/models/chat" replace />} />
                       <Route path="/models/chat" element={<FallbackPage />} />
                       <Route path="/models/chat/:id" element={<ModelDetailPage />} />

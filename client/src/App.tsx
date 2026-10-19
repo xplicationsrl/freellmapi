@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react'
-import { BrowserRouter, Routes, Route, Navigate, Link, useLocation, useNavigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { MutationCache, QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { KeyRound, LogOut, Menu, Search, Settings } from 'lucide-react'
 import { buttonVariants } from '@/components/ui/button'
@@ -109,19 +109,7 @@ const navMenus: Record<
 
 const isMac = typeof navigator !== 'undefined' && /mac/i.test(navigator.platform)
 
-function Brand() {
-  return (
-    <Link to="/" className="flex items-center gap-2 transition-opacity hover:opacity-70">
-      <img
-        src={`${import.meta.env.BASE_URL}brand/xplication-icon.png`}
-        alt=""
-        className="size-5 object-contain"
-        draggable={false}
-      />
-      <span className="font-semibold tracking-tight text-sm">Xplication</span>
-    </Link>
-  )
-}
+// Brand lives only in the Playground sidebar — the navbar is chrome only.
 
 // True when the dashboard runs inside the desktop shell (Electron preload
 // sets this). The navbar then doubles as the window title bar: draggable,
@@ -213,12 +201,11 @@ function Navbar() {
         <div
           // Physical pl: reserves macOS traffic lights only on macOS. On Windows and Linux,
           // standard window controls sit on the top-right, so no left padding is needed.
-          className={`mx-auto flex max-w-6xl items-center px-4 sm:px-6 ${isMacDesktop ? 'pl-20 sm:pl-20' : ''}`}
+          className={`mx-auto flex max-w-6xl items-center justify-end px-4 sm:px-6 ${isMacDesktop ? 'pl-20 sm:pl-20' : ''}`}
           style={isMacDesktop ? { minHeight: 52 } : undefined}
         >
-          <Brand />
           <div
-            className="ms-auto flex items-center gap-1"
+            className="flex items-center gap-1"
             style={isDesktopApp ? ({ WebkitAppRegion: 'no-drag' } as React.CSSProperties) : undefined}
           >
             <button

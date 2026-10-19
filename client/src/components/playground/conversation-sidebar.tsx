@@ -1,13 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
-  LayoutGrid,
   MoreHorizontal,
   PanelLeft,
   PanelLeftClose,
   Pencil,
   Search,
-  Settings,
   SquarePen,
   Trash2,
 } from 'lucide-react'
@@ -29,7 +27,7 @@ import { useI18n } from '@/i18n'
 const LAYER =
   'absolute inset-y-0 start-0 flex flex-col transition-[opacity,visibility] duration-200 ease-out motion-reduce:transition-none'
 
-const LOGO_WORDMARK = `${import.meta.env.BASE_URL}brand/xplication-wordmark.png`
+const LOGO_FULL = `${import.meta.env.BASE_URL}brand/xplication-logo.png`
 const LOGO_ICON = `${import.meta.env.BASE_URL}brand/xplication-icon.png`
 
 const navBtn =
@@ -106,87 +104,33 @@ export function ConversationSidebar({
     setQuery('')
   }
 
-  const openSearch = () => {
-    if (!open) onToggle()
-    setSearching(true)
-  }
-
   return (
     <div
       className={`relative shrink-0 overflow-hidden border-e border-border/40 bg-sidebar text-sidebar-foreground transition-[width] duration-200 ease-out motion-reduce:transition-none ${
         open ? 'w-64' : 'w-14'
       }`}
     >
-      {/* ── Collapsed strip ───────────────────────────────────────────── */}
+      {/* ── Collapsed strip: logo only; hover reveals open-sidebar icon ─ */}
       <div
-        className={`${LAYER} w-14 items-center gap-1 px-2.5 py-3 ${
+        className={`${LAYER} w-14 items-center px-2.5 py-3 ${
           open ? 'invisible opacity-0' : 'visible opacity-100'
         }`}
       >
         <button
           type="button"
           onClick={onToggle}
-          className={`${iconBtn} relative`}
+          className={`${iconBtn} group relative`}
           aria-label={t('playgroundSessions.showSidebar')}
           title={t('playgroundSessions.showSidebar')}
         >
           <img
             src={LOGO_ICON}
             alt=""
-            className="size-7 object-contain"
+            className="size-7 object-contain transition-opacity group-hover:opacity-0 group-focus-visible:opacity-0"
             draggable={false}
           />
+          <PanelLeft className="absolute size-4 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100" />
         </button>
-
-        <button
-          type="button"
-          onClick={onToggle}
-          className={iconBtn}
-          aria-label={t('playgroundSessions.showSidebar')}
-          title={t('playgroundSessions.showSidebar')}
-        >
-          <PanelLeft className="size-4" />
-        </button>
-
-        <button
-          type="button"
-          onClick={onNew}
-          className={iconBtn}
-          aria-label={t('playgroundSessions.newChat')}
-          title={t('playgroundSessions.newChat')}
-        >
-          <SquarePen className="size-4" />
-        </button>
-
-        <button
-          type="button"
-          onClick={openSearch}
-          className={iconBtn}
-          aria-label={t('playgroundSessions.searchChats')}
-          title={t('playgroundSessions.searchChats')}
-        >
-          <Search className="size-4" />
-        </button>
-
-        <Link
-          to="/models"
-          className={iconBtn}
-          aria-label={t('nav.models')}
-          title={t('nav.models')}
-        >
-          <LayoutGrid className="size-4" />
-        </Link>
-
-        <div className="mt-auto flex flex-col items-center gap-1">
-          <Link
-            to="/keys"
-            className={iconBtn}
-            aria-label={t('nav.keys')}
-            title={t('nav.keys')}
-          >
-            <Settings className="size-4" />
-          </Link>
-        </div>
       </div>
 
       {/* ── Expanded panel ────────────────────────────────────────────── */}
@@ -200,9 +144,9 @@ export function ConversationSidebar({
             aria-label="Xplication"
           >
             <img
-              src={LOGO_WORDMARK}
+              src={LOGO_FULL}
               alt="Xplication"
-              className="h-7 w-auto max-w-full object-contain object-left brightness-0 dark:brightness-100"
+              className="h-8 w-auto max-w-full object-contain object-left brightness-0 dark:brightness-100"
               draggable={false}
             />
           </Link>
@@ -231,10 +175,6 @@ export function ConversationSidebar({
             <SquarePen className="size-4 shrink-0" />
             <span className="truncate">{t('playgroundSessions.newChat')}</span>
           </button>
-          <Link to="/models" className={navBtn}>
-            <LayoutGrid className="size-4 shrink-0" />
-            <span className="truncate">{t('nav.models')}</span>
-          </Link>
         </div>
 
         <div className="flex min-h-0 flex-1 flex-col px-2 pt-3">
@@ -342,13 +282,6 @@ export function ConversationSidebar({
               </ul>
             )}
           </div>
-        </div>
-
-        <div className="flex shrink-0 items-center gap-1 border-t border-border/40 px-2 py-2">
-          <Link to="/keys" className={`${navBtn} flex-1`}>
-            <Settings className="size-4 shrink-0" />
-            <span className="truncate">{t('nav.keys')}</span>
-          </Link>
         </div>
       </div>
     </div>

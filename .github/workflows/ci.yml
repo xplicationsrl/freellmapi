@@ -28,6 +28,13 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # Production dependencies only: dev tooling advisories (shadcn, ts-morph
+      # chains) never ship. Fails on high/critical so a new advisory is seen at
+      # PR time instead of at the next manual audit.
+      - name: Audit production dependencies
+        if: matrix.node-version == '22'
+        run: npm audit --omit=dev --audit-level=high
+
       - name: Check migration round trip
         run: npm run test:migrations
 

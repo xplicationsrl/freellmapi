@@ -52,6 +52,13 @@ export function parseBudget(s: string): number {
   return perDay ? tokens * 30 : tokens;
 }
 
+/** The `models` columns a budget ranking reads (`SELECT id, monthly_token_budget, tpd_limit FROM models`). */
+export interface ModelBudgetRow {
+  id: number;
+  monthly_token_budget: string;
+  tpd_limit: number | null;
+}
+
 // Sort score for the "budget" preset on the fallback/profiles dashboards.
 // Shares parseBudget so rate-limit labels can't masquerade as budgets: the
 // per-route copies this replaced multiplied the bare number in

@@ -6,22 +6,25 @@ import { logRequest } from '../lib/request-log.js';
 // rejection being visible only in the container log.
 const INFERENCE_PATH_PREFIXES = ['/v1', '/v1beta', '/mcp'];
 
-export function errorHandler(err: Error, req: Request, res: Response, next: NextFunction) {
+// The extra fields http-errors / body-parser put on the errors they raise.
+type HttpError = Error & { status?: number; type?: string; limit?: number; length?: number; expected?: number };
+
+export function errorHandler(err: HttpError, req: Request, res: Response, next: NextFunction) {
   const isProduction = (process.env.NODE_ENV ?? 'development') === 'production';
   console.error('[Error]', isProduction ? err : err.message);
 
   if (res.headersSent) return next(err);
 
-  const status = (err as any).status ?? 500;
+  const status = err.status ?? 500;
 
   // body-parser rejects bodies over the configured limit with its own error
   // shape ('PayloadTooLargeError', type 'entity.too.large'). Agents reading
   // the OpenAI error contract saw an opaque 413; normalize it, and record the
   // rejection in request analytics so it shows up in the dashboard like the
   // upstream-413 path that the fallback loop already logs.
-  if ((err as any).type === 'entity.too.large' || status === 413) {
-    const limit = (err as any).limit;
-    const received = (err as any).length ?? (err as any).expected;
+  if (err.type === 'entity.too.large' || status === 413) {
+    const limit = err.limit;
+    const received = err.length ?? err.expected;
     const message = `Request body too large${typeof received === 'number' ? ` (${received} bytes)` : ''}` +
       `${typeof limit === 'number' ? ` for the ${limit}-byte limit` : ''}. ` +
       'Vision requests embed base64 images in the body; raise REQUEST_BODY_LIMIT_MB (default 25) to accept larger payloads.';

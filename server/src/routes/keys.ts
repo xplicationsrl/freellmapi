@@ -34,8 +34,23 @@ import {
 import type { Db } from '../db/types.js';
 import type { Platform } from '@freellmapi/shared/types.js';
 import { parseModelScope } from '../lib/model-scope.js';
-import { KEY_PROXY_URL_ERROR, KEY_PROXY_URL_MAX, decryptProxyUrl, encryptProxyUrl, isValidKeyProxyUrl, maskProxyUrl } from '../lib/key-proxy.js';
+import { KEY_PROXY_URL_ERROR, KEY_PROXY_URL_MAX, decryptProxyUrl, encryptProxyUrl, isValidKeyProxyUrl, maskProxyUrl, type EncryptedProxyColumns } from '../lib/key-proxy.js';
 import { errorMessage, errorProps } from '../lib/error-props.js';
+import type { SessionUser } from '../services/auth.js';
+
+// The api_keys row as the key routes read it (SELECT * ...).
+interface ApiKeyRow extends EncryptedProxyColumns {
+  id: number; platform: Platform; label: string | null; encrypted_key: string; iv: string; auth_tag: string;
+  status: string; enabled: number; base_url: string | null; group_label: string | null;
+  model_scope_json: string | null; last_healthy_at: string | null; last_health_error: string | null;
+  last_checked_at: string | null; created_at: string;
+}
+interface CredentialRow { encrypted_key: string; iv: string; auth_tag: string }
+// A custom model bound to a key, from the models / embedding_models / media_models tables.
+interface CustomModelRow {
+  key_id: number; id: number; kind: string; model_id: string; display_name: string; family: string | null;
+}
+interface EndpointModel { id: number; kind: string; modelId: string; displayName: string; family: string | null }
 
 export const keysRouter = Router();
 
@@ -141,17 +156,18 @@ const importKeySchema = z.object({
   })).max(200).optional(),
 });
 
-function handleUploadError(err: any, res: Response, next: NextFunction): boolean {
+function handleUploadError(err: unknown, res: Response, next: NextFunction): boolean {
   if (!err) return false;
-  if (err.code === 'LIMIT_FILE_SIZE') {
+  const { code, message } = errorProps(err);
+  if (code === 'LIMIT_FILE_SIZE') {
     res.status(413).json({ error: { message: 'File too large. Maximum size is 5MB' } });
     return true;
   }
-  if (err.code === 'LIMIT_FILE_COUNT') {
+  if (code === 'LIMIT_FILE_COUNT') {
     res.status(413).json({ error: { message: 'Too many files. Maximum is 10' } });
     return true;
   }
-  if (err.message?.includes('Unsupported file type')) {
+  if (message?.includes('Unsupported file type')) {
     res.status(400).json({ error: { message: 'Unsupported file type' } });
     return true;
   }
@@ -355,7 +371,7 @@ keysRouter.get('/providers', (_req: Request, res: Response) => {
 // List all keys (masked)
 keysRouter.get('/', (_req: Request, res: Response) => {
   const db = getDb();
-  const rows = db.prepare('SELECT * FROM api_keys ORDER BY created_at DESC').all() as any[];
+  const rows = db.prepare('SELECT * FROM api_keys ORDER BY created_at DESC').all() as ApiKeyRow[];
   const modelCounts = new Map<string, number>();
   const modelCountFor = (platform: string): number => {
     if (!modelCounts.has(platform)) modelCounts.set(platform, enabledModelCount(platform));
@@ -367,17 +383,17 @@ keysRouter.get('/', (_req: Request, res: Response) => {
       SELECT key_id, id, 'chat' AS kind, model_id, display_name, NULL AS family
         FROM models
        WHERE platform = 'custom' AND key_id IS NOT NULL
-    `).all() as any[],
+    `).all() as CustomModelRow[],
     ...db.prepare(`
       SELECT key_id, id, 'embedding' AS kind, model_id, display_name, family
         FROM embedding_models
        WHERE platform = 'custom' AND key_id IS NOT NULL
-    `).all() as any[],
+    `).all() as CustomModelRow[],
     ...db.prepare(`
       SELECT key_id, id, modality AS kind, model_id, display_name, NULL AS family
         FROM media_models
        WHERE platform = 'custom' AND key_id IS NOT NULL
-    `).all() as any[],
+    `).all() as CustomModelRow[],
   ];
   // Models are grouped by ENDPOINT, not by key row: an endpoint can hold
   // several credentials (#619) while each model binds to just one of them, and
@@ -388,7 +404,7 @@ keysRouter.get('/', (_req: Request, res: Response) => {
   }
   const endpointOf = (keyId: number) => endpointOfKey.get(keyId) ?? `key:${keyId}`;
 
-  const modelsByEndpoint = new Map<string, any[]>();
+  const modelsByEndpoint = new Map<string, EndpointModel[]>();
   for (const m of customModels) {
     const keyId = Number(m.key_id);
     if (!Number.isInteger(keyId)) continue;
@@ -549,10 +565,10 @@ function skipsReauth(req: Request): boolean {
 // Password re-verification via x-reauth-password header is required, except for
 // a local request on the desktop build (see skipsReauth).
 keysRouter.get('/export', (req: Request, res: Response) => {
-  const user = (req as any).user;
+  const user = (req as Request & { user?: SessionUser }).user;
   if (!skipsReauth(req)) {
     const password = req.headers['x-reauth-password'] as string | undefined;
-    if (!password || !verifyCredentials(user.email, password)) {
+    if (!password || !user || !verifyCredentials(user.email, password)) {
       res.status(403).json({ error: { message: 'Password verification required to export keys', type: 'authentication_error' } });
       return;
     }
@@ -566,7 +582,7 @@ keysRouter.get('/export', (req: Request, res: Response) => {
     whereClause = "WHERE status = 'healthy'";
   }
 
-  const rows = db.prepare(`SELECT * FROM api_keys ${whereClause} ORDER BY platform, created_at ASC`).all() as any[];
+  const rows = db.prepare(`SELECT * FROM api_keys ${whereClause} ORDER BY platform, created_at ASC`).all() as ApiKeyRow[];
 
   // Decrypt and filter — only export keys with a real value
   const decryptedKeys = rows
@@ -670,10 +686,10 @@ keysRouter.get('/export', (req: Request, res: Response) => {
 // local request on the desktop build, which has no password to re-enter (see
 // skipsReauth; a LAN client of that same desktop server still needs one).
 keysRouter.post('/:id/reveal', (req: Request, res: Response) => {
-  const user = (req as any).user;
+  const user = (req as Request & { user?: SessionUser }).user;
   if (!skipsReauth(req)) {
     const password = req.headers['x-reauth-password'] as string | undefined;
-    if (!password || !verifyCredentials(user.email, password)) {
+    if (!password || !user || !verifyCredentials(user.email, password)) {
       res.status(403).json({ error: { message: 'Password verification required to reveal a key', type: 'authentication_error' } });
       return;
     }
@@ -1461,7 +1477,7 @@ keysRouter.post('/custom', async (req: Request, res: Response) => {
 });
 
 keysRouter.post('/import', (req: Request, res: Response, next: NextFunction) => {
-  upload.single('file')(req, res, async (err: any) => {
+  upload.single('file')(req, res, async (err: unknown) => {
     if (handleUploadError(err, res, next)) return;
 
     try {
@@ -1557,7 +1573,7 @@ keysRouter.post('/import', (req: Request, res: Response, next: NextFunction) => 
 });
 
 keysRouter.post('/preview', (req: Request, res: Response, next: NextFunction) => {
-  upload.array('files', 10)(req, res, (err: any) => {
+  upload.array('files', 10)(req, res, (err: unknown) => {
     if (handleUploadError(err, res, next)) return;
 
     try {
@@ -1576,7 +1592,7 @@ keysRouter.post('/preview', (req: Request, res: Response, next: NextFunction) =>
 
       // Build a set of existing decrypted key values for duplicate detection
       const db = getDb();
-      const existingRows = db.prepare('SELECT encrypted_key, iv, auth_tag FROM api_keys').all() as any[];
+      const existingRows = db.prepare('SELECT encrypted_key, iv, auth_tag FROM api_keys').all() as CredentialRow[];
       const existingKeys = new Set<string>();
       for (const row of existingRows) {
         try {
@@ -1629,7 +1645,7 @@ keysRouter.post('/import-selected', async (req: Request, res: Response) => {
 
   // Build a set of existing decrypted key values for duplicate detection
   const db = getDb();
-  const existingRows = db.prepare('SELECT encrypted_key, iv, auth_tag FROM api_keys').all() as any[];
+  const existingRows = db.prepare('SELECT encrypted_key, iv, auth_tag FROM api_keys').all() as CredentialRow[];
   const existingKeys = new Set<string>();
   for (const row of existingRows) {
     try {

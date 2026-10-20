@@ -43,6 +43,7 @@ import { getRequestGroupId, withExecutionId, traceRouteEvent } from '../lib/requ
 import { rememberReasoning, rememberedReasoningFor, restoreSessionReasoning, getSessionKey, getStickyModel, setStickyModel, clearReasoningMemory } from '../lib/session-memory.js';
 import { completionPromptToMessages, completionTextFromChat, completionReasoningText, completionIdFromChat, legacyCompletionChunk } from '../lib/legacy-completions.js';
 import { errorMessage, errorProps } from '../lib/error-props.js';
+import { type StreamFrame, asStreamFrame, frameErrorMessage } from '../lib/stream-frame.js';
 
 // Re-exported for existing importers (responses, inbound-chat, tests).
 export { streamChunkText, streamReasoningText, extractApiToken, getRequestGroupId, traceRouteEvent, getStickyModel, setStickyModel, clearReasoningMemory, completionReasoningText };
@@ -1397,19 +1398,19 @@ proxyRouter.post('/chat/completions', async (req: Request, res: Response) => {
             // the literal model name "default" even when a concrete model was
             // requested. Normalize every streamed frame at the proxy boundary
             // so clients consistently see the model that was actually routed.
-            const rawChunkModel = (chunk as Record<string, any>).model;
+            const rawChunkModel = asStreamFrame(chunk).model;
             if (upstreamModel == null && typeof rawChunkModel === 'string' && rawChunkModel.length > 0) {
               upstreamModel = rawChunkModel;
             }
-            const anyChunk: Record<string, any> = { ...(chunk as Record<string, any>), model: route.modelId };
+            const frame: StreamFrame = { ...asStreamFrame(chunk), model: route.modelId };
 
             // In-band upstream error frame (observed live: Groq emits
             // {"error":{...,"code":"tool_use_failed"}} inside a 200 SSE
             // stream). Before headers: retryable, the next model gets the
             // request. After: surface an error frame instead of pretending
             // the turn succeeded.
-            if (anyChunk.error && !anyChunk.choices) {
-              const msg = anyChunk.error.message ?? JSON.stringify(anyChunk.error).slice(0, 200);
+            if (frame.error && !frame.choices) {
+              const msg = frameErrorMessage(frame);
               if (!headerSent) throw new Error(`in-band provider error from ${route.displayName}: ${msg}`);
               console.error(`[Proxy] In-band error frame from ${route.displayName} mid-stream:`, msg);
               writeChunk({ error: { message: `Provider error (${route.displayName}): ${sanitizeProviderErrorMessage(String(msg))}`, type: 'stream_error' } });
@@ -1427,7 +1428,7 @@ proxyRouter.post('/chat/completions', async (req: Request, res: Response) => {
               return 'committed';
             }
 
-            if (anyChunk.id) lastMeta = { id: anyChunk.id, model: anyChunk.model, created: anyChunk.created };
+            if (frame.id) lastMeta = { id: frame.id, model: frame.model, created: frame.created };
 
             // Usage arrives either on its own frame (OpenAI's
             // stream_options.include_usage shape) or bundled onto the last
@@ -1439,9 +1440,9 @@ proxyRouter.post('/chat/completions', async (req: Request, res: Response) => {
             // the original verbatim would duplicate content (or a finish_reason
             // the client already saw) when it is written back after our finish
             // chunk to preserve OpenAI ordering.
-            if (anyChunk.usage) usageChunk = { ...anyChunk, choices: [], usage: anyChunk.usage };
+            if (frame.usage) usageChunk = { ...frame, choices: [], usage: frame.usage };
 
-            const choice = anyChunk.choices?.[0];
+            const choice = frame.choices?.[0];
             if (!choice) continue;
 
             if (choice.finish_reason) upstreamFinish = choice.finish_reason;
@@ -1451,7 +1452,7 @@ proxyRouter.post('/chat/completions', async (req: Request, res: Response) => {
             // inline tags into reasoning_content) so a follow-up request whose
             // client stripped it can have it restored from session memory.
             // Shared with the #764 ttfb/token accounting below.
-            const reasoning = streamReasoningText(anyChunk);
+            const reasoning = streamReasoningText(frame);
             if (reasoning.length > 0) streamReasoning += reasoning;
 
             // Buffer tool_call deltas — emitted complete + repaired at end.
@@ -1464,8 +1465,8 @@ proxyRouter.post('/chat/completions', async (req: Request, res: Response) => {
               if (tc.function?.arguments) acc.args += tc.function.arguments;
             }
 
-            normalizeOutboundContent(anyChunk);
-            sanitizeResponse(anyChunk);
+            normalizeOutboundContent(frame);
+            sanitizeResponse(frame);
             const text = typeof choice.delta?.content === 'string' ? choice.delta.content : '';
 
             // #764: ttfb = first token of ANY kind, not just visible content —
@@ -1484,10 +1485,11 @@ proxyRouter.post('/chat/completions', async (req: Request, res: Response) => {
               // reasoning keys; forwarding them raw would duplicate the call).
               // #764: thinking-only chunks still consumed tokens — count them.
               if (reasoning.length > 0) totalOutputTokens += Math.ceil(reasoning.length / 4);
-              if (choice.delta && Object.keys(choice.delta).some(k => k !== 'content' && k !== 'tool_calls' && choice.delta[k] != null)) {
+              const delta = choice.delta;
+              if (delta && Object.keys(delta).some(k => k !== 'content' && k !== 'tool_calls' && delta[k] != null)) {
                 // `usage: undefined` (dropped by JSON.stringify): it was held
                 // above and is re-emitted once, after our finish chunk.
-                const cleaned = { ...anyChunk, usage: undefined, choices: [{ ...choice, delta: { ...choice.delta, tool_calls: undefined }, finish_reason: null }] };
+                const cleaned = { ...frame, usage: undefined, choices: [{ ...choice, delta: { ...choice.delta, tool_calls: undefined }, finish_reason: null }] };
                 if (headerSent) writeChunk(cleaned); else preamble.push(cleaned);
               }
               continue;
@@ -1501,7 +1503,7 @@ proxyRouter.post('/chat/completions', async (req: Request, res: Response) => {
             if (mode === 'passthrough') {
               // Same rule as the preamble path: usage rides the held frame,
               // not this one, so the client sees it exactly once and last.
-              writeChunk({ ...anyChunk, usage: undefined, choices: [{ ...choice, delta: { ...choice.delta, tool_calls: undefined }, finish_reason: null }] });
+              writeChunk({ ...frame, usage: undefined, choices: [{ ...choice, delta: { ...choice.delta, tool_calls: undefined }, finish_reason: null }] });
               continue;
             }
 

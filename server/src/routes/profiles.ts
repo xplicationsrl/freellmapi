@@ -8,8 +8,21 @@ import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { z } from 'zod';
 import { getDb } from '../db/index.js';
-import { monthlyBudgetScore } from '../lib/budget.js';
+import type { Db } from '../db/types.js';
+import { monthlyBudgetScore, type ModelBudgetRow } from '../lib/budget.js';
 import { errorMessage } from '../lib/error-props.js';
+
+// Row shapes of the small SELECTs in this file.
+interface IdRow { id: number }
+interface ProfileRow { id: number; name: string; type: string }
+interface ProfileTypeRow { id: number; type: string }
+interface ProfileLayoutRow { layout_config: string | null; auto_sort: string | null }
+interface ProfileModelRow {
+  model_db_id: number; priority: number; enabled: number;
+  platform: string; model_id: string; display_name: string; intelligence_rank: number; speed_rank: number;
+  size_label: string; rpm_limit: number | null; rpd_limit: number | null; tpm_limit: number | null;
+  tpd_limit: number | null; monthly_token_budget: string;
+}
 
 export const profilesRouter = Router();
 
@@ -93,7 +106,7 @@ profilesRouter.post('/active', (req: Request, res: Response) => {
     return;
   }
 
-  const profile = db.prepare('SELECT id FROM profiles WHERE id = ?').get(Number(profileId)) as any;
+  const profile = db.prepare('SELECT id FROM profiles WHERE id = ?').get(Number(profileId)) as IdRow | undefined;
   if (!profile) {
     res.status(404).json({ error: { message: 'Profile not found' } });
     return;
@@ -110,7 +123,7 @@ profilesRouter.post('/active', (req: Request, res: Response) => {
 profilesRouter.get('/:id/models', (req: Request, res: Response) => {
   const db = getDb();
   const profileId = getId(req);
-  const profile = db.prepare('SELECT id FROM profiles WHERE id = ?').get(profileId) as any;
+  const profile = db.prepare('SELECT id FROM profiles WHERE id = ?').get(profileId) as IdRow | undefined;
   if (!profile) {
     res.status(404).json({ error: { message: 'Profile not found' } });
     return;
@@ -126,10 +139,10 @@ profilesRouter.get('/:id/models', (req: Request, res: Response) => {
     JOIN models m ON m.id = pm.model_db_id
     WHERE pm.profile_id = ? AND m.enabled = 1
     ORDER BY pm.priority ASC
-  `).all(profileId);
+  `).all(profileId) as ProfileModelRow[];
 
   // Normalize SQLite 0/1 integers to proper booleans for TypeScript client
-  res.json(rows.map((r: any) => ({ ...r, enabled: r.enabled === 1 })));
+  res.json(rows.map(r => ({ ...r, enabled: r.enabled === 1 })));
 });
 
 /**
@@ -148,7 +161,7 @@ profilesRouter.post('/', (req: Request, res: Response) => {
   const { name, emoji, color, sourceProfileId, empty } = parsed.data;
 
   // Check for case-insensitive duplicate profile names
-  const duplicate = db.prepare('SELECT id FROM profiles WHERE LOWER(name) = LOWER(?)').get(name) as any;
+  const duplicate = db.prepare('SELECT id FROM profiles WHERE LOWER(name) = LOWER(?)').get(name) as IdRow | undefined;
   if (duplicate) {
     res.status(409).json({ error: { message: `Profile with name '${name}' already exists` } });
     return;
@@ -159,7 +172,7 @@ profilesRouter.post('/', (req: Request, res: Response) => {
   let layoutConfig: string | null = null;
   let autoSort: string | null = null;
   if (sourceProfileId) {
-    const source = db.prepare('SELECT layout_config, auto_sort FROM profiles WHERE id = ?').get(sourceProfileId) as any;
+    const source = db.prepare('SELECT layout_config, auto_sort FROM profiles WHERE id = ?').get(sourceProfileId) as ProfileLayoutRow | undefined;
     if (source) {
       layoutConfig = source.layout_config;
       autoSort = source.auto_sort;
@@ -176,7 +189,7 @@ profilesRouter.post('/', (req: Request, res: Response) => {
   // requests, and copying a source chain in would defeat the point of it.
   if (!empty) {
     const source = sourceProfileId
-      ? db.prepare('SELECT id FROM profiles WHERE id = ?').get(sourceProfileId) as any
+      ? db.prepare('SELECT id FROM profiles WHERE id = ?').get(sourceProfileId) as IdRow | undefined
       : null;
     if (source) {
       db.prepare(`
@@ -195,7 +208,7 @@ profilesRouter.post('/', (req: Request, res: Response) => {
   res.status(201).json(created);
 });
 
-function copyFromDefault(db: any, profileId: number) {
+function copyFromDefault(db: Db, profileId: number) {
   db.prepare(`
     INSERT INTO profile_models (profile_id, model_db_id, priority, enabled)
     SELECT ?, model_db_id, priority, enabled
@@ -208,7 +221,7 @@ function copyFromDefault(db: any, profileId: number) {
 profilesRouter.put('/:id', (req: Request, res: Response) => {
   const db = getDb();
   const profileId = getId(req);
-  const profile = db.prepare('SELECT id, name, type FROM profiles WHERE id = ?').get(profileId) as any;
+  const profile = db.prepare('SELECT id, name, type FROM profiles WHERE id = ?').get(profileId) as ProfileRow | undefined;
   if (!profile) {
     res.status(404).json({ error: { message: 'Profile not found' } });
     return;
@@ -233,7 +246,7 @@ profilesRouter.put('/:id', (req: Request, res: Response) => {
 
   // Check for case-insensitive duplicate profile names when editing name
   if (parsed.data.name !== undefined) {
-    const duplicate = db.prepare('SELECT id FROM profiles WHERE LOWER(name) = LOWER(?) AND id != ?').get(parsed.data.name, profileId) as any;
+    const duplicate = db.prepare('SELECT id FROM profiles WHERE LOWER(name) = LOWER(?) AND id != ?').get(parsed.data.name, profileId) as IdRow | undefined;
     if (duplicate) {
       res.status(409).json({ error: { message: `Profile with name '${parsed.data.name}' already exists` } });
       return;
@@ -241,7 +254,7 @@ profilesRouter.put('/:id', (req: Request, res: Response) => {
   }
 
   const updates: string[] = [];
-  const values: any[] = [];
+  const values: unknown[] = [];
   for (const [key, value] of Object.entries(parsed.data)) {
     if (value !== undefined) {
       // Block name/emoji/color edits on protected profiles
@@ -282,7 +295,7 @@ const reorderSchema = z.array(z.object({
 profilesRouter.put('/:id/reorder', (req: Request, res: Response) => {
   const db = getDb();
   const profileId = getId(req);
-  const profile = db.prepare('SELECT id FROM profiles WHERE id = ?').get(profileId) as any;
+  const profile = db.prepare('SELECT id FROM profiles WHERE id = ?').get(profileId) as IdRow | undefined;
   if (!profile) {
     res.status(404).json({ error: { message: 'Profile not found' } });
     return;
@@ -310,7 +323,7 @@ profilesRouter.put('/:id/reorder', (req: Request, res: Response) => {
 profilesRouter.post('/:id/reset', (req: Request, res: Response) => {
   const db = getDb();
   const profileId = getId(req);
-  const profile = db.prepare('SELECT id FROM profiles WHERE id = ?').get(profileId) as any;
+  const profile = db.prepare('SELECT id FROM profiles WHERE id = ?').get(profileId) as IdRow | undefined;
   if (!profile) {
     res.status(404).json({ error: { message: 'Profile not found' } });
     return;
@@ -349,7 +362,7 @@ profilesRouter.post('/:id/reset', (req: Request, res: Response) => {
 profilesRouter.delete('/:id', (req: Request, res: Response) => {
   const db = getDb();
   const profileId = getId(req);
-  const profile = db.prepare('SELECT id, type FROM profiles WHERE id = ?').get(profileId) as any;
+  const profile = db.prepare('SELECT id, type FROM profiles WHERE id = ?').get(profileId) as ProfileTypeRow | undefined;
   if (!profile) {
     res.status(404).json({ error: { message: 'Profile not found' } });
     return;
@@ -387,11 +400,11 @@ const SORT_PRESETS: Record<string, string> = {
   speed: 'm.speed_rank ASC',
 };
 
-function sortProfileModels(db: any, profileId: number, preset: string) {
+function sortProfileModels(db: Db, profileId: number, preset: string) {
   let models: { id: number }[] = [];
 
   if (preset === 'budget') {
-    const allModels = db.prepare(`SELECT id, monthly_token_budget, tpd_limit FROM models`).all() as any[];
+    const allModels = db.prepare(`SELECT id, monthly_token_budget, tpd_limit FROM models`).all() as ModelBudgetRow[];
     allModels.sort((a, b) => monthlyBudgetScore(b) - monthlyBudgetScore(a));
     models = allModels.map(m => ({ id: m.id }));
   } else {
@@ -423,7 +436,7 @@ function sortProfileModels(db: any, profileId: number, preset: string) {
 profilesRouter.post('/:id/sort/:preset', (req: Request, res: Response) => {
   const db = getDb();
   const profileId = getId(req);
-  const profile = db.prepare('SELECT id FROM profiles WHERE id = ?').get(profileId) as any;
+  const profile = db.prepare('SELECT id FROM profiles WHERE id = ?').get(profileId) as IdRow | undefined;
   if (!profile) {
     res.status(404).json({ error: { message: 'Profile not found' } });
     return;
@@ -440,7 +453,7 @@ profilesRouter.post('/:id/sort/:preset', (req: Request, res: Response) => {
 });
 
 // Initialize built-in profiles if they don't exist
-export function seedProfiles(db: any): void {
+export function seedProfiles(db: Db): void {
   const count = db.prepare("SELECT COUNT(*) as cnt FROM profiles WHERE type = 'default' OR type = 'builtin'").get() as { cnt: number };
   if (count.cnt > 0) return;
 

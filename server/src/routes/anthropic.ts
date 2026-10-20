@@ -34,6 +34,7 @@ import { normalizeMessageImages } from '../lib/image-normalize.js';
 import { maybeServeAnthropicWebSearch, serverToolUseToText, webSearchResultToText } from '../lib/anthropic-web-search.js';
 import { applyDecisionRouting, routingStrategyHeader } from '../services/routing-decision.js';
 import { errorMessage, errorProps } from '../lib/error-props.js';
+import { asStreamFrame, frameErrorMessage } from '../lib/stream-frame.js';
 
 // Anthropic-compatible Messages API (`POST /v1/messages`). This is a thin
 // translation layer over the SAME router/fallback/analytics machinery the
@@ -935,13 +936,13 @@ async function streamCompletion(
 
     for await (const chunk of gen) {
       if (ctx.clientGone()) break; // client hung up: stop pulling; reader.cancel() aborts upstream
-      const anyChunk = chunk as Record<string, any>;
+      const frame = asStreamFrame(chunk);
 
       // In-band provider error frame (e.g. Groq emits {"error":…} inside a 200
       // stream). Before message_start: retryable → fail over invisibly. After:
       // surface an Anthropic `error` event and stop.
-      if (anyChunk.error && !anyChunk.choices) {
-        const msg = anyChunk.error.message ?? JSON.stringify(anyChunk.error).slice(0, 200);
+      if (frame.error && !frame.choices) {
+        const msg = frameErrorMessage(frame);
         if (!messageStarted) throw new Error(`in-band provider error from ${route.displayName}: ${msg}`);
         writeSse(res, 'error', { type: 'error', error: { type: 'api_error', message: `Provider error (${route.displayName}): ${sanitizeProviderErrorMessage(String(msg))}` } });
         res.end();
@@ -949,7 +950,7 @@ async function streamCompletion(
         throw new StreamAlreadyStarted();
       }
 
-      const choice = anyChunk.choices?.[0];
+      const choice = frame.choices?.[0];
       if (!choice) continue;
       if (choice.finish_reason) upstreamFinish = choice.finish_reason;
 

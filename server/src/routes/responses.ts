@@ -51,6 +51,7 @@ import {
 import { applyDecisionRouting, routingStrategyHeader } from '../services/routing-decision.js';
 import { resolveListedClaudeAlias } from '../services/anthropic-map.js';
 import { errorMessage, errorProps } from '../lib/error-props.js';
+import { asStreamFrame } from '../lib/stream-frame.js';
 
 export const responsesRouter = Router();
 
@@ -1306,9 +1307,9 @@ export async function handleResponses(req: Request, res: Response): Promise<void
             // stream — observed live from Groq). Throwing hands it to the catch
             // below: pre-commit it fails over, post-commit it surfaces
             // response.failed.
-            const anyChunk = chunk as Record<string, any>;
-            if (anyChunk.error && !anyChunk.choices) {
-              throw new Error(`in-band provider error from ${route.displayName}: ${anyChunk.error.message ?? 'provider error'}`);
+            const frame = asStreamFrame(chunk);
+            if (frame.error && !frame.choices) {
+              throw new Error(`in-band provider error from ${route.displayName}: ${typeof frame.error === 'object' && frame.error?.message ? frame.error.message : 'provider error'}`);
             }
 
             const choice0 = chunk.choices?.[0];

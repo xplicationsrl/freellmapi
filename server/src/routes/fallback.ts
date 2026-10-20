@@ -9,7 +9,8 @@ import { z } from 'zod';
 import { getDb } from '../db/index.js';
 import { getAllPenalties, getRoutingScores, getRoutingStrategy, setRoutingStrategy, setCustomWeights, getExploreEnabled, setExploreEnabled, getPeakHoursConfig, setPeakHoursConfig, getActiveRoutingWeights, getKeySelectionStrategy, setKeySelectionStrategy } from '../services/router.js';
 import { BANDIT_PRESETS, isValidTimezone, type RoutingStrategy } from '../services/scoring.js';
-import { parseBudget, monthlyBudgetScore } from '../lib/budget.js';
+import { parseBudget, monthlyBudgetScore, type ModelBudgetRow } from '../lib/budget.js';
+import type { Platform } from '@freellmapi/shared/types.js';
 import { getModelGroups } from '../services/model-groups.js';
 import { getPenaltyInspector, clearRouterPressure } from '../services/penalty-inspector.js';
 import { getCooldownCeilingMs, setCooldownCeilingMs, MIN_COOLDOWN_CEILING_MS, MAX_COOLDOWN_CEILING_MS } from '../services/ratelimit.js';
@@ -159,6 +160,30 @@ fallbackRouter.put('/routing', (req: Request, res: Response) => {
 // The catalog columns every fallback row carries, whichever table supplies the
 // priority/enabled pair. Kept in one place so the profile and the no-profile
 // query can never drift apart.
+// The catalog columns both chain reads select (MODEL_COLUMNS), plus the ones
+// that say which chain row a model is.
+interface ChainModelColumns {
+  platform: Platform; model_id: string; display_name: string; intelligence_rank: number; speed_rank: number;
+  size_label: string; rpm_limit: number | null; rpd_limit: number | null; tpm_limit: number | null;
+  tpd_limit: number | null; context_window: number | null; monthly_token_budget: string;
+  supports_vision: number; supports_tools: number; key_id: number | null; endpoint_scope: string | null;
+  model_source: string | null; key_label: string | null; has_overrides: number; overrides_json: string | null;
+  tombstone_source: string | null; tombstone_reason: string | null;
+  model_db_id: number;
+}
+/** One catalog row seen through a profile chain (PROFILE_CHAIN_SQL). */
+interface ProfileChainRow extends ChainModelColumns {
+  chain_priority: number | null; chain_enabled: number | null; catalog_priority: number | null;
+}
+/** One row of the global chain (GLOBAL_CHAIN_SQL). */
+interface GlobalChainRow extends ChainModelColumns { priority: number; enabled: number }
+/** A model row of the token-usage read: just the columns it prices and ranks by. */
+interface RawModel {
+  model_db_id: number; platform: string; model_id: string; display_name: string; monthly_token_budget: string;
+  priority: number; enabled: number; intelligence_rank: number; rpm_limit: number | null; rpd_limit: number | null;
+  tpm_limit: number | null; tpd_limit: number | null;
+}
+
 const MODEL_COLUMNS = `
            m.platform, m.model_id, m.display_name, m.intelligence_rank,
            m.speed_rank, m.size_label, m.rpm_limit, m.rpd_limit,
@@ -211,8 +236,8 @@ ${MODEL_JOINS}
  * the last stored one, so the list stays monotonic and stable between reads
  * without writing anything back.
  */
-function orderProfileRows(rows: any[]): any[] {
-  const inChain = rows.filter(r => r.chain_priority != null);
+function orderProfileRows(rows: ProfileChainRow[]): GlobalChainRow[] {
+  const inChain = rows.filter((r): r is ProfileChainRow & { chain_priority: number } => r.chain_priority != null);
   const rest = rows.filter(r => r.chain_priority == null);
   inChain.sort((a, b) => a.chain_priority - b.chain_priority || a.model_db_id - b.model_db_id);
   rest.sort((a, b) =>
@@ -221,7 +246,7 @@ function orderProfileRows(rows: any[]): any[] {
 
   const maxStored = inChain.length ? inChain[inChain.length - 1].chain_priority : 0;
   return [
-    ...inChain.map(r => ({ ...r, priority: r.chain_priority, enabled: r.chain_enabled })),
+    ...inChain.map(r => ({ ...r, priority: r.chain_priority, enabled: r.chain_enabled ?? 0 })),
     ...rest.map((r, i) => ({ ...r, priority: maxStored + 1 + i, enabled: 0 })),
   ];
 }
@@ -250,8 +275,8 @@ fallbackRouter.get('/', (req: Request, res: Response) => {
   // through to the global table there is what made two different empty chains
   // show (and save) the same configuration (#1021).
   const rows = activeProfileId != null
-    ? orderProfileRows(db.prepare(PROFILE_CHAIN_SQL).all(activeProfileId) as any[])
-    : db.prepare(GLOBAL_CHAIN_SQL).all() as any[];
+    ? orderProfileRows(db.prepare(PROFILE_CHAIN_SQL).all(activeProfileId) as ProfileChainRow[])
+    : db.prepare(GLOBAL_CHAIN_SQL).all() as GlobalChainRow[];
 
   // Count usable keys per platform — enabled AND healthy/unknown status. Unified
   // with /token-usage and the routing scorer (#456) so budget pooling is computed
@@ -420,7 +445,7 @@ fallbackRouter.post('/sort/:preset', (req: Request, res: Response) => {
   const activeProfileId = getActiveProfileId(db);
 
   if (preset === 'budget') {
-    const allModels = db.prepare(`SELECT id, monthly_token_budget, tpd_limit FROM models`).all() as any[];
+    const allModels = db.prepare(`SELECT id, monthly_token_budget, tpd_limit FROM models`).all() as ModelBudgetRow[];
     allModels.sort((a, b) => monthlyBudgetScore(b) - monthlyBudgetScore(a));
     models = allModels.map(m => ({ id: m.id }));
   } else {
@@ -477,14 +502,14 @@ fallbackRouter.get('/token-usage', (_req: Request, res: Response) => {
 
   // Verify active profile still exists
   const activeProfile = activeProfileId
-    ? db.prepare('SELECT id FROM profiles WHERE id = ?').get(activeProfileId) as any
+    ? db.prepare('SELECT id FROM profiles WHERE id = ?').get(activeProfileId) as { id: number } | undefined
     : null;
 
   // Ordered by intelligence (rank 1 = smartest), not chain priority: the
   // dashboard's monthly-budget bar and legend follow this order, and chain
   // priority is seeded provider by provider, which read as "grouped by
   // provider" (#1243). Priority stays as the tiebreaker within a rank.
-  let rawModels: { model_db_id: number; platform: string; model_id: string; display_name: string; monthly_token_budget: string; priority: number; enabled: number; intelligence_rank: number; rpm_limit: number | null; rpd_limit: number | null; tpm_limit: number | null; tpd_limit: number | null }[];
+  let rawModels: RawModel[];
 
   if (activeProfile) {
     // Profile mode: use profile_models chain (all models in profile, checked against enabled)
@@ -496,7 +521,7 @@ fallbackRouter.get('/token-usage', (_req: Request, res: Response) => {
       JOIN models m ON m.id = pm.model_db_id
       WHERE pm.profile_id = ? AND m.enabled = 1
       ORDER BY m.intelligence_rank ASC, pm.priority ASC
-    `).all(activeProfileId) as any[];
+    `).all(activeProfileId) as RawModel[];
   } else {
     // Default mode: use fallback_config (only include enabled models)
     rawModels = db.prepare(`
@@ -507,7 +532,7 @@ fallbackRouter.get('/token-usage', (_req: Request, res: Response) => {
       JOIN models m ON m.id = fc.model_db_id
       WHERE m.enabled = 1
       ORDER BY m.intelligence_rank ASC, fc.priority ASC
-    `).all() as any[];
+    `).all() as RawModel[];
   }
 
   // Build per-model breakdown (only platforms with keys), preserving enabled state

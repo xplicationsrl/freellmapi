@@ -54,6 +54,7 @@ const PURE_MODULES = [
   'auto-model.ts',
   'stream-text.ts',
   'error-props.ts',
+  'stream-frame.ts',
 ];
 
 // Pure in fact today, but NOT declared invariant: nothing in the codebase

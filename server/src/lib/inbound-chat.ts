@@ -48,6 +48,7 @@ import { logRequest } from './request-log.js';
 import { getStickyModel, setStickyModel } from './session-memory.js';
 import type { CompletionOptions } from '../providers/base.js';
 import { errorMessage, errorProps } from './error-props.js';
+import { asStreamFrame } from './stream-frame.js';
 
 export interface InboundChatRequest {
   model?: string;
@@ -387,11 +388,11 @@ export async function runInboundChat(
         );
         for await (const chunk of stream) {
           if (clientGone) break;
-          const anyChunk = chunk as Record<string, any>;
-          if (anyChunk.error && !anyChunk.choices) {
-            throw new Error(anyChunk.error.message ?? `in-band provider error from ${route.displayName}`);
+          const frame = asStreamFrame(chunk);
+          if (frame.error && !frame.choices) {
+            throw new Error((typeof frame.error === 'object' ? frame.error?.message : undefined) ?? `in-band provider error from ${route.displayName}`);
           }
-          const choice = anyChunk.choices?.[0];
+          const choice = frame.choices?.[0];
           if (!choice) continue;
           if (choice.finish_reason) finishReason = choice.finish_reason;
           const deltaText = typeof choice.delta?.content === 'string' ? choice.delta.content : '';

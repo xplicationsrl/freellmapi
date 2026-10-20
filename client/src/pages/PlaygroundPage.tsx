@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useMemo, useCallback, type ReactNode } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { ChevronRight, CircleAlert, FileText, Globe, Pencil, RefreshCw, X } from 'lucide-react'
+import { ChevronRight, CircleAlert, Code, FileText, Globe, Lightbulb, Mail, Pencil, RefreshCw, X } from 'lucide-react'
 import { apiFetch, API_BASE } from '@/lib/api'
 import { buildModelOptions } from '@/lib/model-groups'
 import type { Chain } from '@/components/chain-manager'
@@ -30,6 +30,7 @@ import {
   type Attachment,
 } from '@/lib/attachments'
 import { MessageActionButton, MessageEditor } from '@/components/playground/message-actions'
+import { StarterPrompts } from '@/components/playground/starter-prompts'
 import { canRegenerate, editedTranscript, lookupText, regenerationBase } from '@/lib/playground-retry'
 import { MAX_DOCUMENT_BYTES, extractDocxText, extractPdfText } from '@/lib/document-extract'
 import { readChatStream } from '@/lib/playground-stream'
@@ -1185,6 +1186,18 @@ export default function PlaygroundPage() {
     void runReply(edited, lookupText(edited[edited.length - 1]))
   }
 
+  // A starter fills the composer and leaves the cursor at the end of it, ready
+  // for the part only the person can add. It never sends by itself.
+  const pickStarter = (prompt: string) => {
+    setInput(prompt)
+    requestAnimationFrame(() => {
+      const el = inputRef.current
+      if (!el) return
+      el.focus()
+      el.setSelectionRange(el.value.length, el.value.length)
+    })
+  }
+
   const handleStop = () => {
     stoppedRef.current = true
     abortRef.current?.abort()
@@ -1248,11 +1261,20 @@ export default function PlaygroundPage() {
           <div className="mx-auto h-full w-full max-w-3xl space-y-4">
           {messages.length === 0 ? (
             <div className="flex items-center justify-center h-full text-center">
-              <div className="space-y-2 max-w-sm">
+              <div className="w-full max-w-lg space-y-2">
                 <p className="text-base font-medium">{t('playground.emptyTitle')}</p>
                 <p className="text-sm text-muted-foreground">
                   {t('playground.emptyDescription', { model: activeModelLabel })}
                 </p>
+                <StarterPrompts
+                  items={[
+                    { id: 'explain', icon: Lightbulb, label: t('playground.starterExplain'), prompt: t('playground.starterExplainPrompt') },
+                    { id: 'write', icon: Mail, label: t('playground.starterWrite'), prompt: t('playground.starterWritePrompt') },
+                    { id: 'summarize', icon: FileText, label: t('playground.starterSummarize'), prompt: t('playground.starterSummarizePrompt') },
+                    { id: 'code', icon: Code, label: t('playground.starterCode'), prompt: t('playground.starterCodePrompt') },
+                  ]}
+                  onPick={pickStarter}
+                />
               </div>
             </div>
           ) : (

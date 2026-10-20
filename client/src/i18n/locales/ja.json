@@ -860,6 +860,7 @@
     "noModelsFound": "モデルが見つかりません",
     "send": "送信",
     "sending": "送信中…",
+    "stop": "Stop generating",
     "clear": "クリア",
     "inputPlaceholder": "How may I help?",
     "emptyTitle": "メッセージを送信して始めてください。",

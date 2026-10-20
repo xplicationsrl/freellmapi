@@ -860,6 +860,7 @@
     "noModelsFound": "Не са намерени модели",
     "send": "Изпрати",
     "sending": "Изпращам...",
+    "stop": "Stop generating",
     "clear": "Чисто",
     "inputPlaceholder": "How may I help?",
     "emptyTitle": "Изпратете съобщение, за да започнете.",

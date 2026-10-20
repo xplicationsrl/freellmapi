@@ -860,6 +860,7 @@
     "noModelsFound": "ไม่พบรุ่น",
     "send": "ส่ง",
     "sending": "กำลังส่ง...",
+    "stop": "Stop generating",
     "clear": "ชัดเจน",
     "inputPlaceholder": "How may I help?",
     "emptyTitle": "ส่งข้อความเพื่อเริ่มต้น",

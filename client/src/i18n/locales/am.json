@@ -860,6 +860,7 @@
     "noModelsFound": "ምንም ሞዴሎች አልተገኙም",
     "send": "ላክ",
     "sending": "በመላክ ላይ...",
+    "stop": "Stop generating",
     "clear": "አጽዳ",
     "inputPlaceholder": "How may I help?",
     "emptyTitle": "ለመጀመር መልእክት ይላኩ።",

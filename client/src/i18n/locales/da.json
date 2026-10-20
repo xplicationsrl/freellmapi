@@ -860,6 +860,7 @@
     "noModelsFound": "Ingen modeller fundet",
     "send": "Send",
     "sending": "Sender...",
+    "stop": "Stop generating",
     "clear": "Klart",
     "inputPlaceholder": "How may I help?",
     "emptyTitle": "Send en besked for at komme i gang.",

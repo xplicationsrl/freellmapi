@@ -860,6 +860,7 @@
     "noModelsFound": "മോഡലുകളൊന്നും കണ്ടെത്തിയില്ല",
     "send": "അയക്കുക",
     "sending": "അയയ്ക്കുന്നു...",
+    "stop": "Stop generating",
     "clear": "ക്ലിയർ",
     "inputPlaceholder": "How may I help?",
     "emptyTitle": "ആരംഭിക്കുന്നതിന് ഒരു സന്ദേശം അയയ്‌ക്കുക.",

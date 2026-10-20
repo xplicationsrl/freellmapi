@@ -860,6 +860,7 @@
     "noModelsFound": "Inga modeller hittades",
     "send": "Skicka",
     "sending": "Skickar...",
+    "stop": "Stop generating",
     "clear": "Klart",
     "inputPlaceholder": "How may I help?",
     "emptyTitle": "Skicka ett meddelande för att komma igång.",

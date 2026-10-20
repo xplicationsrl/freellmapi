@@ -860,6 +860,7 @@
     "noModelsFound": "कोणतेही मॉडेल आढळले नाहीत",
     "send": "पाठवा",
     "sending": "पाठवत आहे...",
+    "stop": "Stop generating",
     "clear": "साफ",
     "inputPlaceholder": "How may I help?",
     "emptyTitle": "प्रारंभ करण्यासाठी एक संदेश पाठवा.",

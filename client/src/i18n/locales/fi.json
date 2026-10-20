@@ -860,6 +860,7 @@
     "noModelsFound": "Malleja ei löytynyt",
     "send": "Lähetä",
     "sending": "Lähetetään...",
+    "stop": "Stop generating",
     "clear": "Selvä",
     "inputPlaceholder": "How may I help?",
     "emptyTitle": "Lähetä viesti aloittaaksesi.",

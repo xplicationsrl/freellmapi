@@ -860,6 +860,7 @@
     "noModelsFound": "هیچ مدلی پیدا نشد",
     "send": "ارسال کنید",
     "sending": "در حال ارسال…",
+    "stop": "Stop generating",
     "clear": "پاک کردن",
     "inputPlaceholder": "How may I help?",
     "emptyTitle": "برای شروع پیام ارسال کنید.",

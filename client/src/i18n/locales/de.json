@@ -860,6 +860,7 @@
     "noModelsFound": "Keine Modelle gefunden",
     "send": "Senden",
     "sending": "Senden…",
+    "stop": "Stop generating",
     "clear": "Klar",
     "inputPlaceholder": "How may I help?",
     "emptyTitle": "Senden Sie eine Nachricht, um loszulegen.",

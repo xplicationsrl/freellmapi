@@ -28,8 +28,8 @@ function render(over: Partial<LiquidComposerProps> = {}) {
   const props: LiquidComposerProps = {
     inputRef: createRef<HTMLTextAreaElement>(),
     value: '', onChange: () => {}, onKeyDown: () => {}, onPaste: () => {},
-    placeholder: 'Type a message', hasContent: false, loading: false, onSend: () => {}, onAttach: () => {},
-    labels: { add: 'Add files and tools', attach: 'Attach files', send: 'Send', sending: 'Sending' },
+    placeholder: 'Type a message', hasContent: false, loading: false, onSend: () => {}, onStop: () => {}, onAttach: () => {},
+    labels: { add: 'Add files and tools', attach: 'Attach files', send: 'Send', stop: 'Stop generating' },
     dictation: { available: false, model: 'auto', apiKey: null, onText: () => {} },
     ...over,
   }
@@ -71,4 +71,33 @@ it('disables the switch and explains why when there is no search key', async () 
   const search = document.querySelector<HTMLElement>('[role="menuitemcheckbox"]')!
   expect(search.getAttribute('aria-disabled') ?? search.getAttribute('data-disabled')).not.toBeNull()
   expect(document.body.textContent).toContain('Add a search key on the Keys page')
+})
+
+const actionButton = (label: string) => document.querySelector<HTMLButtonElement>(`button[aria-label="${label}"]`)
+
+it('shows Stop while a reply streams, even with nothing typed, and stops instead of sending', () => {
+  const onSend = vi.fn()
+  const onStop = vi.fn()
+  render({ loading: true, hasContent: false, onSend, onStop })
+  const stop = actionButton('Stop generating')!
+  expect(stop.disabled).toBe(false)
+  expect(stop.getAttribute('aria-hidden')).toBe('false')
+  expect(actionButton('Send')).toBeNull()
+  act(() => { stop.click() })
+  expect(onStop).toHaveBeenCalledTimes(1)
+  expect(onSend).not.toHaveBeenCalled()
+})
+
+it('sends when idle with content, and parks the button when the bar is empty', () => {
+  const onSend = vi.fn()
+  const onStop = vi.fn()
+  render({ hasContent: true, onSend, onStop })
+  act(() => { actionButton('Send')!.click() })
+  expect(onSend).toHaveBeenCalledTimes(1)
+  expect(onStop).not.toHaveBeenCalled()
+
+  render({ hasContent: false, onSend, onStop })
+  const parked = actionButton('Send')!
+  expect(parked.disabled).toBe(true)
+  expect(parked.getAttribute('aria-hidden')).toBe('true')
 })

@@ -860,6 +860,7 @@
     "noModelsFound": "Hech qanday model topilmadi",
     "send": "Yuborish",
     "sending": "Yuborilmoqda…",
+    "stop": "Stop generating",
     "clear": "Tozalash",
     "inputPlaceholder": "How may I help?",
     "emptyTitle": "Boshlash uchun xabar yuboring.",

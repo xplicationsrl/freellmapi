@@ -860,6 +860,7 @@
     "noModelsFound": "Δεν βρέθηκαν μοντέλα",
     "send": "Αποστολή",
     "sending": "Αποστολή...",
+    "stop": "Stop generating",
     "clear": "Εκκαθάριση",
     "inputPlaceholder": "How may I help?",
     "emptyTitle": "Στείλτε ένα μήνυμα για να ξεκινήσετε.",

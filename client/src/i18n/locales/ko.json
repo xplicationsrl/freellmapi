@@ -860,6 +860,7 @@
     "noModelsFound": "모델을 찾을 수 없습니다.",
     "send": "보내기",
     "sending": "보내는 중…",
+    "stop": "Stop generating",
     "clear": "지우기",
     "inputPlaceholder": "How may I help?",
     "emptyTitle": "시작하려면 메시지를 보내세요.",

@@ -860,6 +860,7 @@
     "noModelsFound": "Geen modellen gevonden",
     "send": "Verzenden",
     "sending": "Zend...",
+    "stop": "Stop generating",
     "clear": "Vrij",
     "inputPlaceholder": "How may I help?",
     "emptyTitle": "Stuur een bericht om te beginnen.",

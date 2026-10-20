@@ -82,6 +82,24 @@ import {
 } from '@/lib/playground-recall'
 import { useI18n } from '@/i18n'
 
+function isAbortError(err: unknown): boolean {
+  return err instanceof Error && err.name === 'AbortError'
+}
+
+// A read cut short by Stop is the normal end of a stopped reply, not a
+// failure: report the stream as finished so the partial text is kept.
+async function readUnlessStopped(
+  reader: ReadableStreamDefaultReader<Uint8Array>,
+  stopped: () => boolean,
+): Promise<ReadableStreamReadResult<Uint8Array>> {
+  try {
+    return await reader.read()
+  } catch (err) {
+    if (stopped() && isAbortError(err)) return { done: true, value: undefined }
+    throw err
+  }
+}
+
 // One SSE frame of a fusion stream: either an additive `_fusion` event, an
 // error, or a regular chat-completion chunk.
 interface FusionStreamFrame {
@@ -291,6 +309,10 @@ export default function PlaygroundPage() {
   // Cancels the in-flight completion when the user clears the chat, sends
   // again, or navigates away mid-stream.
   const abortRef = useRef<AbortController | null>(null)
+  // Set only by the Stop button. An abort without it (new chat, leaving the
+  // page) discards the reply; an abort with it ends the reply where it is and
+  // keeps what had already arrived.
+  const stoppedRef = useRef(false)
 
   // ---- Saved conversations -------------------------------------------------
   // The transcript lives on the server now. `conversationId` is the row this
@@ -779,7 +801,7 @@ export default function PlaygroundPage() {
     flush(true)
 
     for (;;) {
-      const { done, value } = await reader.read()
+      const { done, value } = await readUnlessStopped(reader, () => stoppedRef.current)
       if (done) break
       buf += dec.decode(value, { stream: true })
       const lines = buf.split('\n')
@@ -810,7 +832,7 @@ export default function PlaygroundPage() {
     // The exchange is complete: one save, here, never per delta.
     const finished = flush(false)
     await persistConversation(finished)
-    void extractMemoriesFromExchange(finished)
+    if (!stoppedRef.current) void extractMemoriesFromExchange(finished)
   }
 
   // Read a plain (non-fusion) OpenAI chat stream, filling the assistant bubble
@@ -839,7 +861,7 @@ export default function PlaygroundPage() {
       const next: ChatMessage[] = [...baseMessages]
       // A stream that broke before the first token has nothing to show but the
       // error; one that broke halfway keeps what it managed to say.
-      if (content || reasoning || failure === null) {
+      if (content || reasoning || (failure === null && !stoppedRef.current)) {
         next.push({
           role: 'assistant',
           content,
@@ -859,15 +881,21 @@ export default function PlaygroundPage() {
       return next
     }
 
-    await readChatStream(stream, {
-      onDelta: text => { content += text; flush(true) },
-      onReasoning: text => { reasoning += text; flush(true) },
-      onError: message => { failure = message; flush(true) },
-    })
+    try {
+      await readChatStream(stream, {
+        onDelta: text => { content += text; flush(true) },
+        onReasoning: text => { reasoning += text; flush(true) },
+        onError: message => { failure = message; flush(true) },
+      })
+    } catch (err) {
+      // Stop rejects the pending read with an AbortError: the reply simply
+      // ends here. Anything else is a real failure.
+      if (!(stoppedRef.current && isAbortError(err))) throw err
+    }
     // The exchange is complete: one save, here, never per delta.
     const finished = flush(false)
     await persistConversation(finished)
-    if (failure === null) void extractMemoriesFromExchange(finished)
+    if (failure === null && !stoppedRef.current) void extractMemoriesFromExchange(finished)
   }
 
   // Stage dropped/pasted/picked files. Every rejection is reported by name so a
@@ -944,6 +972,7 @@ export default function PlaygroundPage() {
     setMessages(newMessages)
     setInput('')
     setAttachments([])
+    stoppedRef.current = false
     setLoading(true)
     inputRef.current?.focus()
 
@@ -1107,7 +1136,12 @@ export default function PlaygroundPage() {
       // Clearing the chat (or leaving the page) aborts the stream on purpose —
       // that is not a failure to report, and the transcript it belonged to is
       // already gone.
-      if (err.name === 'AbortError') return
+      if (err.name === 'AbortError') {
+        // Stopped before the first byte: there is no reply to keep, but the
+        // question is.
+        if (stoppedRef.current) await persistConversation(newMessages)
+        return
+      }
       const failed: ChatMessage[] = [...newMessages, {
         role: 'assistant',
         isError: true,
@@ -1121,7 +1155,17 @@ export default function PlaygroundPage() {
     }
   }
 
+  const handleStop = () => {
+    stoppedRef.current = true
+    abortRef.current?.abort()
+  }
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Escape' && loading) {
+      e.preventDefault()
+      handleStop()
+      return
+    }
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
       handleSend()
@@ -1389,8 +1433,9 @@ export default function PlaygroundPage() {
             hasContent={composerHasContent(input, attachments.length)}
             loading={loading}
             onSend={handleSend}
+            onStop={handleStop}
             onAttach={() => fileInputRef.current?.click()}
-            labels={{ add: t('playground.addMenu'), attach: t('playground.attach'), send: t('playground.send'), sending: t('playground.sending') }}
+            labels={{ add: t('playground.addMenu'), attach: t('playground.attach'), send: t('playground.send'), stop: t('playground.stop') }}
             dictation={{
               available: transcriptionAvailable,
               model: dictationModel,

@@ -860,6 +860,7 @@
     "noModelsFound": "Није пронађен ниједан модел",
     "send": "Пошаљи",
     "sending": "Шаље се…",
+    "stop": "Stop generating",
     "clear": "Јасно",
     "inputPlaceholder": "How may I help?",
     "emptyTitle": "Пошаљите поруку да бисте започели.",

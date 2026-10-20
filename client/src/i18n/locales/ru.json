@@ -860,6 +860,7 @@
     "noModelsFound": "Модели не найдены",
     "send": "Отправить",
     "sending": "Отправка…",
+    "stop": "Stop generating",
     "clear": "Очистить",
     "inputPlaceholder": "How may I help?",
     "emptyTitle": "Отправьте сообщение, чтобы начать.",

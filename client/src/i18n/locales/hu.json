@@ -860,6 +860,7 @@
     "noModelsFound": "Modellek nem találtak",
     "send": "Elküldöm",
     "sending": "Küldve...",
+    "stop": "Stop generating",
     "clear": "Tiszta",
     "inputPlaceholder": "How may I help?",
     "emptyTitle": "Küldj üzenetet, hogy elkezdjék.",

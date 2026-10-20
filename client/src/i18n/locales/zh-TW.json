@@ -860,6 +860,7 @@
     "noModelsFound": "找不到模型",
     "send": "傳送",
     "sending": "傳送中...",
+    "stop": "Stop generating",
     "clear": "清空",
     "inputPlaceholder": "How may I help?",
     "emptyTitle": "傳送訊息即可開始。",

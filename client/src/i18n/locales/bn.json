@@ -860,6 +860,7 @@
     "noModelsFound": "কোন মডেল পাওয়া যায়নি",
     "send": "পাঠান",
     "sending": "পাঠানো হচ্ছে...",
+    "stop": "Stop generating",
     "clear": "পরিষ্কার",
     "inputPlaceholder": "How may I help?",
     "emptyTitle": "শুরু করতে একটি বার্তা পাঠান.",

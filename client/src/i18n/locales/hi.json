@@ -860,6 +860,7 @@
     "noModelsFound": "कोई मॉडल नहीं मिला",
     "send": "भेजें",
     "sending": "भेजा जा रहा है...",
+    "stop": "Stop generating",
     "clear": "स्पष्ट",
     "inputPlaceholder": "How may I help?",
     "emptyTitle": "आरंभ करने के लिए एक संदेश भेजें.",

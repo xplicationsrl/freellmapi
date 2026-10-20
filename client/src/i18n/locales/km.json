@@ -860,6 +860,7 @@
     "noModelsFound": "គ្មានម៉ូដែលណាមួយត្រូវបានរកឃើញ",
     "send": "ផ្ញើ",
     "sending": "កំពុងផ្ញើ...",
+    "stop": "Stop generating",
     "clear": "ស្អាត",
     "inputPlaceholder": "How may I help?",
     "emptyTitle": "ផ្ញើសារដើម្បីចាប់ផ្តើម។",

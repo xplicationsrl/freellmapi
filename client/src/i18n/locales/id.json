@@ -860,6 +860,7 @@
     "noModelsFound": "Tidak ada model yang ditemukan",
     "send": "Kirim",
     "sending": "Mengirim…",
+    "stop": "Stop generating",
     "clear": "Jelas",
     "inputPlaceholder": "How may I help?",
     "emptyTitle": "Kirim pesan untuk memulai.",

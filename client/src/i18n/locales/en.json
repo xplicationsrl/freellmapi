@@ -898,6 +898,7 @@
     "noModelsFound": "No models found",
     "send": "Send",
     "sending": "Sending…",
+    "stop": "Stop generating",
     "clear": "Clear",
     "inputPlaceholder": "How may I help?",
     "emptyTitle": "Send a message to get started.",

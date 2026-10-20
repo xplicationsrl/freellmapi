@@ -31,9 +31,13 @@ export function sendButtonOffset(hasContent: boolean): number {
   return hasContent ? 0 : -(COMPOSER_BUTTON_PX + COMPOSER_GAP_PX)
 }
 
-/** The button is only a target once it has emerged and nothing is in flight. */
-export function sendButtonInteractive(hasContent: boolean, loading: boolean): boolean {
-  return hasContent && !loading
+/** What the round button does right now: stop a reply that is streaming in,
+ *  send what is typed, or nothing (parked under the bar). A reply in flight
+ *  always wins, so Stop is reachable even with an empty input. */
+export type ComposerAction = 'stop' | 'send' | null
+export function composerAction(hasContent: boolean, loading: boolean): ComposerAction {
+  if (loading) return 'stop'
+  return hasContent ? 'send' : null
 }
 
 /** Auto-grow: the height to give the textarea for its current scroll height,

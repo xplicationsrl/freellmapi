@@ -860,6 +860,7 @@
     "noModelsFound": "Heç bir model tapılmadı",
     "send": "Göndər",
     "sending": "Göndərirəm...",
+    "stop": "Stop generating",
     "clear": "Təmiz",
     "inputPlaceholder": "How may I help?",
     "emptyTitle": "Başlamaq üçün mesaj göndərin.",

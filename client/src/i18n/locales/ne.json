@@ -860,6 +860,7 @@
     "noModelsFound": "कुनै नमूना फेला परेन",
     "send": "पठाउनुहोस्",
     "sending": "पठाउँदैछ...",
+    "stop": "Stop generating",
     "clear": "खाली गर्नुहोस्",
     "inputPlaceholder": "How may I help?",
     "emptyTitle": "सुरुआतका लागि सन्देश पठाउनुहोस् ।",

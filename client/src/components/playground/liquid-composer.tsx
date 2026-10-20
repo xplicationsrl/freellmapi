@@ -1,6 +1,6 @@
 import { useEffect, useState, type ClipboardEvent, type KeyboardEvent, type RefObject } from 'react'
 import { Liquid } from 'liquid-gooey'
-import { ArrowUp, Globe, Paperclip, Plus } from 'lucide-react'
+import { ArrowUp, Globe, Paperclip, Plus, Square } from 'lucide-react'
 import { buttonVariants } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Switch } from '@/components/ui/switch'
@@ -10,8 +10,8 @@ import {
   COMPOSER_BRIDGE,
   COMPOSER_CORNER_PX,
   COMPOSER_EDGE,
+  composerAction,
   composerHeight,
-  sendButtonInteractive,
   sendButtonOffset,
 } from '@/lib/composer-geometry'
 
@@ -42,8 +42,10 @@ export interface LiquidComposerProps {
   hasContent: boolean
   loading: boolean
   onSend: () => void
+  /** Aborts the reply in flight; the button shows as Stop while `loading`. */
+  onStop: () => void
   onAttach: () => void
-  labels: { add: string; attach: string; send: string; sending: string }
+  labels: { add: string; attach: string; send: string; stop: string }
   /** Speech to text for the mic; the transcript is appended to `value`. */
   dictation: { available: boolean; model: string; apiKey: string | null | undefined; onText: (text: string) => void }
   /** The web search switch in the + menu (#1174). While it is on, the + turns
@@ -52,7 +54,7 @@ export interface LiquidComposerProps {
 }
 
 export function LiquidComposer({
-  inputRef, value, onChange, onKeyDown, onPaste, placeholder, hasContent, loading, onSend, onAttach, labels, dictation, webSearch,
+  inputRef, value, onChange, onKeyDown, onPaste, placeholder, hasContent, loading, onSend, onStop, onAttach, labels, dictation, webSearch,
 }: LiquidComposerProps) {
   // Set from input events; an empty value never counts as grown, so a
   // programmatic clear (send, new chat) drops back to one line by itself.
@@ -64,7 +66,9 @@ export function LiquidComposer({
   // The mic only ever fades — no scale, no travel. It shows while the bar is
   // empty (and for as long as a recording or transcription is in progress),
   // and stops being there once there is something to send.
-  const showMic = !hasContent || dictationPhase !== 'idle'
+  const action = composerAction(hasContent, loading)
+  const showButton = action !== null
+  const showMic = !showButton || dictationPhase !== 'idle'
 
   // The textarea's inline height is set from input events, which a
   // programmatic clear never fires — so the DOM height is reset here.
@@ -73,7 +77,6 @@ export function LiquidComposer({
     const el = inputRef.current
     if (el) el.style.height = 'auto'
   }, [value, inputRef])
-  const interactive = sendButtonInteractive(hasContent, loading)
 
   return (
     <Liquid
@@ -186,19 +189,19 @@ export function LiquidComposer({
           no scale, no travel of its own — the silhouette does the travelling.
           While parked under the bar its wrapper sits exactly over the mic, so
           the wrapper (not just the faded button) must let clicks through. */}
-      <Liquid.Item x={sendButtonOffset(hasContent)} className={hasContent ? undefined : 'pointer-events-none'}>
+      <Liquid.Item x={sendButtonOffset(showButton)} className={showButton ? undefined : 'pointer-events-none'}>
         <button
           type="button"
-          onClick={onSend}
-          disabled={!interactive}
-          tabIndex={hasContent ? 0 : -1}
-          aria-hidden={!hasContent}
-          aria-label={loading ? labels.sending : labels.send}
-          title={loading ? labels.sending : labels.send}
-          data-show={hasContent}
+          onClick={action === 'stop' ? onStop : onSend}
+          disabled={!showButton}
+          tabIndex={showButton ? 0 : -1}
+          aria-hidden={!showButton}
+          aria-label={action === 'stop' ? labels.stop : labels.send}
+          title={action === 'stop' ? labels.stop : labels.send}
+          data-show={showButton}
           className="flex size-10 items-center justify-center rounded-full text-foreground outline-none transition-opacity duration-150 ease-out hover:bg-foreground/5 focus-visible:ring-2 focus-visible:ring-ring/50 disabled:cursor-default data-[show=false]:pointer-events-none data-[show=false]:opacity-0"
         >
-          <ArrowUp className={`size-4 ${loading ? 'opacity-40' : ''}`} />
+          {action === 'stop' ? <Square className="size-3.5 fill-current" /> : <ArrowUp className="size-4" />}
         </button>
       </Liquid.Item>
     </Liquid>

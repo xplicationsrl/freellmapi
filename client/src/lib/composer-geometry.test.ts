@@ -5,7 +5,7 @@ import {
   COMPOSER_MAX_HEIGHT_PX,
   composerHasContent,
   composerHeight,
-  sendButtonInteractive,
+  composerAction,
   sendButtonOffset,
 } from './composer-geometry'
 
@@ -25,11 +25,15 @@ describe('sendButtonOffset', () => {
   })
 })
 
-describe('sendButtonInteractive', () => {
-  it('is a target only once emerged and idle', () => {
-    expect(sendButtonInteractive(false, false)).toBe(false)
-    expect(sendButtonInteractive(true, true)).toBe(false)
-    expect(sendButtonInteractive(true, false)).toBe(true)
+describe('composerAction', () => {
+  it('is nothing for an empty idle bar, send once there is content', () => {
+    expect(composerAction(false, false)).toBeNull()
+    expect(composerAction(true, false)).toBe('send')
+  })
+
+  it('is stop for as long as a reply is in flight, even with an empty input', () => {
+    expect(composerAction(false, true)).toBe('stop')
+    expect(composerAction(true, true)).toBe('stop')
   })
 })
 

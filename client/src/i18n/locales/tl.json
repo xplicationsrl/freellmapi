@@ -860,6 +860,7 @@
     "noModelsFound": "Walang natagpuang modelo",
     "send": "Ipadala",
     "sending": "Nagpapadala...",
+    "stop": "Stop generating",
     "clear": "Clear",
     "inputPlaceholder": "How may I help?",
     "emptyTitle": "Magpadala ng mensahe upang makapagsimula.",

@@ -860,6 +860,7 @@
     "noModelsFound": "Không tìm thấy mô hình nào",
     "send": "Gửi",
     "sending": "Đang gửi…",
+    "stop": "Stop generating",
     "clear": "Xóa",
     "inputPlaceholder": "How may I help?",
     "emptyTitle": "Gửi tin nhắn để bắt đầu.",

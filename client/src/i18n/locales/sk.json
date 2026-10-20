@@ -860,6 +860,7 @@
     "noModelsFound": "Nenašli sa žiadne modely",
     "send": "Odoslať",
     "sending": "Posielam...",
+    "stop": "Stop generating",
     "clear": "Clear",
     "inputPlaceholder": "How may I help?",
     "emptyTitle": "Pošlite správu a začnite.",

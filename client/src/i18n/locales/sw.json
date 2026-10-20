@@ -860,6 +860,7 @@
     "noModelsFound": "Hakuna miundo iliyopatikana",
     "send": "Tuma",
     "sending": "Inatuma...",
+    "stop": "Stop generating",
     "clear": "Wazi",
     "inputPlaceholder": "How may I help?",
     "emptyTitle": "Tuma ujumbe ili kuanza.",

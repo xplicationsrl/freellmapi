@@ -860,6 +860,7 @@
     "noModelsFound": "მოდელები ვერ მოიძებნა",
     "send": "გაგზავნა",
     "sending": "იგზავნება…",
+    "stop": "Stop generating",
     "clear": "წმინდა",
     "inputPlaceholder": "How may I help?",
     "emptyTitle": "დასაწყებად გაგზავნეთ შეტყობინება.",

@@ -48,7 +48,7 @@ if git merge-base --is-ancestor "$REF" HEAD; then
 fi
 
 BEHIND="$(git rev-list --count "HEAD..$REF")"
-if git merge --no-ff --no-edit "${STRATEGY[@]}" -m "chore(sync): merge upstream $UPSTREAM_BRANCH ($BEHIND commits)" "$REF" >/dev/null 2>&1; then
+if git merge --no-ff --no-edit ${STRATEGY[@]+"${STRATEGY[@]}"} -m "chore(sync): merge upstream $UPSTREAM_BRANCH ($BEHIND commits)" "$REF" >/dev/null 2>&1; then
   emit "result=merged"
   emit "behind=$BEHIND"
   exit 0

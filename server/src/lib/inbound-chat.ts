@@ -45,7 +45,7 @@ import {
 import { sanitizeProviderErrorMessage } from './error-redaction.js';
 import { newClientAbortError, isUpstreamClassificationOutput } from './error-classify.js';
 import { logRequest } from './request-log.js';
-import { getStickyModel, setStickyModel } from '../routes/proxy.js';
+import { getStickyModel, setStickyModel } from './session-memory.js';
 import type { CompletionOptions } from '../providers/base.js';
 
 export interface InboundChatRequest {

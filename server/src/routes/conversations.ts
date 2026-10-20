@@ -68,6 +68,9 @@ const messageSchema = z.object({
   images: z.array(z.string()).optional(),
   isError: z.boolean().optional(),
   reasoning: z.string().optional(),
+  // Playground thumbs on a reply. Local to the conversation: nothing reads it
+  // but the transcript it is shown in.
+  feedback: z.enum(['up', 'down']).optional(),
   meta: metaSchema.optional(),
 });
 // `streaming: true` is deliberately absent above (and so stripped): a stored

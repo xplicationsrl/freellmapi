@@ -68,3 +68,20 @@ it('renders an action button that is named for screen readers and clickable', ()
   act(() => { b.click() })
   expect(onClick).toHaveBeenCalledTimes(1)
 })
+
+it('shows a toggled-on action at full strength and exposes it as pressed', () => {
+  act(() => root.render(<MessageActionButton icon={Pencil} label="Good response" onClick={() => {}} active />))
+  const on = container.querySelector<HTMLButtonElement>('button')!
+  expect(on.getAttribute('aria-pressed')).toBe('true')
+  expect(on.className).toContain('opacity-100')
+
+  act(() => root.render(<MessageActionButton icon={Pencil} label="Good response" onClick={() => {}} active={false} />))
+  const off = container.querySelector<HTMLButtonElement>('button')!
+  expect(off.getAttribute('aria-pressed')).toBe('false')
+  expect(off.className).toContain('opacity-0')
+})
+
+it('is not a toggle (no aria-pressed) when active is not given', () => {
+  act(() => root.render(<MessageActionButton icon={Pencil} label="Edit message" onClick={() => {}} />))
+  expect(container.querySelector('button')!.hasAttribute('aria-pressed')).toBe(false)
+})

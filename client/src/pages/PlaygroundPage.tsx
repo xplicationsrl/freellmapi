@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useMemo, useCallback, type ReactNode } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { ChevronRight, CircleAlert, Code, FileText, Globe, Lightbulb, Mail, Pencil, RefreshCw, X } from 'lucide-react'
+import { ChevronRight, CircleAlert, Code, FileText, Globe, Lightbulb, Mail, Pencil, RefreshCw, Square, ThumbsDown, ThumbsUp, Volume2, X } from 'lucide-react'
 import { apiFetch, API_BASE } from '@/lib/api'
 import { buildModelOptions } from '@/lib/model-groups'
 import type { Chain } from '@/components/chain-manager'
@@ -31,6 +31,8 @@ import {
 } from '@/lib/attachments'
 import { MessageActionButton, MessageEditor } from '@/components/playground/message-actions'
 import { StarterPrompts } from '@/components/playground/starter-prompts'
+import { createSpeaker, speechSupported, type Speaker } from '@/lib/speech'
+import { conversationToMarkdown, downloadTextFile, exportFilename } from '@/lib/conversation-export'
 import { canRegenerate, editedTranscript, lookupText, regenerationBase } from '@/lib/playground-retry'
 import { MAX_DOCUMENT_BYTES, extractDocxText, extractPdfText } from '@/lib/document-extract'
 import { readChatStream } from '@/lib/playground-stream'
@@ -279,8 +281,11 @@ function initialRailOpen(key: string): boolean {
   return localStorage.getItem(key) !== 'false'
 }
 
+// Whether this browser can read text aloud; checked once, it does not change.
+const SPEECH_OK = speechSupported()
+
 export default function PlaygroundPage() {
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
   const openSettings = useOpenSettings()
   const {
     systemPrompt,
@@ -318,6 +323,14 @@ export default function PlaygroundPage() {
   // page) discards the reply; an abort with it ends the reply where it is and
   // keeps what had already arrived.
   const stoppedRef = useRef(false)
+  // Read-aloud: which reply is being spoken (by index), and the speaker that
+  // owns the browser's one speech queue.
+  const [speakingIndex, setSpeakingIndex] = useState<number | null>(null)
+  const speakerRef = useRef<Speaker | null>(null)
+  const stopSpeaking = () => {
+    speakerRef.current?.stop()
+    setSpeakingIndex(null)
+  }
 
   // ---- Saved conversations -------------------------------------------------
   // The transcript lives on the server now. `conversationId` is the row this
@@ -574,7 +587,7 @@ export default function PlaygroundPage() {
 
   // A stream left running after the page goes away would keep calling
   // setMessages on an unmounted tree (and hold the socket open).
-  useEffect(() => () => abortRef.current?.abort(), [])
+  useEffect(() => () => { abortRef.current?.abort(); speakerRef.current?.stop() }, [])
 
   // Adopt a conversation the server just handed back as the one this page is
   // writing to, and remember it for the next reload.
@@ -639,6 +652,7 @@ export default function PlaygroundPage() {
   // Drop everything tied to the current conversation. Shared by "new
   // conversation", "clear", and a stored id that no longer exists.
   const resetConversationState = () => {
+    stopSpeaking()
     abortRef.current?.abort()
     abortRef.current = null
     conversationIdRef.current = null
@@ -662,6 +676,7 @@ export default function PlaygroundPage() {
   // Switch to a saved conversation: transcript, model and system prompt all
   // come back, so you land exactly where you left it.
   const openConversation = async (id: number) => {
+    stopSpeaking()
     abortRef.current?.abort()
     abortRef.current = null
     const conversation = await getConversation(id)
@@ -969,6 +984,7 @@ export default function PlaygroundPage() {
     // Your own message always brings the transcript back down, however far up
     // you had scrolled to read.
     followRef.current = true
+    stopSpeaking()
     setMessages(newMessages)
     setEditing(null)
     stoppedRef.current = false
@@ -1198,6 +1214,41 @@ export default function PlaygroundPage() {
     })
   }
 
+  // Read a reply aloud, or stop reading it. One reply at a time: starting
+  // another replaces the one in progress.
+  const toggleSpeak = (index: number) => {
+    if (speakingIndex === index) { stopSpeaking(); return }
+    speakerRef.current ??= createSpeaker()
+    setSpeakingIndex(index)
+    speakerRef.current.speak(messages[index].content, locale, () => setSpeakingIndex(null))
+  }
+
+  // Thumbs on a reply: pressing the same one again takes it back. Saved with
+  // the conversation like the rest of the transcript.
+  const setFeedback = (index: number, value: 'up' | 'down') => {
+    const next = messages.map((message, i) => {
+      if (i !== index) return message
+      const { feedback, ...rest } = message
+      return feedback === value ? rest : { ...rest, feedback: value }
+    })
+    setMessages(next)
+    void persistConversation(next)
+  }
+
+  // Download any saved conversation as a Markdown file.
+  const handleExportConversation = async (id: number) => {
+    try {
+      const conversation = await getConversation(id)
+      const markdown = conversationToMarkdown(conversation, {
+        you: t('playground.exportYou'),
+        assistant: t('playground.exportAssistant'),
+      })
+      downloadTextFile(exportFilename(conversation.title), markdown)
+    } catch {
+      toast.error(t('playgroundSessions.exportFailed'))
+    }
+  }
+
   const handleStop = () => {
     stoppedRef.current = true
     abortRef.current?.abort()
@@ -1247,6 +1298,7 @@ export default function PlaygroundPage() {
         onNew={handleNewConversation}
         onSelect={handleSelectConversation}
         onRename={handleRenameConversation}
+        onExport={handleExportConversation}
         onDelete={handleDeleteConversation}
         onCreateProject={handleCreateProject}
         onRenameProject={handleRenameProject}
@@ -1413,13 +1465,39 @@ export default function PlaygroundPage() {
                           />
                         </div>
                       )}
-                      {!loading && canRegenerate(messages, i) && (
+                      {!loading && msg.role === 'assistant' && !msg.streaming && (
                         <div className="flex gap-1">
-                          <MessageActionButton
-                            icon={RefreshCw}
-                            label={msg.isError ? t('errors.tryAgain') : t('playground.regenerate')}
-                            onClick={regenerate}
-                          />
+                          {!msg.isError && msg.content && (
+                            <>
+                              {SPEECH_OK && (
+                                <MessageActionButton
+                                  icon={speakingIndex === i ? Square : Volume2}
+                                  label={t(speakingIndex === i ? 'playground.stopReading' : 'playground.readAloud')}
+                                  active={speakingIndex === i}
+                                  onClick={() => toggleSpeak(i)}
+                                />
+                              )}
+                              <MessageActionButton
+                                icon={ThumbsUp}
+                                label={t('playground.feedbackGood')}
+                                active={msg.feedback === 'up'}
+                                onClick={() => setFeedback(i, 'up')}
+                              />
+                              <MessageActionButton
+                                icon={ThumbsDown}
+                                label={t('playground.feedbackBad')}
+                                active={msg.feedback === 'down'}
+                                onClick={() => setFeedback(i, 'down')}
+                              />
+                            </>
+                          )}
+                          {canRegenerate(messages, i) && (
+                            <MessageActionButton
+                              icon={RefreshCw}
+                              label={msg.isError ? t('errors.tryAgain') : t('playground.regenerate')}
+                              onClick={regenerate}
+                            />
+                          )}
                         </div>
                       )}
                     </div>

@@ -5,16 +5,27 @@ import { Button } from '@/components/ui/button'
 // Small icon button under a message (Edit on yours, Regenerate on the last
 // reply). Quiet until the row is hovered or focused; on touch screens, where
 // there is no hover, it is always visible.
-export function MessageActionButton({ icon: Icon, label, onClick }: { icon: LucideIcon; label: string; onClick: () => void }) {
+export function MessageActionButton({ icon: Icon, label, onClick, active }: {
+  icon: LucideIcon
+  label: string
+  onClick: () => void
+  /** A toggle that is switched on (a thumb that was given, a reading in progress): shown at full strength and exposed as pressed. */
+  active?: boolean
+}) {
   return (
     <button
       type="button"
       onClick={onClick}
       aria-label={label}
       title={label}
-      className="flex size-6 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-opacity hover:bg-muted hover:text-foreground focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring/50 group-hover/row:opacity-70 [@media(hover:none)]:opacity-70"
+      aria-pressed={active === undefined ? undefined : active}
+      className={`flex size-6 items-center justify-center rounded-md transition-opacity hover:bg-muted hover:text-foreground focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring/50 ${
+        active
+          ? 'text-foreground opacity-100'
+          : 'text-muted-foreground opacity-0 group-hover/row:opacity-70 [@media(hover:none)]:opacity-70'
+      }`}
     >
-      <Icon className="size-3.5" />
+      <Icon className={`size-3.5 ${active ? 'fill-current' : ''}`} />
     </button>
   )
 }

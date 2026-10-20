@@ -110,6 +110,24 @@ describe('playground conversations', () => {
       expect(fetched.body.messages).toEqual(messages);
     });
 
+    it('keeps the thumbs a reply was given, and survives a later PUT of the same transcript', async () => {
+      const messages = [USER_TURN, { ...ASSISTANT_TURN, feedback: 'down' }, { role: 'assistant', content: 'second', feedback: 'up' }];
+      const created = await create({ messages });
+      expect(created.messages.map((m: any) => m.feedback)).toEqual([undefined, 'down', 'up']);
+      const put = await request(app, 'PUT', `/api/conversations/${created.id}`, { token: dashToken, body: { messages } });
+      expect(put.status).toBe(200);
+      const fetched = await request(app, 'GET', `/api/conversations/${created.id}`, { token: dashToken });
+      expect(fetched.body.messages).toEqual(messages);
+    });
+
+    it('rejects a thumbs value other than up or down', async () => {
+      const res = await request(app, 'POST', '/api/conversations', {
+        token: dashToken,
+        body: { messages: [{ role: 'assistant', content: 'x', feedback: 'sideways' }] },
+      });
+      expect(res.status).toBe(400);
+    });
+
     it('drops the transient streaming flag — a stored message is finished', async () => {
       const created = await create({ messages: [{ role: 'assistant', content: 'half', streaming: true }] });
       expect(created.messages[0]).toEqual({ role: 'assistant', content: 'half' });

@@ -36,6 +36,8 @@ export interface ChatMessage {
   // Thinking tokens (`delta.reasoning_content`) accumulated separately from the
   // answer, shown as a collapsible aside above it.
   reasoning?: string
+  // Thumbs on a reply. Stored with the conversation; nothing else reads it.
+  feedback?: 'up' | 'down'
   // True while this bubble is still being filled in by an open stream. Never
   // stored — a saved message is finished by definition.
   streaming?: boolean

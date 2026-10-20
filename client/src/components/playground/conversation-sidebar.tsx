@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import {
   ChevronDown,
   ChevronRight,
+  Download,
   Folder,
   FolderPlus,
   History,
@@ -62,6 +63,7 @@ export function ConversationSidebar({
   onNew,
   onSelect,
   onRename,
+  onExport,
   onDelete,
   onCreateProject,
   onRenameProject,
@@ -77,6 +79,8 @@ export function ConversationSidebar({
   onNew: () => void
   onSelect: (id: number) => void
   onRename: (id: number, title: string) => void
+  /** Download the conversation as a Markdown file. */
+  onExport: (id: number) => void
   onDelete: (id: number) => void
   onCreateProject: (name: string) => void
   onRenameProject: (id: number, name: string) => void
@@ -271,6 +275,10 @@ export function ConversationSidebar({
                 <DropdownMenuItem onClick={() => startRename(conversation)}>
                   <Pencil />
                   {t('playgroundSessions.rename')}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => onExport(conversation.id)}>
+                  <Download />
+                  {t('playgroundSessions.export')}
                 </DropdownMenuItem>
                 {(projects.length > 0 || conversation.projectId != null) && (
                   <DropdownMenuSub>

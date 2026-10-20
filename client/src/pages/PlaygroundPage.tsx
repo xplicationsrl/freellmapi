@@ -80,6 +80,21 @@ import {
 } from '@/lib/playground-recall'
 import { useI18n } from '@/i18n'
 
+// One SSE frame of a fusion stream: either an additive `_fusion` event, an
+// error, or a regular chat-completion chunk.
+interface FusionStreamFrame {
+  _fusion?: {
+    event?: string
+    platform: string
+    model: string
+    status?: FusionPanelEntry['status']
+    content?: string
+    error?: string
+  }
+  error?: { message?: string }
+  choices?: { delta?: { content?: string } }[]
+}
+
 interface FallbackEntry {
   modelDbId: number
   priority: number
@@ -772,8 +787,8 @@ export default function PlaygroundPage() {
         if (!tl.startsWith('data:')) continue
         const d = tl.slice(5).trim()
         if (d === '[DONE]') continue
-        let obj: any
-        try { obj = JSON.parse(d) } catch { continue }
+        let obj: FusionStreamFrame
+        try { obj = JSON.parse(d) as FusionStreamFrame } catch { continue }
         if (obj._fusion) {
           if (obj._fusion.event === 'panel') {
             panel.push({ platform: obj._fusion.platform, model: obj._fusion.model, status: obj._fusion.status, content: obj._fusion.content, error: obj._fusion.error })
@@ -982,7 +997,7 @@ export default function PlaygroundPage() {
       const memoryContext = memoryEnabled
         ? memoryContextMessage(memories)
         : ''
-      const body: any = {
+      const body: Record<string, unknown> = {
         messages: [
           ...(sysPrompt ? [{ role: 'system', content: sysPrompt }] : []),
           ...(recallContext ? [{ role: 'system', content: recallContext }] : []),
@@ -1075,11 +1090,12 @@ export default function PlaygroundPage() {
       setMessages(answered)
       await persistConversation(answered)
       void extractMemoriesFromExchange(answered)
-    } catch (err: any) {
+    } catch (caught) {
+      const err = caught instanceof Error ? caught : new Error(String(caught))
       // Clearing the chat (or leaving the page) aborts the stream on purpose —
       // that is not a failure to report, and the transcript it belonged to is
       // already gone.
-      if (err?.name === 'AbortError') return
+      if (err.name === 'AbortError') return
       const failed: ChatMessage[] = [...newMessages, {
         role: 'assistant',
         isError: true,

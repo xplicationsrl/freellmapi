@@ -1,6 +1,6 @@
 import { useEffect, useState, type ClipboardEvent, type KeyboardEvent, type RefObject } from 'react'
 import { Liquid } from 'liquid-gooey'
-import { ArrowUp, Globe, Paperclip, Plus, Square } from 'lucide-react'
+import { ArrowUp, Globe, Image as ImageIcon, Paperclip, Plus, Square, type LucideIcon } from 'lucide-react'
 import { buttonVariants } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Switch } from '@/components/ui/switch'
@@ -50,11 +50,51 @@ export interface LiquidComposerProps {
   dictation: { available: boolean; model: string; apiKey: string | null | undefined; onText: (text: string) => void }
   /** The web search switch in the + menu (#1174). While it is on, the + turns
    *  blue with a small dot instead of a chip in the field, so the input stays clear. */
-  webSearch?: { enabled: boolean; available: boolean; label: string; unavailableHint: string; onToggle: (on: boolean) => void }
+  webSearch?: MenuToggle
+  /** The Create image switch in the + menu: while it is on, sending draws an
+   *  image from the text instead of asking a chat model. */
+  imageGen?: MenuToggle
+}
+
+/** A switch row in the + menu. `available` false greys it out with `unavailableHint`. */
+export interface MenuToggle {
+  enabled: boolean
+  available: boolean
+  label: string
+  unavailableHint: string
+  onToggle: (on: boolean) => void
+}
+
+function ToggleItem({ icon: Icon, toggle }: { icon: LucideIcon; toggle: MenuToggle }) {
+  return (
+    <>
+      <DropdownMenuItem
+        closeOnClick={false}
+        disabled={!toggle.available}
+        onClick={() => toggle.onToggle(!toggle.enabled)}
+        title={toggle.available ? undefined : toggle.unavailableHint}
+        aria-checked={toggle.enabled}
+        role="menuitemcheckbox"
+      >
+        <Icon />
+        <span className="flex-1">{toggle.label}</span>
+        <Switch
+          size="sm"
+          checked={toggle.enabled}
+          tabIndex={-1}
+          aria-hidden
+          className="pointer-events-none"
+        />
+      </DropdownMenuItem>
+      {!toggle.available && (
+        <p className="px-1.5 pt-0.5 pb-1 text-[11px] leading-snug text-muted-foreground">{toggle.unavailableHint}</p>
+      )}
+    </>
+  )
 }
 
 export function LiquidComposer({
-  inputRef, value, onChange, onKeyDown, onPaste, placeholder, hasContent, loading, onSend, onStop, onAttach, labels, dictation, webSearch,
+  inputRef, value, onChange, onKeyDown, onPaste, placeholder, hasContent, loading, onSend, onStop, onAttach, labels, dictation, webSearch, imageGen,
 }: LiquidComposerProps) {
   // Set from input events; an empty value never counts as grown, so a
   // programmatic clear (send, new chat) drops back to one line by itself.
@@ -118,27 +158,13 @@ export function LiquidComposer({
               {webSearch && (
                 <>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    closeOnClick={false}
-                    disabled={!webSearch.available}
-                    onClick={() => webSearch.onToggle(!webSearch.enabled)}
-                    title={webSearch.available ? undefined : webSearch.unavailableHint}
-                    aria-checked={webSearch.enabled}
-                    role="menuitemcheckbox"
-                  >
-                    <Globe />
-                    <span className="flex-1">{webSearch.label}</span>
-                    <Switch
-                      size="sm"
-                      checked={webSearch.enabled}
-                      tabIndex={-1}
-                      aria-hidden
-                      className="pointer-events-none"
-                    />
-                  </DropdownMenuItem>
-                  {!webSearch.available && (
-                    <p className="px-1.5 pt-0.5 pb-1 text-[11px] leading-snug text-muted-foreground">{webSearch.unavailableHint}</p>
-                  )}
+                  <ToggleItem icon={Globe} toggle={webSearch} />
+                </>
+              )}
+              {imageGen && (
+                <>
+                  {!webSearch && <DropdownMenuSeparator />}
+                  <ToggleItem icon={ImageIcon} toggle={imageGen} />
                 </>
               )}
             </DropdownMenuContent>

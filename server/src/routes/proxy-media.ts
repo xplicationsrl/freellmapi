@@ -7,7 +7,7 @@ import { runEmbeddings, EmbeddingsError } from '../services/embeddings.js';
 import { runRerank, RerankError, rerankRetryAfterSec } from '../services/rerank.js';
 import { runSearch, SearchError, searchRetryAfterSec, listSearchEngines } from '../services/search.js';
 import { runDecision, DecisionError, decisionRetryAfterSec, listDecisionModels, DECISION_QUESTION_TYPES } from '../services/decision.js';
-import { runImageGeneration, runVideoGeneration, runSpeech, runTranscription, MediaError, MAX_TRANSCRIPTION_BYTES } from '../services/media.js';
+import { runImageGeneration, runVideoGeneration, runSpeech, runTranscription, inlineImageUrls, MediaError, MAX_TRANSCRIPTION_BYTES } from '../services/media.js';
 import { retryAfterSeconds } from '../lib/retry-hint.js';
 import { safeHeaderValue } from '../lib/header-value.js';
 import { requireInferenceAuth } from '../lib/inference-auth.js';
@@ -288,9 +288,13 @@ mediaProxyRouter.post('/images/generations', async (req: Request, res: Response)
     const result = await runImageGeneration(parsed.data.model, {
       prompt: parsed.data.prompt, n: parsed.data.n, size: parsed.data.size,
     });
+    // `response_format: "b64_json"` means the caller wants the bytes, not a link.
+    const data = parsed.data.response_format === 'b64_json'
+      ? await inlineImageUrls(result.images, result.platform)
+      : result.images;
     res.json({
       created: Math.floor(Date.now() / 1000),
-      data: result.images,
+      data,
       model: result.modelId,
       provider: result.platform,
     });

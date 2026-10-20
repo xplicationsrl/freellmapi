@@ -120,6 +120,16 @@ describe('playground conversations', () => {
       expect(fetched.body.messages).toEqual(messages);
     });
 
+    it('keeps generated images apart from the user\'s attachments', async () => {
+      const messages = [
+        { role: 'user', content: 'draw a cat', images: ['data:image/png;base64,AAAA'] },
+        { role: 'assistant', content: '[Generated an image]', generatedImages: ['data:image/jpeg;base64,/9j/BBBB'] },
+      ];
+      const created = await create({ messages });
+      const fetched = await request(app, 'GET', `/api/conversations/${created.id}`, { token: dashToken });
+      expect(fetched.body.messages).toEqual(messages);
+    });
+
     it('rejects a thumbs value other than up or down', async () => {
       const res = await request(app, 'POST', '/api/conversations', {
         token: dashToken,

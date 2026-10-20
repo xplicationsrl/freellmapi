@@ -66,6 +66,10 @@ const messageSchema = z.object({
   role: z.enum(['user', 'assistant']),
   content: z.string(),
   images: z.array(z.string()).optional(),
+  // Images the Playground generated for this reply (data URIs). Kept apart from
+  // `images`, which are the user's attachments and are replayed to the model;
+  // a generated image is shown, never sent back as chat input.
+  generatedImages: z.array(z.string()).max(4).optional(),
   isError: z.boolean().optional(),
   reasoning: z.string().optional(),
   // Playground thumbs on a reply. Local to the conversation: nothing reads it

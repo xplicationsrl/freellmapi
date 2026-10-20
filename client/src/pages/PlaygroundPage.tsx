@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useMemo, useCallback, type ReactNode } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { ChevronRight, CircleAlert, Code, FileText, Globe, Lightbulb, Mail, Pencil, RefreshCw, Square, ThumbsDown, ThumbsUp, Volume2, X } from 'lucide-react'
+import { ChevronRight, CircleAlert, Code, Download, FileText, Globe, Image as ImageIcon, Lightbulb, Mail, Pencil, RefreshCw, Square, ThumbsDown, ThumbsUp, Volume2, X } from 'lucide-react'
 import { apiFetch, API_BASE } from '@/lib/api'
 import { buildModelOptions } from '@/lib/model-groups'
 import type { Chain } from '@/components/chain-manager'
@@ -32,7 +32,8 @@ import {
 import { MessageActionButton, MessageEditor } from '@/components/playground/message-actions'
 import { StarterPrompts } from '@/components/playground/starter-prompts'
 import { createSpeaker, speechSupported, type Speaker } from '@/lib/speech'
-import { conversationToMarkdown, downloadTextFile, exportFilename } from '@/lib/conversation-export'
+import { downloadDataUrl, requestImage, shrinkGeneratedImage } from '@/lib/chat-image'
+import { conversationToMarkdown, downloadTextFile, exportDate, exportFilename } from '@/lib/conversation-export'
 import { canRegenerate, editedTranscript, lookupText, regenerationBase } from '@/lib/playground-retry'
 import { MAX_DOCUMENT_BYTES, extractDocxText, extractPdfText } from '@/lib/document-extract'
 import { readChatStream } from '@/lib/playground-stream'
@@ -301,6 +302,8 @@ export default function PlaygroundPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
+  // "Create image" mode: the text is a prompt for an image provider, not a message for a chat model.
+  const [imageMode, setImageMode] = useState(false)
   // The sent message being edited in place, if any.
   const [editing, setEditing] = useState<{ index: number; text: string } | null>(null)
   // Files staged for the NEXT message: images already downscaled to a data URI,
@@ -451,6 +454,9 @@ export default function PlaygroundPage() {
   const webSearchAvailable = usableEngines.length > 0
   const webSearchOn = webSearch && webSearchAvailable
   const transcriptionAvailable = hasTranscription(mediaModels)
+  // An image model with at least one key behind it; without one the switch is greyed out.
+  const imageAvailable = mediaModels.some(m => m.modality === 'image' && m.enabled && m.keyCount > 0)
+  const imageOn = imageMode && imageAvailable
   const dictationModel = resolveDictationModel(dictationChoice, mediaModels)
 
   // Artifacts (#playground): runnable code in a reply (HTML, SVG) opens in a
@@ -1170,9 +1176,67 @@ export default function PlaygroundPage() {
     }
   }
 
+  // Draw an image for `prompt` and answer with it. The picture is shrunk to fit
+  // a saved conversation (see lib/chat-image.ts). `generatedImages` is set even
+  // on a failure (to an empty list) so Try again knows this was an image reply
+  // and does not ask a chat model instead.
+  const runImageReply = async (newMessages: ChatMessage[], prompt: string) => {
+    followRef.current = true
+    stopSpeaking()
+    setMessages(newMessages)
+    setEditing(null)
+    stoppedRef.current = false
+    setLoading(true)
+    inputRef.current?.focus()
+    void conversationIdFor(newMessages)
+
+    try {
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+      if (keyData?.apiKey) headers['Authorization'] = `Bearer ${keyData.apiKey}`
+      abortRef.current?.abort()
+      const controller = new AbortController()
+      abortRef.current = controller
+
+      const start = Date.now()
+      const generated = await requestImage({ base: API_BASE, headers, prompt, signal: controller.signal })
+      const picture = await shrinkGeneratedImage(generated.b64)
+      const answered: ChatMessage[] = [...newMessages, {
+        role: 'assistant',
+        // What a later chat model reads about this turn; the bubble shows the picture instead.
+        content: `[Generated an image for the prompt: "${prompt.slice(0, 300)}"]`,
+        generatedImages: [picture],
+        meta: { platform: generated.provider, model: generated.model, latency: Date.now() - start },
+      }]
+      setMessages(answered)
+      await persistConversation(answered)
+    } catch (caught) {
+      const err = caught instanceof Error ? caught : new Error(String(caught))
+      if (err.name === 'AbortError') {
+        // Stopped by the user: keep the question, there is no picture to keep.
+        if (stoppedRef.current) await persistConversation(newMessages)
+        return
+      }
+      const failed: ChatMessage[] = [...newMessages, { role: 'assistant', isError: true, content: err.message, generatedImages: [] }]
+      setMessages(failed)
+      await persistConversation(failed)
+    } finally {
+      setLoading(false)
+      setTimeout(() => inputRef.current?.focus(), 0)
+    }
+  }
+
   const handleSend = async () => {
     const text = input.trim()
     if ((!text && attachments.length === 0) || loading) return
+
+    if (imageOn) {
+      // An image prompt is text only; attachments stay staged for the next normal message.
+      if (!text) return
+      if (attachments.length > 0) toast.info(t('playground.imageIgnoresAttachments'))
+      setInput('')
+      await runImageReply([...messages, { role: 'user', content: text }], text)
+      return
+    }
 
     // Text-like files are inlined into the prompt; images ride along as data
     // URIs and become `image_url` parts in the request envelope.
@@ -1191,7 +1255,10 @@ export default function PlaygroundPage() {
     if (loading) return
     const base = regenerationBase(messages)
     if (!base) return
-    void runReply(base, lookupText(base[base.length - 1]))
+    const question = lookupText(base[base.length - 1])
+    // A reply that was a picture (or a failed attempt at one) is redrawn, not answered by a chat model.
+    if (messages[messages.length - 1]?.generatedImages !== undefined) void runImageReply(base, question)
+    else void runReply(base, question)
   }
 
   // Edit a sent message and answer it again; everything after it is dropped.
@@ -1199,7 +1266,9 @@ export default function PlaygroundPage() {
     if (loading) return
     const edited = editedTranscript(messages, index, text)
     if (!edited) return
-    void runReply(edited, lookupText(edited[edited.length - 1]))
+    const question = lookupText(edited[edited.length - 1])
+    if (messages[index + 1]?.generatedImages !== undefined) void runImageReply(edited, question)
+    else void runReply(edited, question)
   }
 
   // A starter fills the composer and leaves the cursor at the end of it, ready
@@ -1387,9 +1456,22 @@ export default function PlaygroundPage() {
                                   answerStarted={msg.content.length > 0}
                                 />
                               )}
-                              <ArtifactHostContext.Provider value={artifactHost}>
-                                <Markdown>{msg.content}</Markdown>
-                              </ArtifactHostContext.Provider>
+                              {msg.generatedImages && msg.generatedImages.length > 0 ? (
+                                <div className="flex flex-wrap gap-2">
+                                  {msg.generatedImages.map((src, n) => (
+                                    <img
+                                      key={n}
+                                      src={src}
+                                      alt={t('playground.generatedImageAlt')}
+                                      className="max-h-96 max-w-full rounded-xl border object-contain"
+                                    />
+                                  ))}
+                                </div>
+                              ) : (
+                                <ArtifactHostContext.Provider value={artifactHost}>
+                                  <Markdown>{msg.content}</Markdown>
+                                </ArtifactHostContext.Provider>
+                              )}
                             </>
                           ) : (
                             <div className="whitespace-pre-wrap">{msg.content}</div>
@@ -1430,7 +1512,7 @@ export default function PlaygroundPage() {
                                   )}
                                 </>
                               )}
-                              {msg.role === 'assistant' && !msg.isError && msg.content && (
+                              {msg.role === 'assistant' && !msg.isError && msg.content && !msg.generatedImages?.length && (
                                 <CopyButton
                                   text={msg.content}
                                   label={t('playground.copyReply')}
@@ -1439,7 +1521,7 @@ export default function PlaygroundPage() {
                               )}
                             </div>
                           )}
-                          {!msg.meta && msg.role === 'assistant' && !msg.isError && msg.content && (
+                          {!msg.meta && msg.role === 'assistant' && !msg.isError && msg.content && !msg.generatedImages?.length && (
                             <CopyButton
                               text={msg.content}
                               label={t('playground.copyReply')}
@@ -1469,7 +1551,14 @@ export default function PlaygroundPage() {
                         <div className="flex gap-1">
                           {!msg.isError && msg.content && (
                             <>
-                              {SPEECH_OK && (
+                              {msg.generatedImages && msg.generatedImages.length > 0 && (
+                                <MessageActionButton
+                                  icon={Download}
+                                  label={t('playground.downloadImage')}
+                                  onClick={() => msg.generatedImages!.forEach((src, n) => downloadDataUrl(`image-${exportDate(new Date())}-${n + 1}.jpg`, src))}
+                                />
+                              )}
+                              {SPEECH_OK && !msg.generatedImages?.length && (
                                 <MessageActionButton
                                   icon={speakingIndex === i ? Square : Volume2}
                                   label={t(speakingIndex === i ? 'playground.stopReading' : 'playground.readAloud')}
@@ -1534,6 +1623,23 @@ export default function PlaygroundPage() {
             addFiles([...e.dataTransfer.files])
           }}
         >
+          {imageOn && (
+            <div className="mb-2 flex">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-muted px-2.5 py-1 text-xs text-foreground">
+                <ImageIcon className="size-3.5" />
+                {t('playground.createImage')}
+                <button
+                  type="button"
+                  onClick={() => setImageMode(false)}
+                  aria-label={t('playground.imageModeOff')}
+                  title={t('playground.imageModeOff')}
+                  className="ms-0.5 flex size-4 items-center justify-center rounded-full text-muted-foreground hover:bg-foreground/10 hover:text-foreground"
+                >
+                  <X className="size-3" />
+                </button>
+              </span>
+            </div>
+          )}
           {attachments.length > 0 && (
             <div className="mb-2 flex flex-wrap gap-2">
               {attachments.map(a => (
@@ -1585,8 +1691,8 @@ export default function PlaygroundPage() {
               e.preventDefault()
               addFiles(files)
             }}
-            placeholder={t('playground.inputPlaceholder')}
-            hasContent={composerHasContent(input, attachments.length)}
+            placeholder={imageOn ? t('playground.imagePlaceholder') : t('playground.inputPlaceholder')}
+            hasContent={imageOn ? input.trim().length > 0 : composerHasContent(input, attachments.length)}
             loading={loading}
             onSend={handleSend}
             onStop={handleStop}
@@ -1600,6 +1706,13 @@ export default function PlaygroundPage() {
                 setInput(prev => appendDictation(prev, text))
                 inputRef.current?.focus()
               },
+            }}
+            imageGen={{
+              enabled: imageOn,
+              available: imageAvailable,
+              label: t('playground.createImage'),
+              unavailableHint: t('playground.imageUnavailableHint'),
+              onToggle: setImageMode,
             }}
             webSearch={{
               enabled: webSearchOn,

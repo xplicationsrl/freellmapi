@@ -101,3 +101,21 @@ it('sends when idle with content, and parks the button when the bar is empty', (
   expect(parked.disabled).toBe(true)
   expect(parked.getAttribute('aria-hidden')).toBe('true')
 })
+
+it('offers a Create image switch next to web search and reports its toggle', async () => {
+  const onToggle = vi.fn()
+  render({ imageGen: { enabled: false, available: true, label: 'Create image', unavailableHint: 'Add an image key', onToggle } })
+  await openMenu()
+  const item = [...document.querySelectorAll<HTMLElement>('[role="menuitemcheckbox"]')].find(el => el.textContent?.includes('Create image'))!
+  expect(item.getAttribute('aria-checked')).toBe('false')
+  await act(async () => { item.click() })
+  expect(onToggle).toHaveBeenCalledWith(true)
+})
+
+it('greys out Create image and says why when no image provider has a key', async () => {
+  render({ imageGen: { enabled: false, available: false, label: 'Create image', unavailableHint: 'Add an image provider key on the Keys page', onToggle: () => {} } })
+  await openMenu()
+  const item = [...document.querySelectorAll<HTMLElement>('[role="menuitemcheckbox"]')].find(el => el.textContent?.includes('Create image'))!
+  expect(item.getAttribute('aria-disabled') ?? item.getAttribute('data-disabled')).not.toBeNull()
+  expect(document.body.textContent).toContain('Add an image provider key on the Keys page')
+})

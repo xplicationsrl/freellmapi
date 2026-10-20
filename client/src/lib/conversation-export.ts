@@ -20,6 +20,11 @@ function speaker(message: ChatMessage, labels: ExportLabels): string {
 function messageBody(message: ChatMessage): string {
   const parts: string[] = []
   if (message.images?.length) parts.push(message.images.map(() => '*[image]*').join(' '))
+  if (message.generatedImages?.length) {
+    parts.push(message.generatedImages.map(() => '*[generated image]*').join(' '))
+    // The stored text of an image reply is a note for the model, not for a reader.
+    return parts.concat(message.feedback ? [FEEDBACK_MARK[message.feedback]] : []).join('\n\n')
+  }
   if (message.isError) parts.push(`> ⚠ ${message.content.replace(/\n/g, '\n> ')}`)
   else if (message.content.trim()) parts.push(message.content.trim())
   if (message.feedback) parts.push(FEEDBACK_MARK[message.feedback])

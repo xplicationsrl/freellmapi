@@ -30,6 +30,10 @@ export interface ChatMessage {
   // Data URIs of the images attached to this turn: rendered as thumbnails in
   // the bubble and replayed as `image_url` parts on every follow-up request.
   images?: string[]
+  // Images the Playground generated as this reply (data URIs, already shrunk to
+  // fit a saved conversation). Shown in the bubble and offered for download;
+  // never replayed to a chat model, unlike `images` above.
+  generatedImages?: string[]
   // Request-level failure rendered as a distinct error bubble, not a fake
   // assistant reply.
   isError?: boolean

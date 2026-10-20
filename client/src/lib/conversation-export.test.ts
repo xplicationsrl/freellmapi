@@ -34,6 +34,19 @@ describe('conversationToMarkdown', () => {
   })
 })
 
+describe('conversationToMarkdown generated images', () => {
+  it('marks a generated image and leaves out the model-facing note', () => {
+    const messages: ChatMessage[] = [
+      { role: 'user', content: 'draw a cat' },
+      { role: 'assistant', content: '[Generated an image for the prompt: "draw a cat"]', generatedImages: ['data:image/jpeg;base64,AA'], meta: { platform: 'nvidia', model: 'flux' }, feedback: 'up' },
+    ]
+    const md = conversationToMarkdown({ title: 'Cats', model: null, messages }, labels, day)
+    expect(md).toContain('## Assistant · nvidia/flux\n\n*[generated image]*\n\n👍')
+    expect(md).not.toContain('Generated an image for the prompt')
+    expect(md).not.toContain('data:image')
+  })
+})
+
 describe('exportFilename', () => {
   it('makes an ASCII slug with the date, whatever the title language', () => {
     expect(exportFilename('Ce fac mâine? Plănuiește-mi ziua!', day)).toBe('ce-fac-maine-planuieste-mi-ziua-2026-10-20.md')

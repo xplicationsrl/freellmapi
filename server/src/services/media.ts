@@ -882,6 +882,60 @@ export async function runImageGeneration(model: string | undefined, params: Imag
   throw chainError('image', lastError, hints);
 }
 
+/** Largest generated image we will download on a caller's behalf. */
+const MAX_INLINE_IMAGE_BYTES = 10 * 1024 * 1024;
+const INLINE_IMAGE_TIMEOUT_MS = 20_000;
+
+/**
+ * Turn `{ url }` results into `{ b64_json }` for a caller that asked for
+ * `response_format: "b64_json"`. Some providers answer with a link to a
+ * short-lived CDN file; a browser dashboard under a strict CSP cannot show
+ * that, and an API client asking for base64 expects base64.
+ *
+ * The URL comes from the provider's response, so it is treated as untrusted:
+ * cloud-metadata and link-local targets are refused, redirects are not
+ * followed (one could hop past that check), the download is capped, and the
+ * body must declare an image type. Any failure is a 502 rather than a silent
+ * fallback to the link.
+ */
+export async function inlineImageUrls(
+  images: Array<{ b64_json?: string; url?: string }>,
+  platform: string,
+  clientSignal?: AbortSignal,
+): Promise<Array<{ b64_json?: string; url?: string }>> {
+  return Promise.all(images.map(async (image) => {
+    if (image.b64_json || !image.url) return image;
+    const verdict = await assessProviderUrl(image.url);
+    if (!verdict.allowed) {
+      throw new MediaError(`generated image URL refused: ${verdict.reason ?? 'not allowed'}`, 502);
+    }
+    const timeoutSignal = AbortSignal.timeout(INLINE_IMAGE_TIMEOUT_MS);
+    const signal = clientSignal ? AbortSignal.any([timeoutSignal, clientSignal]) : timeoutSignal;
+    let response: Response;
+    try {
+      response = await proxyFetch(image.url, { signal, redirect: 'error' }, platform, 'image', INLINE_IMAGE_TIMEOUT_MS);
+    } catch (err: any) {
+      throw new MediaError(`could not download the generated image: ${String(err?.message ?? err).slice(0, 120)}`, 502);
+    }
+    if (!response.ok) {
+      throw new MediaError(`could not download the generated image (HTTP ${response.status})`, 502);
+    }
+    const type = (response.headers.get('content-type') ?? '').toLowerCase();
+    if (!type.startsWith('image/')) {
+      throw new MediaError('the generated image link did not return an image', 502);
+    }
+    const declared = Number(response.headers.get('content-length') ?? 0);
+    if (declared > MAX_INLINE_IMAGE_BYTES) {
+      throw new MediaError('the generated image is too large to return inline', 502);
+    }
+    const bytes = Buffer.from(await response.arrayBuffer());
+    if (bytes.length > MAX_INLINE_IMAGE_BYTES) {
+      throw new MediaError('the generated image is too large to return inline', 502);
+    }
+    return { b64_json: bytes.toString('base64') };
+  }));
+}
+
 /** Generate a video, failing over across catalogued text-to-video providers.
  *  `clientSignal` is the API caller's connection: when it aborts, the in-flight
  *  upstream request is dropped and no further provider is tried. */

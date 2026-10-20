@@ -9,6 +9,14 @@ import { contentToString, contentHasImage } from '../lib/content.js';
 import { extractThinkFromMessage } from '../lib/think-tags.js';
 import { recordQuotaObservationsFromResponse, type QuotaObservationContext } from '../services/provider-quota.js';
 import { providerTimeoutMs } from '../lib/provider-timeout.js';
+import { asErrorBody } from '../lib/error-props.js';
+
+// The slice of Cloudflare's token-verify response this adapter reads.
+interface CloudflareVerifyBody {
+  success?: boolean;
+  result?: { status?: string };
+  errors?: Array<{ message?: string }>;
+}
 
 /**
  * Cloudflare Workers AI provider.
@@ -96,7 +104,7 @@ export class CloudflareProvider extends BaseProvider {
 
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      throw providerHttpError(res, `Cloudflare API error ${res.status}: ${(err as any).error?.message ?? (err as any).errors?.[0]?.message ?? res.statusText}`, err);
+      throw providerHttpError(res, `Cloudflare API error ${res.status}: ${asErrorBody(err).error?.message ?? asErrorBody(err).errors?.[0]?.message ?? res.statusText}`, err);
     }
 
     const data = await res.json() as ChatCompletionResponse;
@@ -153,7 +161,7 @@ export class CloudflareProvider extends BaseProvider {
 
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      throw providerHttpError(res, `Cloudflare API error ${res.status}: ${(err as any).error?.message ?? (err as any).errors?.[0]?.message ?? res.statusText}`, err);
+      throw providerHttpError(res, `Cloudflare API error ${res.status}: ${asErrorBody(err).error?.message ?? asErrorBody(err).errors?.[0]?.message ?? res.statusText}`, err);
     }
 
     // First-byte grace (#584): reuse the per-model chat timeout (GLM 4.7
@@ -209,7 +217,7 @@ export class CloudflareProvider extends BaseProvider {
       return { authFailed: await this.validationResult(res) as KeyValidationFailure };
     }
     if (!res.ok) return { result: true }; // unexpected non-2xx that isn't auth — don't disable
-    const data = await res.json() as any;
+    const data = await res.json() as CloudflareVerifyBody;
     if (data.success === true && data.result?.status === 'active') return { result: true };
     const reason = data.result?.status
       ? `token status is "${data.result.status}"`

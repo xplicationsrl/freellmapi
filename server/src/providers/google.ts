@@ -14,21 +14,29 @@ import { recordQuotaObservationsFromResponse, type QuotaObservationContext } fro
 import { providerTimeoutMs, streamStallTimeoutMs } from '../lib/provider-timeout.js';
 import { sanitizeForGemini } from '../lib/gemini-wire.js';
 import { resolveMaxTokens } from '../lib/sampling-params.js';
+import { asErrorBody } from '../lib/error-props.js';
 
 export { sanitizeForGemini } from '../lib/gemini-wire.js';
 
 const API_BASE = 'https://generativelanguage.googleapis.com/v1beta';
 
-function googleHttpError(res: Response, body: any) {
-  const err = providerHttpError(res, `Google API error ${res.status}: ${body?.error?.message ?? res.statusText}`, body);
+// One entry of a Google error's `details` array; only QuotaFailure is read.
+interface GoogleErrorDetail {
+  '@type'?: string;
+  violations?: Array<{ quotaId?: unknown } | null>;
+}
+
+function googleHttpError(res: Response, body: unknown) {
+  const error = asErrorBody(body).error;
+  const err = providerHttpError(res, `Google API error ${res.status}: ${error?.message ?? res.statusText}`, body);
   // Gemini's human-readable message can omit the quota window. Keep only the
   // daily signal from QuotaFailure, not the complete upstream payload (#1339).
-  const details = body?.error?.details;
+  const details = error?.details;
   if (res.status === 429 && Array.isArray(details)) {
-    err.dailyQuotaExhausted = details.some(detail =>
+    err.dailyQuotaExhausted = (details as Array<GoogleErrorDetail | null>).some(detail =>
       detail?.['@type'] === 'type.googleapis.com/google.rpc.QuotaFailure'
       && Array.isArray(detail.violations)
-      && detail.violations.some((violation: any) =>
+      && detail.violations.some(violation =>
         typeof violation?.quotaId === 'string' && /PerDay/.test(violation.quotaId)),
     );
   }

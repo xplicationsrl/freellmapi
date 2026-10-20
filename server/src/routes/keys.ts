@@ -34,17 +34,11 @@ import {
 import type { Db } from '../db/types.js';
 import type { Platform } from '@freellmapi/shared/types.js';
 import { parseModelScope } from '../lib/model-scope.js';
-import { KEY_PROXY_URL_ERROR, KEY_PROXY_URL_MAX, decryptProxyUrl, encryptProxyUrl, isValidKeyProxyUrl, maskProxyUrl, type EncryptedProxyColumns } from '../lib/key-proxy.js';
+import { KEY_PROXY_URL_ERROR, KEY_PROXY_URL_MAX, decryptProxyUrl, encryptProxyUrl, isValidKeyProxyUrl, maskProxyUrl } from '../lib/key-proxy.js';
 import { errorMessage, errorProps } from '../lib/error-props.js';
 import type { SessionUser } from '../services/auth.js';
+import type { ApiKeyRow } from '../db/rows.js';
 
-// The api_keys row as the key routes read it (SELECT * ...).
-interface ApiKeyRow extends EncryptedProxyColumns {
-  id: number; platform: Platform; label: string | null; encrypted_key: string; iv: string; auth_tag: string;
-  status: string; enabled: number; base_url: string | null; group_label: string | null;
-  model_scope_json: string | null; last_healthy_at: string | null; last_health_error: string | null;
-  last_checked_at: string | null; created_at: string;
-}
 interface CredentialRow { encrypted_key: string; iv: string; auth_tag: string }
 // A custom model bound to a key, from the models / embedding_models / media_models tables.
 interface CustomModelRow {

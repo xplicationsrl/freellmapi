@@ -7,6 +7,7 @@ import { decrypt, encrypt } from './crypto.js';
 import { assertProviderUrlAllowed, isLoopbackOrPrivateHostname } from './url-guard.js';
 import type { ProxyMode } from '@freellmapi/shared/types.js';
 import { errorMessage } from './error-props.js';
+import { errorCause, errorProps } from './error-props.js';
 
 // #590 (per-key proxy): the SAME provider may be reached through different
 // exit IPs per key (geo-ban / risk-control avoidance). Providers are process
@@ -28,7 +29,7 @@ export function withKeyProxy<T>(proxyUrl: string | undefined, fn: () => T): T {
 // top-level undici import crashed the entire app/test suite even when no proxy
 // was configured. Lazy-loading keeps the proxy feature genuinely zero-cost and
 // zero-risk for the common no-proxy case.
-type Ctor<T> = new (...args: any[]) => T;
+type Ctor<T> = new (options: unknown) => T;
 let _proxyAgentCtor: Ctor<unknown> | null = null;
 let _socksAgentCtor: Ctor<unknown> | null = null;
 
@@ -619,11 +620,12 @@ export function describeFetchFailure(err: unknown, url: string, platform?: strin
   if (!(err instanceof TypeError) || err.message !== 'fetch failed') return;
   let code = '';
   const seen = new Set<unknown>();
-  let cur: any = err.cause;
+  let cur: unknown = err.cause;
   for (let depth = 0; cur && typeof cur === 'object' && !seen.has(cur) && depth < 5; depth++) {
     seen.add(cur);
-    if (typeof cur.code === 'string' && cur.code) { code = cur.code; break; }
-    cur = cur.cause;
+    const linkCode = errorProps(cur).code;
+    if (linkCode) { code = linkCode; break; }
+    cur = errorCause(cur);
   }
   if (!code) return;
   let host = '';
@@ -655,7 +657,7 @@ function enrichAbort(
     'AbortError',
   );
   // Preserve upstream error chain so debug logs still see the original cause.
-  if (e.cause !== undefined) (enriched as any).cause = e.cause;
+  if (e.cause !== undefined) Object.assign(enriched, { cause: e.cause });
   return enriched;
 }
 

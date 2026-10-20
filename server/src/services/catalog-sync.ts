@@ -310,8 +310,8 @@ export function catalogShapeProblems(value: unknown): string[] {
   const nulStr = (v: unknown) => v === undefined || v === null || str(v);
   const nulNum = (v: unknown) => v === undefined || v === null || num(v);
 
-  const each = (name: string, check: (m: any) => string | null) => {
-    const arr = (c as any)[name];
+  const each = (name: string, check: (m: Record<string, unknown> | null | undefined) => string | null) => {
+    const arr = (c as unknown as Record<string, unknown>)[name];
     if (arr === undefined) return;
     if (!Array.isArray(arr)) {
       fail(`${name} is present but not an array`);

@@ -32,9 +32,34 @@ export function isWebSearchServerTool(tool: unknown): boolean {
   return typeof type === 'string' && /^web_search_\d{8}$/.test(type);
 }
 
-type Block = Record<string, any>;
+// A loosely typed Anthropic content block: fields are read through the helpers
+// below, never assumed.
+type Block = Record<string, unknown>;
+
+/** `value` as a plain object, or undefined. */
+function asObject(value: unknown): Record<string, unknown> | undefined {
+  return typeof value === 'object' && value !== null && !Array.isArray(value) ? (value as Record<string, unknown>) : undefined;
+}
+
+/** The `input.query` of a tool_use block when it is a string, else ''. */
+function toolQuery(block: Block | null | undefined): string {
+  const query = asObject(block?.input)?.query;
+  return typeof query === 'string' ? query : '';
+}
 
 interface Usage { input_tokens: number; output_tokens: number }
+
+// What this loop reads of the non-streaming /v1/messages answer it captures.
+interface AnthropicReply {
+  type?: string;
+  id: string;
+  model: string;
+  usage?: { input_tokens?: unknown; output_tokens?: unknown };
+  content?: unknown;
+  stop_reason?: string | null;
+  stop_sequence?: unknown;
+  error?: { message?: unknown };
+}
 
 function isOurSearchCall(block: Block): boolean {
   return block?.type === 'tool_use' && block?.name === WEB_SEARCH_TOOL_NAME;
@@ -61,7 +86,7 @@ function resultBlock(toolUseId: string, outcome: WebSearchOutcome): Block {
  *  Used by the request converter for both our own and real Anthropic blocks. */
 export function serverToolUseToText(block: Block): string {
   if (block?.name !== WEB_SEARCH_TOOL_NAME) return '';
-  const query = typeof block?.input?.query === 'string' ? block.input.query : '';
+  const query = toolQuery(block);
   return query ? `[Searched the web for: ${query}]` : '';
 }
 
@@ -226,9 +251,10 @@ export async function maybeServeAnthropicWebSearch(
       const captured = await invokeHandlerCaptured(handler, req, res, innerBody);
       if (res.writableEnded || res.destroyed) return true;
 
-      if (captured.status !== 200 || captured.body?.type !== 'message') {
+      const replyBody = captured.body as AnthropicReply | null | undefined;
+      if (captured.status !== 200 || replyBody?.type !== 'message') {
         if (sse?.committed) {
-          const msg = captured.body?.error?.message ?? `upstream error (HTTP ${captured.status})`;
+          const msg = replyBody?.error?.message ?? `upstream error (HTTP ${captured.status})`;
           sse.fail(String(msg));
         } else {
           copyCapturedHeaders(captured, res);
@@ -237,13 +263,13 @@ export async function maybeServeAnthropicWebSearch(
         return true;
       }
 
-      const reply = captured.body;
+      const reply = replyBody;
       usage.input_tokens += Number(reply.usage?.input_tokens) || 0;
       usage.output_tokens += Number(reply.usage?.output_tokens) || 0;
       copyCapturedHeaders(captured, res);
       if (sse && !sse.committed) sse.start({ id: reply.id, model: reply.model }, Number(reply.usage?.input_tokens) || 0);
 
-      const content: Block[] = Array.isArray(reply.content) ? reply.content : [];
+      const content: Block[] = Array.isArray(reply.content) ? (reply.content as Block[]) : [];
       const searchCalls = content.filter(isOurSearchCall);
       const clientCalls = content.filter(b => b?.type === 'tool_use' && !isOurSearchCall(b));
 
@@ -284,13 +310,13 @@ export async function maybeServeAnthropicWebSearch(
           emit(block);
           continue;
         }
-        const query = typeof block.input?.query === 'string' ? block.input.query : '';
+        const query = toolQuery(block);
         let outcome: WebSearchOutcome;
         if (searchesRun >= maxUses) {
           outcome = { ok: false, query, errorCode: 'max_uses_exceeded', message: 'max uses exceeded' };
         } else {
           searchesRun++;
-          outcome = await performWebSearch(block.input?.query, filter);
+          outcome = await performWebSearch(asObject(block.input)?.query, filter);
           if (outcome.ok) searchRequests++;
         }
         const serverId = newServerToolUseId();

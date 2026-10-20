@@ -36,9 +36,7 @@ export function createUser(email: string, password: string): SessionUser {
   const normalized = normalizeEmail(email);
   const existing = db.prepare('SELECT id FROM users WHERE email = ?').get(normalized);
   if (existing) {
-    const err = new Error('An account with that email already exists') as any;
-    err.code = 'email_taken';
-    throw err;
+    throw Object.assign(new Error('An account with that email already exists'), { code: 'email_taken' });
   }
   const result = db.prepare('INSERT INTO users (email, password_hash) VALUES (?, ?)')
     .run(normalized, hashPassword(password));
@@ -108,9 +106,7 @@ export function updateEmail(userId: number, currentPassword: string, newEmail: s
   const normalized = normalizeEmail(newEmail);
   const existing = db.prepare('SELECT id FROM users WHERE email = ? AND id != ?').get(normalized, userId);
   if (existing) {
-    const err = new Error('An account with that email already exists') as any;
-    err.code = 'email_taken';
-    throw err;
+    throw Object.assign(new Error('An account with that email already exists'), { code: 'email_taken' });
   }
   db.prepare('UPDATE users SET email = ? WHERE id = ?').run(normalized, userId);
   // Keep sessions alive; the new email will be reflected on the next validateSession call.

@@ -16,10 +16,11 @@ export default defineConfig([
       globals: globals.node,
     },
     rules: {
-      // The codebase predates ESLint and uses `any` extensively at provider/
-      // route boundaries; enforcing the ban today would be a giant unrelated
-      // refactor. Keep the rule off until that cleanup lands.
-      '@typescript-eslint/no-explicit-any': 'off',
+      // Production code is free of explicit `any`: untrusted shapes (provider
+      // JSON, caught errors, content blocks) are `unknown` and narrowed, or read
+      // through typed helpers (lib/error-props, lib/stream-frame). Keep it that
+      // way; tests are exempt below because fixtures routinely cast.
+      '@typescript-eslint/no-explicit-any': 'error',
       // Standard test-scaffolding conventions: `_`-prefixed names are
       // intentionally unused, and empty catch blocks assert error paths.
       '@typescript-eslint/no-unused-vars': ['error', {
@@ -29,5 +30,9 @@ export default defineConfig([
       }],
       'no-empty': ['error', { allowEmptyCatch: true }],
     },
+  },
+  {
+    files: ['**/__tests__/**/*.ts'],
+    rules: { '@typescript-eslint/no-explicit-any': 'off' },
   },
 ])

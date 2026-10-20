@@ -24,6 +24,17 @@ import { withKeyProxy } from '../lib/proxy.js';
 import { sanitizeProviderErrorMessage } from '../lib/error-redaction.js';
 import { recordRequest, recordTokens } from '../services/ratelimit.js';
 
+// A `models` row as the catalog list reads it (SELECT m.* plus the chain,
+// override and key-label columns joined in).
+interface ModelListRow {
+  id: number; platform: Platform; model_id: string; display_name: string; source: string | null;
+  endpoint_scope: string | null; key_id: number | null; key_label: string | null;
+  intelligence_rank: number; speed_rank: number; size_label: string; enabled: number;
+  rpm_limit: number | null; rpd_limit: number | null; tpm_limit: number | null; tpd_limit: number | null;
+  context_window: number | null; monthly_token_budget: string; supports_vision: number; supports_tools: number;
+  priority: number | null; fallback_enabled: number | null; has_overrides: number; overrides_json: string | null;
+}
+
 export const modelsRouter = Router();
 
 // Throttle map for model test endpoint: modelDbId -> lastTestTimestamp
@@ -439,7 +450,7 @@ modelsRouter.get('/', (_req: Request, res: Response) => {
     LEFT JOIN model_overrides mo ON mo.platform = m.platform AND mo.model_id = m.model_id
     LEFT JOIN api_keys ak ON ak.id = m.key_id
     ORDER BY COALESCE(fc.priority, m.intelligence_rank) ASC
-  `).all() as any[] : db.prepare(`
+  `).all() as ModelListRow[] : db.prepare(`
     SELECT m.*, COALESCE(pm.priority, fc.priority) AS priority,
            COALESCE(pm.enabled, fc.enabled) AS fallback_enabled,
            mo.overrides_json IS NOT NULL AS has_overrides, mo.overrides_json,
@@ -450,7 +461,7 @@ modelsRouter.get('/', (_req: Request, res: Response) => {
     LEFT JOIN model_overrides mo ON mo.platform = m.platform AND mo.model_id = m.model_id
     LEFT JOIN api_keys ak ON ak.id = m.key_id
     ORDER BY COALESCE(pm.priority, fc.priority, m.intelligence_rank) ASC
-  `).all(activeProfileId) as any[];
+  `).all(activeProfileId) as ModelListRow[];
 
   // Count keys per platform
   const keyCounts = db.prepare(`

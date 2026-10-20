@@ -13,6 +13,7 @@ import { getQuotaOutlook } from '../services/quota-outlook.js';
 import { sanitizeProviderErrorMessage } from '../lib/error-redaction.js';
 import { z } from 'zod';
 import { errorMessage, errorProps } from '../lib/error-props.js';
+import { asErrorBody } from '../lib/error-props.js';
 
 // ─────────────────────────────────────────────────────────────────────────
 // MCP server for the gateway (POST /mcp) — Model Context Protocol over
@@ -272,12 +273,20 @@ function loopbackChatCompletionsUrl(req: Request): string {
   return `http://${host}:${port}/v1/chat/completions`;
 }
 
-function assistantText(payload: any): string {
-  const content = payload?.choices?.[0]?.message?.content;
+// A chat completion as far as this tool reads it.
+interface ChatReply {
+  choices?: Array<{ message?: { content?: unknown } | null; finish_reason?: unknown }>;
+  model?: unknown;
+  usage?: unknown;
+  execution_id?: unknown;
+}
+
+function assistantText(payload: unknown): string {
+  const content = (payload as ChatReply | null)?.choices?.[0]?.message?.content;
   if (typeof content === 'string') return content;
   if (!Array.isArray(content)) return '';
   return content
-    .map((part: any) => typeof part === 'string' ? part : (typeof part?.text === 'string' ? part.text : ''))
+    .map((part: unknown) => typeof part === 'string' ? part : (typeof (part as { text?: unknown } | null)?.text === 'string' ? (part as { text: string }).text : ''))
     .join('');
 }
 
@@ -323,7 +332,7 @@ async function askFreeLlmApi(args: Record<string, unknown>, req: Request, res: R
     });
 
     const raw = await response.text();
-    let payload: any;
+    let payload: unknown;
     try {
       payload = raw ? JSON.parse(raw) : null;
     } catch {
@@ -331,29 +340,31 @@ async function askFreeLlmApi(args: Record<string, unknown>, req: Request, res: R
     }
 
     if (!response.ok) {
-      const upstreamMessage = payload?.error?.message ?? payload?.message ?? `HTTP ${response.status}`;
+      const body = asErrorBody(payload);
+      const upstreamMessage = String(body.error?.message ?? body.message ?? `HTTP ${response.status}`);
       throw new Error(`FreeLLMAPI inference failed (${response.status}): ${sanitizeProviderErrorMessage(upstreamMessage)}`);
     }
 
-    const answer = assistantText(payload);
+    const reply = (payload ?? {}) as ChatReply;
+    const answer = assistantText(reply);
     if (!answer) {
-      throw new Error(`FreeLLMAPI inference returned no assistant text (finish_reason: ${payload?.choices?.[0]?.finish_reason ?? 'unknown'})`);
+      throw new Error(`FreeLLMAPI inference returned no assistant text (finish_reason: ${reply.choices?.[0]?.finish_reason ?? 'unknown'})`);
     }
 
     return {
       answer,
       requested_model: model,
-      model: typeof payload?.model === 'string' ? payload.model : null,
-      finish_reason: typeof payload?.choices?.[0]?.finish_reason === 'string'
-        ? payload.choices[0].finish_reason
+      model: typeof reply.model === 'string' ? reply.model : null,
+      finish_reason: typeof reply.choices?.[0]?.finish_reason === 'string'
+        ? reply.choices[0].finish_reason
         : null,
-      usage: payload?.usage && typeof payload.usage === 'object' ? payload.usage : null,
+      usage: reply.usage && typeof reply.usage === 'object' ? reply.usage : null,
       routed_via: response.headers.get('x-routed-via'),
       fallback_trail: response.headers.get('x-fallback-trail'),
       cache: response.headers.get('x-freellm-cache'),
       compression: response.headers.get('x-freellm-compress'),
-      execution_id: typeof payload?.execution_id === 'string'
-        ? payload.execution_id
+      execution_id: typeof reply.execution_id === 'string'
+        ? reply.execution_id
         : response.headers.get('x-request-id'),
     };
   } catch (error) {

@@ -10,7 +10,7 @@ export interface Db {
   // Mirrors better-sqlite3's pattern: transaction() wraps fn and returns a
   // callable with the same signature. The F extends constraint covers both
   // zero-arg transactions and the parameterised form used in routes/embeddings.
-  transaction<F extends (...args: any[]) => unknown>(fn: F): F;
+  transaction<F extends (...args: never[]) => unknown>(fn: F): F;
   pragma(source: string): unknown;
   // Optional file metadata, populated when the backing store is better-sqlite3
   // (the default factory passes the raw handle through). Consumers that need a

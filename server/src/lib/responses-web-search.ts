@@ -34,15 +34,25 @@ export function isResponsesWebSearchTool(tool: unknown): boolean {
   return typeof type === 'string' && /^web_search(_preview)?(_\d{4}_\d{2}_\d{2})?$/.test(type);
 }
 
-type Item = Record<string, any>;
+// A loosely typed Responses output item: fields are narrowed where they are read.
+type Item = Record<string, unknown>;
+
+// What this loop reads of the non-streaming /v1/responses answer it captures.
+interface ResponsesReply {
+  object?: string;
+  error?: unknown;
+  usage?: { input_tokens?: unknown; output_tokens?: unknown };
+  output?: unknown;
+  [field: string]: unknown;
+}
 
 /** A replayed web_search_call item → a note the routed model can read. */
 export function webSearchCallToText(item: Item): string {
-  const action = item?.action;
+  const action = item?.action as { query?: unknown; sources?: unknown } | null | undefined;
   const query = typeof action?.query === 'string' ? action.query : '';
   if (!query) return '';
   const sources = Array.isArray(action?.sources)
-    ? action.sources.map((s: Item) => s?.url).filter((u: unknown): u is string => typeof u === 'string')
+    ? (action.sources as Array<{ url?: unknown } | null>).map(s => s?.url).filter((u): u is string => typeof u === 'string')
     : [];
   return sources.length > 0
     ? `[Searched the web for: ${query}. Sources: ${sources.slice(0, 10).join(', ')}]`
@@ -140,7 +150,7 @@ class ResponsesSse {
     try { this.res.end(); } catch { /* already closed */ }
   }
 
-  fail(error: Item): void {
+  fail(error: unknown): void {
     this.stopHeartbeat();
     this.write('response.failed', { response: { ...this.skeleton, status: 'failed', error } });
     try { this.res.end(); } catch { /* already closed */ }
@@ -220,9 +230,10 @@ export async function maybeServeResponsesWebSearch(
       if (commitTimer) { clearTimeout(commitTimer); commitTimer = null; }
       if (res.writableEnded || res.destroyed) return true;
 
-      if (captured.status !== 200 || captured.body?.object !== 'response') {
+      const replyBody = captured.body as ResponsesReply | null | undefined;
+      if (captured.status !== 200 || replyBody?.object !== 'response') {
         if (sse?.committed) {
-          const error = captured.body?.error ?? { message: `upstream error (HTTP ${captured.status})`, type: 'server_error' };
+          const error = replyBody?.error ?? { message: `upstream error (HTTP ${captured.status})`, type: 'server_error' };
           sse.fail(error);
         } else {
           copyCapturedHeaders(captured, res);
@@ -231,13 +242,13 @@ export async function maybeServeResponsesWebSearch(
         return true;
       }
 
-      const reply = captured.body;
+      const reply = replyBody;
       usage.input_tokens += Number(reply.usage?.input_tokens) || 0;
       usage.output_tokens += Number(reply.usage?.output_tokens) || 0;
       copyCapturedHeaders(captured, res);
       sse?.start();
 
-      const output: Item[] = Array.isArray(reply.output) ? reply.output : [];
+      const output: Item[] = Array.isArray(reply.output) ? (reply.output as Item[]) : [];
       const searchCalls = output.filter(isOurSearchCall);
       const clientCalls = output.filter(item => item?.type === 'function_call' && !isOurSearchCall(item));
 
@@ -271,7 +282,7 @@ export async function maybeServeResponsesWebSearch(
           continue;
         }
         let args: Item = {};
-        try { args = JSON.parse(item.arguments ?? '{}'); } catch { /* malformed → invalid input */ }
+        try { args = JSON.parse(typeof item.arguments === 'string' ? item.arguments : '{}'); } catch { /* malformed → invalid input */ }
         const query = typeof args.query === 'string' ? args.query : '';
         const callId = newWebSearchCallId();
         const progressIdx = sse?.searchStarted(searchCallItem(callId, query, null));

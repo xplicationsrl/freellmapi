@@ -406,7 +406,7 @@ export function toChatMessages(req: ResponsesRequest): ChatMessage[] {
       const output = typeof item.output === 'string'
         ? item.output
         : Array.isArray(item.output)
-          ? partsToString(item.output as any)
+          ? partsToString(item.output as Array<{ type: string; text?: unknown }>)
           : JSON.stringify(item.output);
       messages.push({ role: 'tool', tool_call_id: item.call_id, content: output });
       continue;
@@ -510,6 +510,14 @@ function requestDeclaresToolUse(req: ResponsesRequest): boolean {
   return (req.tools?.length ?? 0) > 0 && req.tool_choice !== 'none';
 }
 
+/** One item of a Responses API `output` array: a message or a function_call. */
+interface ResponseOutputItem {
+  type: 'message' | 'function_call';
+  id: string;
+  status: string;
+  [field: string]: unknown;
+}
+
 // ── Build the final (non-stream) Responses object ─────────────────────────
 export function buildResponseObject(opts: {
   id: string;
@@ -521,7 +529,7 @@ export function buildResponseObject(opts: {
   reasoningTokens?: number;
   metadata?: Record<string, string>;
 }) {
-  const output: any[] = [];
+  const output: ResponseOutputItem[] = [];
   if (opts.text.length > 0) {
     output.push({
       type: 'message',
@@ -632,7 +640,8 @@ function fusionResponseMetadata(result: FusionResult['response'] & { _fusion?: u
 /** Apply the same structured-output contract to Fusion as the chat route. */
 function enforceFusionResponseFormat(result: FusionResult, responseFormat: ResponseFormat | undefined): void {
   if (!responseFormat) return;
-  const message = result.response.choices?.[0]?.message as any;
+  // Mutated in place when the structured-output check heals the text.
+  const message = result.response.choices?.[0]?.message as { content?: unknown; tool_calls?: unknown[] } | undefined;
   if (!message || message.tool_calls?.length) return;
   const text = contentToString(message.content ?? '');
   if (!text) return;
@@ -1075,9 +1084,9 @@ export async function handleResponses(req: Request, res: Response): Promise<void
       // output verdict after judge deltas have already reached the client: a
       // failed verdict could not retract the partial answer. Non-streaming
       // Fusion is checked above before the response is committed.
-      const responseObject = buildFusionResponseObject(responseId, result) as any;
+      const responseObject = buildFusionResponseObject(responseId, result);
       const outputs = Array.isArray(responseObject.output) ? responseObject.output : [];
-      const messageOutput = outputs.find((item: any) => item?.type === 'message');
+      const messageOutput = outputs.find(item => item?.type === 'message');
       const finalText = typeof responseObject.output_text === 'string' ? responseObject.output_text : '';
 
       if (messageOutput) {
@@ -1312,7 +1321,7 @@ export async function handleResponses(req: Request, res: Response): Promise<void
               throw new Error(`in-band provider error from ${route.displayName}: ${typeof frame.error === 'object' && frame.error?.message ? frame.error.message : 'provider error'}`);
             }
 
-            const choice0 = chunk.choices?.[0];
+            const choice0 = frame.choices?.[0];
             if (choice0?.finish_reason) upstreamFinish = choice0.finish_reason;
             const delta = choice0?.delta;
             if (!delta) continue;
@@ -1358,7 +1367,7 @@ export async function handleResponses(req: Request, res: Response): Promise<void
 
             // Tool-call deltas → function_call item + argument deltas.
             for (const tc of delta.tool_calls ?? []) {
-              const idx = (tc as any).index ?? 0;
+              const idx = tc.index ?? 0;
               let acc = toolAcc.get(idx);
               if (!acc) {
                 // First time we see this tool call: open a new output item.

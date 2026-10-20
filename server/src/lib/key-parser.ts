@@ -420,7 +420,8 @@ export function parseExportJson(content: string): ParseResult | null {
 
   // Validate it looks like our export format (has version + keys array of objects)
   const keys = obj.keys as unknown[];
-  if (keys.length > 0 && typeof keys[0] === 'object' && keys[0] !== null && 'platform' in (keys[0] as any) && 'key' in (keys[0] as any)) {
+  const first = keys[0];
+  if (typeof first === 'object' && first !== null && 'platform' in first && 'key' in first) {
     const result: ParseResult = { keys: [], skipped: [] };
     for (const entry of keys) {
       if (typeof entry !== 'object' || entry === null) continue;

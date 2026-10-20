@@ -186,7 +186,7 @@ export function newWebSearchCallId(): string {
 
 export interface CapturedResponse {
   status: number;
-  body: any;
+  body: unknown;
   headers: Record<string, string>;
 }
 
@@ -195,7 +195,7 @@ type Handler = (req: Request, res: Response) => Promise<void> | void;
 class CaptureResponse {
   statusCode = 200;
   headers: Record<string, string> = {};
-  body: any = undefined;
+  body: unknown = undefined;
   writableEnded = false;
   destroyed = false;
   headersSent = false;

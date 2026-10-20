@@ -35,6 +35,7 @@ import { maybeServeAnthropicWebSearch, serverToolUseToText, webSearchResultToTex
 import { applyDecisionRouting, routingStrategyHeader } from '../services/routing-decision.js';
 import { errorMessage, errorProps } from '../lib/error-props.js';
 import { asStreamFrame, frameErrorMessage } from '../lib/stream-frame.js';
+import type { CompletionOptions } from '../providers/base.js';
 
 // Anthropic-compatible Messages API (`POST /v1/messages`). This is a thin
 // translation layer over the SAME router/fallback/analytics machinery the
@@ -217,11 +218,21 @@ function authenticate(req: Request, res: Response): boolean {
 }
 
 // ── Request translation: Anthropic → internal (OpenAI-shaped) ───────────────
+// Content blocks arrive loosely typed (the schema only fixes `type`), so their
+// fields are read through these instead of being cast to any.
+function blockField(block: unknown, key: string): unknown {
+  return typeof block === 'object' && block !== null ? (block as Record<string, unknown>)[key] : undefined;
+}
+function blockString(block: unknown, key: string): string | undefined {
+  const value = blockField(block, key);
+  return typeof value === 'string' ? value : undefined;
+}
+
 function flattenSystem(system: AnthropicRequest['system']): string {
   if (!system) return '';
   if (typeof system === 'string') return system;
   return system
-    .map(block => (typeof (block as any).text === 'string' ? (block as any).text : ''))
+    .map(block => blockString(block, 'text') ?? '')
     .filter(Boolean)
     .join('\n');
 }
@@ -235,8 +246,7 @@ function flattenToolResult(content: unknown): string {
   return content
     .map(block => {
       if (typeof block === 'string') return block;
-      if (block && typeof block === 'object' && typeof (block as any).text === 'string') return (block as any).text;
-      return '';
+      return blockString(block, 'text') ?? '';
     })
     .filter(Boolean)
     .join('\n');
@@ -244,13 +254,15 @@ function flattenToolResult(content: unknown): string {
 
 // Anthropic image block → OpenAI `image_url` block, so vision models keep
 // working through the same routing path the OpenAI route uses.
-function imageBlockToUrl(block: any): string | null {
-  const src = block?.source;
+function imageBlockToUrl(block: unknown): string | null {
+  const src = blockField(block, 'source');
   if (!src || typeof src !== 'object') return null;
-  if (src.type === 'base64' && src.media_type && src.data) {
-    return `data:${src.media_type};base64,${src.data}`;
-  }
-  if (src.type === 'url' && typeof src.url === 'string') return src.url;
+  const mediaType = blockString(src, 'media_type');
+  const data = blockString(src, 'data');
+  const url = blockString(src, 'url');
+  const kind = blockString(src, 'type');
+  if (kind === 'base64' && mediaType && data) return `data:${mediaType};base64,${data}`;
+  if (kind === 'url' && url !== undefined) return url;
   return null;
 }
 
@@ -291,7 +303,7 @@ function convertRequest(input: AnthropicRequest): ConvertedRequest {
     if (message.role === 'system') {
       const sysText = typeof message.content === 'string'
         ? message.content
-        : message.content.map(b => (typeof (b as any).text === 'string' ? (b as any).text : '')).filter(Boolean).join('\n');
+        : message.content.map(b => blockString(b, 'text') ?? '').filter(Boolean).join('\n');
       if (sysText) messages.push({ role: 'system', content: sysText });
       continue;
     }
@@ -307,35 +319,34 @@ function convertRequest(input: AnthropicRequest): ConvertedRequest {
     const toolResults: ChatMessage[] = [];
 
     for (const block of message.content) {
-      const type = (block as any).type;
+      const type = block.type;
       if (type === 'text') {
-        if (typeof (block as any).text === 'string' && (block as any).text.length > 0) {
-          textParts.push((block as any).text);
-        }
+        const text = blockString(block, 'text');
+        if (text !== undefined && text.length > 0) textParts.push(text);
       } else if (type === 'image') {
         const url = imageBlockToUrl(block);
         if (url) { imageBlocks.push({ type: 'image_url', image_url: { url } } as ChatContentBlock); hasImage = true; }
       } else if (type === 'tool_use') {
-        const thoughtSignature = (block as any).thought_signature ?? (block as any).thoughtSignature;
+        const thoughtSignature = blockField(block, 'thought_signature') ?? blockField(block, 'thoughtSignature');
         toolCalls.push({
-          id: String((block as any).id ?? ''),
+          id: String(blockField(block, 'id') ?? ''),
           type: 'function',
-          function: { name: String((block as any).name ?? ''), arguments: JSON.stringify((block as any).input ?? {}) },
+          function: { name: String(blockField(block, 'name') ?? ''), arguments: JSON.stringify(blockField(block, 'input') ?? {}) },
           ...(typeof thoughtSignature === 'string' && thoughtSignature.length > 0 ? { thought_signature: thoughtSignature } : {}),
         });
       } else if (type === 'tool_result') {
         toolResults.push({
           role: 'tool',
-          tool_call_id: String((block as any).tool_use_id ?? ''),
-          content: flattenToolResult((block as any).content),
+          tool_call_id: String(blockField(block, 'tool_use_id') ?? ''),
+          content: flattenToolResult(blockField(block, 'content')),
         });
       } else if (type === 'server_tool_use') {
         // A replayed web search (ours, or real Anthropic's): the routed model
         // has no server tool, so the search and its results come back as text.
-        const note = serverToolUseToText(block as any);
+        const note = serverToolUseToText(block);
         if (note) textParts.push(note);
       } else if (type === 'web_search_tool_result') {
-        textParts.push(webSearchResultToText(block as any));
+        textParts.push(webSearchResultToText(block));
       } else if (type === 'document') {
         // A document that is already text costs nothing to inline. One that
         // needs decoding cannot be served by any provider here, and dropping
@@ -443,12 +454,12 @@ function writeSse(res: Response, event: string, data: unknown): void {
 // the same rescue /chat/completions and /v1/responses already apply (#231).
 function rescuedToToolCalls(
   calls: Array<{ name: string; arguments: string }>,
-  schemas: Map<string, unknown>,
+  schemas: ReturnType<typeof toolSchemaMap>,
 ): ChatToolCall[] {
   return calls.map((c, i) => ({
     id: `toolu_${crypto.randomBytes(8).toString('hex')}_rescued_${i + 1}`,
     type: 'function' as const,
-    function: { name: c.name, arguments: repairToolArguments(c.arguments, schemas.get(c.name) as any) },
+    function: { name: c.name, arguments: repairToolArguments(c.arguments, schemas.get(c.name)) },
   }));
 }
 
@@ -523,7 +534,7 @@ export async function handleMessages(req: Request, res: Response): Promise<void>
 
   const estimatedInputTokens = estimateInputTokens(messages, tools);
   const imageCount = messages.reduce((n, m) =>
-    n + (Array.isArray(m.content) ? m.content.filter(b => (b as any)?.type === 'image_url').length : 0), 0);
+    n + (Array.isArray(m.content) ? m.content.filter(b => typeof b === 'object' && b !== null && b.type === 'image_url').length : 0), 0);
 
   // Guardrail: per-request token budget (request_max_tokens_budget, default
   // off). A client-set max_tokens can only pass or reject; an omitted one is
@@ -859,7 +870,7 @@ async function streamCompletion(
   res: Response,
   route: RouteResult,
   messages: ChatMessage[],
-  options: any,
+  options: CompletionOptions,
   ctx: StreamCtx,
 ): Promise<void> {
   let messageStarted = false; // doubles as "headers + message_start sent" = committed
@@ -955,13 +966,13 @@ async function streamCompletion(
       if (choice.finish_reason) upstreamFinish = choice.finish_reason;
 
       for (const tc of choice.delta?.tool_calls ?? []) {
-        const idx = (tc as any).index ?? 0;
+        const idx = tc.index ?? 0;
         if (!toolAcc.has(idx)) toolAcc.set(idx, { id: undefined, name: '', args: '' });
         const acc = toolAcc.get(idx)!;
         if (tc.id && !acc.id) acc.id = tc.id;
         if (tc.function?.name) acc.name += tc.function.name;
         if (tc.function?.arguments) acc.args += tc.function.arguments;
-        const thoughtSignature = (tc as any).thought_signature ?? (tc as any).thoughtSignature;
+        const thoughtSignature = tc.thought_signature ?? tc.thoughtSignature;
         if (typeof thoughtSignature === 'string' && thoughtSignature.length > 0 && !acc.thought_signature) {
           acc.thought_signature = thoughtSignature;
         }

@@ -20,6 +20,7 @@
 // endpoint_scope identity migration (#651): output ceilings are a property of
 // the model behind ONE relay, and sibling relays do not share it.
 import { modelStatsKey } from './endpoint-scope.js';
+import { errorProps } from './error-props.js';
 
 const learned = new Map<string, number>();
 
@@ -60,10 +61,11 @@ export function parseMaxTokensCeiling(message: unknown): number | null {
 /** Learn the ceiling from a max_tokens rejection. Returns it, or null when the
  *  error is not one, or when the reading is below MIN_LEARNED_OUTPUT_CAP. The
  *  lowest reading wins. */
-export function learnOutputCapFromError(route: { platform: string; modelId: string; endpointScope?: string | null }, err: any): number | null {
-  const status = typeof err?.status === 'number' ? err.status : 0;
+export function learnOutputCapFromError(route: { platform: string; modelId: string; endpointScope?: string | null }, err: unknown): number | null {
+  const { status: reportedStatus, message } = errorProps(err);
+  const status = reportedStatus ?? 0;
   if (status !== 0 && status !== 400 && status !== 422) return null;
-  const ceiling = parseMaxTokensCeiling(err?.message);
+  const ceiling = parseMaxTokensCeiling(message);
   if (ceiling == null || ceiling < MIN_LEARNED_OUTPUT_CAP) return null;
   const key = capKey(route.platform, route.modelId, route.endpointScope);
   const current = learned.get(key);

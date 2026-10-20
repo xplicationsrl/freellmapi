@@ -76,7 +76,7 @@ export const nodeSqliteFactory: DbFactory = (resolvedPath) => {
     exec: (sql) => raw.exec(sql),
     pragma: (source) => raw.prepare(`PRAGMA ${source}`).all(),
     close: () => raw.close(),
-    transaction: <F extends (...args: any[]) => unknown>(fn: F): F => {
+    transaction: <F extends (...args: never[]) => unknown>(fn: F): F => {
       const wrapped = function (this: unknown, ...args: Parameters<F>): ReturnType<F> {
         const outermost = transactionDepth === 0;
         const savepoint = `freellmapi_tx_${++savepointSequence}`;

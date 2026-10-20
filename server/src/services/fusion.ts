@@ -23,6 +23,7 @@ import { getSetting, setSetting } from '../db/index.js';
 import type { CompletionOptions } from '../providers/base.js';
 import { routeOutputBudget } from '../lib/output-cap.js';
 import { errorMessage, errorProps } from '../lib/error-props.js';
+import { streamChunkText } from '../lib/stream-text.js';
 
 // The virtual model id that triggers multi-model synthesis. Mirrors how
 // `auto` is a virtual id the router intercepts (see routes/proxy.ts).
@@ -246,7 +247,7 @@ interface CallOutcome {
   failure?: CallFailure;
 }
 
-function classifyCallFailure(err: any): CallFailure {
+function classifyCallFailure(err: unknown): CallFailure {
   if (isContextTooLargeError(err)) return 'context_too_large';
   if (isRateLimitSignal(err) || isPaymentRequiredError(err) || isDailyQuotaExhaustedError(err)) return 'rate_limited';
   return 'error';
@@ -263,9 +264,9 @@ function mergeCallFailure(current: CallFailure | undefined, next: CallFailure): 
 // model for this request and learn the ceiling the provider reported so the
 // router sizes it out before the next oversized dispatch, but never cool it
 // down or penalize it (#1479).
-function noteContextTooLarge(route: RouteResult, err: any, skipModels: Set<number>): void {
-  learnLimitFromError(route.modelDbId, err);
-  learnContextWindowFromError(route.modelDbId, err);
+function noteContextTooLarge(route: RouteResult, err: unknown, skipModels: Set<number>): void {
+  learnLimitFromError(route.modelDbId, errorProps(err));
+  learnContextWindowFromError(route.modelDbId, errorProps(err));
   skipModels.add(route.modelDbId);
 }
 
@@ -439,8 +440,8 @@ async function runJudgeStreaming(
     let started = false;
     try {
       for await (const chunk of route.provider.streamChatCompletion(route.apiKey, messages, route.modelId, routeOpts)) {
-        const delta = (chunk as any)?.choices?.[0]?.delta?.content;
-        if (typeof delta === 'string' && delta.length > 0) {
+        const delta = streamChunkText(chunk);
+        if (delta.length > 0) {
           if (!started) { started = true; cb.onStart?.({ platform: route.platform, model: route.modelId }); }
           text += delta;
           cb.onDelta?.(delta);

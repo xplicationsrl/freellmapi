@@ -643,10 +643,9 @@ export class OpenAICompatProvider extends BaseProvider {
         },
       }, 10_000, { timeoutBounds: 'request' });
       if (!res.ok) return false;
-      const body: any = await res.json().catch(() => null);
-      const scope = (body && typeof body === 'object' && body.data && typeof body.data === 'object')
-        ? [body.data, body]
-        : [body];
+      const body: unknown = await res.json().catch(() => null);
+      const data = body && typeof body === 'object' ? (body as { data?: unknown }).data : undefined;
+      const scope: unknown[] = data && typeof data === 'object' ? [data, body] : [body];
       const pick = (fields: string[]): number | null => {
         for (const obj of scope) {
           if (!obj || typeof obj !== 'object') continue;

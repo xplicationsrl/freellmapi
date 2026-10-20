@@ -6,6 +6,18 @@ import { getDegradationStatus } from '../services/degradation.js';
 import { hasProvider, resolveProvider } from '../providers/index.js';
 import { getQuotaStateForKeys } from '../services/provider-quota.js';
 import type { Platform } from '@freellmapi/shared/types.js';
+import type { ApiKeyRow } from '../db/rows.js';
+
+// Row shapes of the two summary queries below.
+interface PlatformHealthRow {
+  platform: Platform; total_keys: number; healthy_keys: number | null; rate_limited_keys: number | null;
+  invalid_keys: number | null; error_keys: number | null; unknown_keys: number | null; enabled_keys: number | null;
+}
+interface KeyHealthRow {
+  id: number; platform: Platform; label: string | null; status: string; enabled: number; created_at: string;
+  last_checked_at: string | null; last_healthy_at: string | null; last_health_error: string | null;
+}
+
 
 export const healthRouter = Router();
 
@@ -25,13 +37,13 @@ healthRouter.get('/', (_req: Request, res: Response) => {
       SUM(CASE WHEN enabled = 1 THEN 1 ELSE 0 END) as enabled_keys
     FROM api_keys
     GROUP BY platform
-  `).all() as any[];
+  `).all() as PlatformHealthRow[];
 
   const keys = db.prepare(`
     SELECT id, platform, label, status, enabled, created_at, last_checked_at, last_healthy_at, last_health_error
     FROM api_keys
     ORDER BY platform, created_at DESC
-  `).all() as any[];
+  `).all() as KeyHealthRow[];
 
   res.json({
     platforms: platforms.map(p => ({
@@ -94,7 +106,7 @@ healthRouter.post('/quota/:keyId', async (req: Request, res: Response) => {
     return;
   }
   const db = getDb();
-  const row = db.prepare('SELECT * FROM api_keys WHERE id = ?').get(keyId) as any;
+  const row = db.prepare('SELECT * FROM api_keys WHERE id = ?').get(keyId) as ApiKeyRow | undefined;
   if (!row) {
     res.status(404).json({ error: { message: 'Key not found' } });
     return;

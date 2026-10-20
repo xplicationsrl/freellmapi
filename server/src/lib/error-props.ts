@@ -53,3 +53,22 @@ export function errorFlag(err: unknown, name: string): boolean {
 export function errorCause(err: unknown): unknown {
   return errorField(err, 'cause');
 }
+
+/**
+ * The error-ish fields JSON error bodies from provider APIs commonly carry:
+ * `{ error: { message } }` (OpenAI, Cohere, Google), `{ errors: [{ message }] }`
+ * (Cloudflare) and flat `message` / `detail` / `title`. Every field is optional
+ * and `unknown`: a body is untrusted input.
+ */
+export interface ProviderErrorBody {
+  error?: { message?: unknown; details?: unknown };
+  errors?: Array<{ message?: unknown } | null>;
+  message?: unknown;
+  detail?: unknown;
+  title?: unknown;
+}
+
+/** A parsed error body viewed as ProviderErrorBody; anything that is not an object reads as empty. */
+export function asErrorBody(body: unknown): ProviderErrorBody {
+  return typeof body === 'object' && body !== null ? (body as ProviderErrorBody) : {};
+}

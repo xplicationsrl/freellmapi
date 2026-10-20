@@ -94,8 +94,7 @@ function textFromContentSource(content: unknown): string {
   return content
     .map(block => {
       if (typeof block === 'string') return block;
-      if (block && typeof block === 'object' && typeof (block as any).text === 'string') return (block as any).text;
-      return '';
+      return blockString(block, 'text') ?? '';
     })
     .filter(Boolean)
     .join('\n');
@@ -105,16 +104,25 @@ function textFromContentSource(content: unknown): string {
  * Convert one Anthropic `document` block into the text that stands in for it,
  * or explain why it cannot be converted.
  */
+// Content blocks arrive loosely typed; fields are read through these.
+function blockField(block: unknown, key: string): unknown {
+  return typeof block === 'object' && block !== null ? (block as Record<string, unknown>)[key] : undefined;
+}
+function blockString(block: unknown, key: string): string | undefined {
+  const value = blockField(block, key);
+  return typeof value === 'string' ? value : undefined;
+}
+
 export function convertDocumentBlock(block: unknown): DocumentBlockResult {
-  const source = (block as any)?.source;
+  const source = blockField(block, 'source');
   if (!source || typeof source !== 'object') {
     return { ok: false, reason: 'a document block without a `source`' };
   }
 
-  const sourceType = typeof source.type === 'string' ? source.type : '';
+  const sourceType = blockString(source, 'type') ?? '';
 
   if (!TEXTUAL_SOURCE_TYPES.has(sourceType)) {
-    const mediaType = typeof source.media_type === 'string' ? source.media_type : '';
+    const mediaType = blockString(source, 'media_type') ?? '';
     if (sourceType === 'url') return { ok: false, reason: 'a document block with a `url` source' };
     return {
       ok: false,
@@ -123,15 +131,15 @@ export function convertDocumentBlock(block: unknown): DocumentBlockResult {
   }
 
   const body = sourceType === 'text'
-    ? (typeof source.data === 'string' ? source.data : '')
-    : textFromContentSource(source.content);
+    ? (blockString(source, 'data') ?? '')
+    : textFromContentSource(blockField(source, 'content'));
 
   if (body.trim().length === 0) {
     return { ok: false, reason: 'a document block whose text source is empty' };
   }
 
   const tag = fenceTag(body);
-  const title = labelTitle((block as any)?.title);
+  const title = labelTitle(blockField(block, 'title'));
   return { ok: true, text: `<${tag} title="${title}">\n${body}\n</${tag}>` };
 }
 

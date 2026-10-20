@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { errorCause, errorFlag, errorMessage, errorProps } from '../../lib/error-props.js';
+import { asErrorBody, errorCause, errorFlag, errorMessage, errorProps } from '../../lib/error-props.js';
 
 describe('errorMessage', () => {
   it('reads the message of an Error or any object that has one', () => {
@@ -55,5 +55,18 @@ describe('errorFlag / errorCause', () => {
     expect(errorCause(new Error('outer', { cause }))).toBe(cause);
     expect(errorCause({})).toBeUndefined();
     expect(errorCause(undefined)).toBeUndefined();
+  });
+});
+
+describe('asErrorBody', () => {
+  it('reads the common provider error shapes', () => {
+    expect(asErrorBody({ error: { message: 'bad key' } }).error?.message).toBe('bad key');
+    expect(asErrorBody({ errors: [{ message: 'cf says no' }] }).errors?.[0]?.message).toBe('cf says no');
+    expect(asErrorBody({ detail: 'flat' }).detail).toBe('flat');
+  });
+
+  it('treats null, strings and arrays-of-nothing as an empty body', () => {
+    for (const body of [null, undefined, 'oops', 0]) expect(asErrorBody(body)).toEqual({});
+    expect(asErrorBody({ errors: [null] }).errors?.[0]?.message).toBeUndefined();
   });
 });

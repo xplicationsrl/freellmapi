@@ -369,7 +369,7 @@ proxyRouter.post('/completions', async (req: Request, res: Response) => {
             if (ttfbMs === null && (text.length > 0 || reasoning.length > 0)) {
               ttfbMs = Date.now() - start;
             }
-            const finish = (chunk as any)?.choices?.[0]?.finish_reason;
+            const finish = chunk?.choices?.[0]?.finish_reason;
             if (finish) upstreamFinish = finish;
             // #764: reasoning tokens are real output consumption — count them
             // so analytics and the rate-limit ledger aren't undercounted.
@@ -928,7 +928,7 @@ proxyRouter.post('/chat/completions', async (req: Request, res: Response) => {
       // machinery to hand this to — heal what's healable, otherwise answer
       // honestly instead of pretending. (Streaming fusion stays unenforced,
       // same boundary as every other streamed response.)
-      const fusionMsg = (response as any)?.choices?.[0]?.message;
+      const fusionMsg = response?.choices?.[0]?.message;
       if (samplingParams.response_format && fusionMsg && !fusionMsg.tool_calls?.length) {
         const fusionText = contentToString(fusionMsg.content ?? '');
         if (fusionText) {

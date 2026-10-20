@@ -12,6 +12,7 @@ import { sanitizeProviderErrorMessage } from '../lib/error-redaction.js';
 import { providerLog } from '../lib/server-logs.js';
 import { triggerBuiltinModelDiscovery } from './builtin-model-discovery.js';
 import { errorMessage, errorProps } from '../lib/error-props.js';
+import type { ApiKeyRow } from '../db/rows.js';
 
 const DEFAULT_CHECK_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
 // Floor of 60s: a misconfigured tiny interval turns the health pass into a
@@ -221,9 +222,8 @@ function quotaPollDue(keyId: number, now = Date.now()): boolean {
 
 export async function pollKeyQuota(
   keyId: number,
-  // The api_keys row as stored (encrypted key columns + the proxy columns
-  // decryptProxyUrl reads). `any` mirrors how checkKeyHealth carries it.
-  row: any,
+  // The api_keys row as stored (encrypted key columns + the proxy columns decryptProxyUrl reads).
+  row: ApiKeyRow,
   provider: BaseProvider,
 ): Promise<boolean> {
   try {
@@ -254,7 +254,7 @@ export function supportsQuotaPolling(provider: BaseProvider): boolean {
 export async function maybePollKeyQuota(keyId: number): Promise<boolean> {
   try {
     const db = getDb();
-    const row = db.prepare('SELECT * FROM api_keys WHERE id = ? AND enabled = 1').get(keyId) as any;
+    const row = db.prepare('SELECT * FROM api_keys WHERE id = ? AND enabled = 1').get(keyId) as ApiKeyRow | undefined;
     if (!row) return false;
     const provider = resolveProvider(row.platform as Platform, row.base_url);
     if (!provider || !supportsQuotaPolling(provider)) return false;
@@ -267,7 +267,7 @@ export async function maybePollKeyQuota(keyId: number): Promise<boolean> {
 
 export async function checkKeyHealth(keyId: number): Promise<KeyStatus> {
   const db = getDb();
-  const row = db.prepare('SELECT * FROM api_keys WHERE id = ?').get(keyId) as any;
+  const row = db.prepare('SELECT * FROM api_keys WHERE id = ?').get(keyId) as ApiKeyRow | undefined;
   if (!row) return 'error';
 
   const provider = resolveProvider(row.platform as Platform, row.base_url);
@@ -400,7 +400,7 @@ export type KeyProbeOutcome = 'valid' | 'invalid' | 'error';
 export async function probeKeyValidity(keyId: number): Promise<KeyProbeOutcome> {
   try {
     const db = getDb();
-    const row = db.prepare('SELECT * FROM api_keys WHERE id = ? AND enabled = 1').get(keyId) as any;
+    const row = db.prepare('SELECT * FROM api_keys WHERE id = ? AND enabled = 1').get(keyId) as ApiKeyRow | undefined;
     if (!row) return 'error';
 
     const provider = resolveProvider(row.platform as Platform, row.base_url);

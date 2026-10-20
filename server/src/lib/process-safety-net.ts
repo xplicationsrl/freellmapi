@@ -1,4 +1,5 @@
 // Process-level safety net for late network transport errors (fork-validated:
+import { errorCause, errorProps } from './error-props.js';
 // jasnoorgill's safe-fetch / process-safety-net).
 //
 // The failure this guards against: undici resolves `fetch()` and we move on, but
@@ -32,13 +33,14 @@ const TRANSPORT_MESSAGE_HINTS = [
 // Walk the cause chain (bounded, cycle-safe) collecting codes and messages.
 function walkErrorChain(err: unknown): Array<{ code?: string; message?: string }> {
   const out: Array<{ code?: string; message?: string }> = [];
-  let cur: any = err;
+  let cur: unknown = err;
   const seen = new Set<unknown>();
   for (let depth = 0; cur && typeof cur === 'object' && depth < 6; depth++) {
     if (seen.has(cur)) break;
     seen.add(cur);
-    out.push({ code: typeof cur.code === 'string' ? cur.code : undefined, message: typeof cur.message === 'string' ? cur.message : undefined });
-    cur = cur.cause;
+    const { code, message } = errorProps(cur);
+    out.push({ code, message });
+    cur = errorCause(cur);
   }
   return out;
 }

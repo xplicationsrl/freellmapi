@@ -198,15 +198,21 @@ const chatSchema = z.object({
   format: z.union([z.literal('json'), z.record(z.string(), z.unknown())]).optional(),
 }).passthrough();
 
+// The tool-call and tool-definition shapes Ollama clients send; the schemas
+// above only fix that they are objects, so the fields read are declared here.
+interface OllamaToolCall { id?: string; function?: { name?: string; arguments?: unknown } }
+interface OllamaTool { function?: { name?: string; description?: string; parameters?: unknown } }
+
 function ollamaMessages(raw: z.infer<typeof messageSchema>[]): ChatMessage[] {
   const pendingCalls = new Map<string, string[]>();
   const converted: ChatMessage[] = [];
   raw.forEach((message, messageIndex) => {
-    const toolCalls = message.tool_calls
-      ?.filter((call: any) => call?.function?.name)
-      .map((call: any, callIndex) => {
+    const toolCalls = (message.tool_calls as OllamaToolCall[] | undefined)
+      ?.filter(call => call?.function?.name)
+      .map((call, callIndex) => {
         const id = call.id || `call_${messageIndex}_${callIndex}`;
-        const name = call.function.name as string;
+        const fn = call.function!;
+        const name = fn.name as string;
         const queue = pendingCalls.get(name) ?? [];
         queue.push(id);
         pendingCalls.set(name, queue);
@@ -215,15 +221,16 @@ function ollamaMessages(raw: z.infer<typeof messageSchema>[]): ChatMessage[] {
           type: 'function' as const,
           function: {
             name,
-            arguments: typeof call.function.arguments === 'string'
-              ? call.function.arguments
-              : JSON.stringify(call.function.arguments ?? {}),
+            arguments: typeof fn.arguments === 'string'
+              ? fn.arguments
+              : JSON.stringify(fn.arguments ?? {}),
           },
         };
       });
     let toolCallId: string | undefined;
     if (message.role === 'tool') {
-      toolCallId = (message as any).tool_call_id;
+      const declaredId = (message as { tool_call_id?: unknown }).tool_call_id;
+      toolCallId = typeof declaredId === 'string' ? declaredId : undefined;
       if (!toolCallId && message.tool_name) {
         toolCallId = pendingCalls.get(message.tool_name)?.shift();
       }
@@ -259,14 +266,14 @@ function ollamaMessages(raw: z.infer<typeof messageSchema>[]): ChatMessage[] {
 
 function ollamaTools(raw: unknown[] | undefined): ChatToolDefinition[] | undefined {
   if (!raw?.length) return undefined;
-  const tools = raw
-    .filter((tool: any) => tool?.function?.name)
-    .map((tool: any) => ({
+  const tools = (raw as OllamaTool[])
+    .filter(tool => tool?.function?.name)
+    .map(tool => ({
       type: 'function' as const,
       function: {
-        name: tool.function.name,
-        description: tool.function.description,
-        parameters: tool.function.parameters ?? { type: 'object', properties: {} },
+        name: tool.function!.name as string,
+        description: tool.function!.description,
+        parameters: (tool.function!.parameters ?? { type: 'object', properties: {} }) as Record<string, unknown>,
       },
     }));
   return tools.length ? tools : undefined;

@@ -9,6 +9,7 @@ import { extendedBodyParams, resolveMaxTokens } from '../lib/sampling-params.js'
 import { flattenMessageContent } from '../lib/content.js';
 import { recordQuotaObservationsFromResponse, type QuotaObservationContext } from '../services/provider-quota.js';
 import { stripSchemaKeys } from '../lib/tool-args.js';
+import { asErrorBody } from '../lib/error-props.js';
 
 const API_BASE = 'https://api.cohere.ai/compatibility/v1';
 
@@ -73,7 +74,7 @@ export class CohereProvider extends BaseProvider {
 
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      throw providerHttpError(res, `Cohere API error ${res.status}: ${(err as any).error?.message ?? res.statusText}`, err);
+      throw providerHttpError(res, `Cohere API error ${res.status}: ${asErrorBody(err).error?.message ?? res.statusText}`, err);
     }
 
     const data = await res.json() as ChatCompletionResponse;
@@ -122,7 +123,7 @@ export class CohereProvider extends BaseProvider {
 
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      throw providerHttpError(res, `Cohere API error ${res.status}: ${(err as any).error?.message ?? res.statusText}`, err);
+      throw providerHttpError(res, `Cohere API error ${res.status}: ${asErrorBody(err).error?.message ?? res.statusText}`, err);
     }
 
     yield* this.readSseStream(res);

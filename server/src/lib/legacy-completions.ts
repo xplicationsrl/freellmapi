@@ -1,6 +1,8 @@
 import type { ChatMessage } from '@freellmapi/shared/types.js';
 import type { RouteResult } from '../services/router.js';
 import { contentToString } from './content.js';
+import type { ChatCompletionChunk } from '@freellmapi/shared/types.js';
+import type { StreamFrame } from './stream-frame.js';
 
 export function completionPromptToMessages(prompt: string, suffix?: string): ChatMessage[] {
   const hasSuffix = suffix !== undefined && suffix.length > 0;
@@ -22,7 +24,12 @@ export function completionPromptToMessages(prompt: string, suffix?: string): Cha
   ];
 }
 
-export function completionTextFromChat(result: any): string {
+/** The parts of a non-streaming chat result the legacy /completions shape reads. */
+interface ChatResultLike {
+  choices?: Array<{ message?: { content?: unknown; reasoning_content?: unknown; reasoning?: unknown } | null }>;
+}
+
+export function completionTextFromChat(result: ChatResultLike | null | undefined): string {
   return contentToString(result?.choices?.[0]?.message?.content ?? '');
 }
 
@@ -30,7 +37,7 @@ export function completionTextFromChat(result: any): string {
 // thinking to the completed message as `reasoning_content` or `reasoning`.
 // Included in the chars/4 output estimate so analytics and the rate-limit
 // ledger aren't undercounted for thinking models. (#764)
-export function completionReasoningText(result: any): string {
+export function completionReasoningText(result: ChatResultLike | null | undefined): string {
   const msg = result?.choices?.[0]?.message;
   const r = msg?.reasoning_content ?? msg?.reasoning;
   return typeof r === 'string' ? r : '';
@@ -41,7 +48,7 @@ export function completionIdFromChat(id: string | undefined): string {
   return id.startsWith('cmpl-') ? id : `cmpl-${id}`;
 }
 
-export function legacyCompletionChunk(route: RouteResult, chunk: any, text: string) {
+export function legacyCompletionChunk(route: RouteResult, chunk: ChatCompletionChunk | StreamFrame | null | undefined, text: string) {
   return {
     id: completionIdFromChat(chunk?.id),
     object: 'text_completion',

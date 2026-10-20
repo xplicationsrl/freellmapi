@@ -470,7 +470,7 @@ export function setProviderMomentAttribution(enabled: boolean): void {
 // The failure_attribution value for one attempt error, or null when the
 // feature is off or the error is not a provider-moment failure. Route call
 // sites pass this straight through to logRequest.
-export function failureAttributionFor(err: any): string | null {
+export function failureAttributionFor(err: unknown): string | null {
   if (!isProviderMomentAttributionEnabled()) return null;
   return isProviderMomentFailure(err) ? 'provider_moment' : null;
 }
@@ -1426,12 +1426,10 @@ function activeChainOrThrow(db: Db): ChainRow[] {
   if (profileId == null) return chain;
 
   const profile = db.prepare('SELECT name FROM profiles WHERE id = ?').get(profileId) as { name: string } | undefined;
-  const err = new Error(
+  throw Object.assign(new Error(
     `The active fallback chain${profile ? ` '${profile.name}'` : ''} has no enabled models. `
     + 'Enable models for it on the Models page, switch the active chain, or name another one with "auto:<chain>".',
-  ) as any;
-  err.status = 400;
-  throw err;
+  ), { status: 400 });
 }
 
 export function resolveRoutingChain(modelString: string | undefined): ResolvedChain {
@@ -1455,25 +1453,19 @@ export function resolveRoutingChain(modelString: string | undefined): ResolvedCh
   if (globalAxis) {
     const chain = getChainByGlobalSort(db, globalAxis);
     if (chain.length === 0) {
-      const err = new Error(`No enabled models available for global sort '${suffix}'`) as any;
-      err.status = 400;
-      throw err;
+      throw Object.assign(new Error(`No enabled models available for global sort '${suffix}'`), { status: 400 });
     }
     return { chain, strategyKey: `auto:${globalAxis}` };
   }
 
   const chain = getChainByProfileName(db, suffix);
   if (!chain) {
-    const err = new Error(`Profile '${suffix}' not found. Use 'auto' for the default profile, or call /v1/models for available options.`) as any;
-    err.status = 400;
-    throw err;
+    throw Object.assign(new Error(`Profile '${suffix}' not found. Use 'auto' for the default profile, or call /v1/models for available options.`), { status: 400 });
   }
 
   const enabledModels = chain.filter(e => e.enabled);
   if (enabledModels.length === 0) {
-    const err = new Error(`Profile '${suffix}' has no enabled models. Add models to this profile in the dashboard.`) as any;
-    err.status = 400;
-    throw err;
+    throw Object.assign(new Error(`Profile '${suffix}' has no enabled models. Add models to this profile in the dashboard.`), { status: 400 });
   }
 
   return { chain, strategyKey: `auto:${suffix}` };

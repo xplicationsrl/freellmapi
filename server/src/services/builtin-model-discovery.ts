@@ -12,6 +12,7 @@ import { clearCatalogModelTombstone, isCatalogModelTombstoned } from './model-st
 import { customModelSeed } from './custom-model-seed.js';
 import { ensureModelInProfiles } from './profile-models.js';
 import { customModelSyncFreePatterns, customModelSyncIntervalMs } from './custom-model-sync.js';
+import { errorMessage } from '../lib/error-props.js';
 
 // ── Model discovery for built-in providers the catalog does not carry (#1348) ──
 //
@@ -328,8 +329,8 @@ export async function runBuiltinModelDiscovery(db: Db, only?: string): Promise<B
       if (registered.created.length > 0) {
         console.log(`[builtin-model-discovery] ${platform}: registered ${registered.created.length} discovered model(s)`);
       }
-    } catch (err: any) {
-      const message = err?.message ?? String(err);
+    } catch (err) {
+      const message = errorMessage(err) ?? String(err);
       result.failures.push({ platform, error: message });
       console.error(`[builtin-model-discovery] ${platform}: ${message}`);
     }

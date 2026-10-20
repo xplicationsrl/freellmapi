@@ -35,6 +35,7 @@ import type { Db } from '../db/types.js';
 import type { Platform } from '@freellmapi/shared/types.js';
 import { parseModelScope } from '../lib/model-scope.js';
 import { KEY_PROXY_URL_ERROR, KEY_PROXY_URL_MAX, decryptProxyUrl, encryptProxyUrl, isValidKeyProxyUrl, maskProxyUrl } from '../lib/key-proxy.js';
+import { errorMessage, errorProps } from '../lib/error-props.js';
 
 export const keysRouter = Router();
 
@@ -954,8 +955,8 @@ async function registerImportedModels(
         modality: kindOf(m.id) as 'image' | 'audio' | 'transcription',
       });
       registered++;
-    } catch (err: any) {
-      errors.push({ key: `${keyName}: ${m.id}`, error: err?.message ?? 'media registration failed' });
+    } catch (err) {
+      errors.push({ key: `${keyName}: ${m.id}`, error: errorMessage(err, 'media registration failed') });
     }
   }
   for (const m of video) {
@@ -978,8 +979,8 @@ async function registerImportedModels(
         quotaLabel: 'custom endpoint',
       });
       registered++;
-    } catch (err: any) {
-      errors.push({ key: `${keyName}: ${m.id}`, error: err?.message ?? 'embedding registration failed' });
+    } catch (err) {
+      errors.push({ key: `${keyName}: ${m.id}`, error: errorMessage(err, 'embedding registration failed') });
     }
   }
 
@@ -1033,8 +1034,8 @@ keysRouter.post('/custom/discover-models', async (req: Request, res: Response) =
   let endpoint: CustomEndpointRef;
   try {
     endpoint = resolveEndpointRef(parsed.data);
-  } catch (err: any) {
-    res.status(err.status ?? 400).json({ error: { message: err.message } });
+  } catch (err) {
+    res.status(errorProps(err).status ?? 400).json({ error: { message: errorMessage(err) } });
     return;
   }
 
@@ -1069,15 +1070,15 @@ keysRouter.post('/custom/discover-models', async (req: Request, res: Response) =
       total: models.length,
       registeredCount: models.filter(m => m.registered).length,
     });
-  } catch (err: any) {
+  } catch (err) {
     if (err instanceof ModelDiscoveryError) {
       // `upstream_error`, never `authentication_error`: this status is relayed
       // from the operator's own endpoint, and a client that reads a bare 401 as
       // "session expired" would sign the operator out for testing a bad key.
-      res.status(err.status).json({ error: { message: err.message, type: 'upstream_error' } });
+      res.status(err.status).json({ error: { message: errorMessage(err), type: 'upstream_error' } });
       return;
     }
-    res.status(502).json({ error: { message: `Model discovery failed: ${err?.message ?? 'unknown error'}` } });
+    res.status(502).json({ error: { message: `Model discovery failed: ${errorMessage(err, 'unknown error')}` } });
   }
 });
 
@@ -1126,13 +1127,13 @@ async function discoverForBuiltinKey(key: BuiltinKeyRow, apiKey: string | undefi
       total: models.length,
       registeredCount: models.filter(m => m.registered).length,
     });
-  } catch (err: any) {
+  } catch (err) {
     if (err instanceof ModelDiscoveryError) {
       // upstream_error, never authentication_error: see the custom route.
-      res.status(err.status).json({ error: { message: err.message, type: 'upstream_error' } });
+      res.status(err.status).json({ error: { message: errorMessage(err), type: 'upstream_error' } });
       return;
     }
-    res.status(502).json({ error: { message: `Model discovery failed: ${err?.message ?? 'unknown error'}` } });
+    res.status(502).json({ error: { message: `Model discovery failed: ${errorMessage(err, 'unknown error')}` } });
   }
 }
 
@@ -1191,8 +1192,8 @@ keysRouter.post('/custom/probe', async (req: Request, res: Response) => {
   let endpoint: CustomEndpointRef;
   try {
     endpoint = resolveEndpointRef(parsed.data);
-  } catch (err: any) {
-    res.status(err.status ?? 400).json({ error: { message: err.message } });
+  } catch (err) {
+    res.status(errorProps(err).status ?? 400).json({ error: { message: errorMessage(err) } });
     return;
   }
 
@@ -1262,15 +1263,15 @@ keysRouter.post('/custom/probe', async (req: Request, res: Response) => {
       ...(probe.reasoning !== undefined ? { reasoning: probe.reasoning } : {}),
       ...(probe.toolCalls !== undefined ? { toolCalls: probe.toolCalls } : {}),
     });
-  } catch (err: any) {
+  } catch (err) {
     if (err instanceof ModelDiscoveryError) {
       // `upstream_error`, never `authentication_error`: this status is relayed
       // from the operator's own endpoint, and a client that reads a bare 401 as
       // "session expired" would sign the operator out for testing a bad key.
-      res.status(err.status).json({ error: { message: err.message, type: 'upstream_error' } });
+      res.status(err.status).json({ error: { message: errorMessage(err), type: 'upstream_error' } });
       return;
     }
-    res.status(502).json({ error: { message: `Probe failed: ${err?.message ?? 'unknown error'}` } });
+    res.status(502).json({ error: { message: `Probe failed: ${errorMessage(err, 'unknown error')}` } });
   }
 });
 
@@ -1284,8 +1285,8 @@ keysRouter.post('/custom', async (req: Request, res: Response) => {
   let endpoint: CustomEndpointRef;
   try {
     endpoint = resolveEndpointRef(parsed.data);
-  } catch (err: any) {
-    res.status(err.status ?? 400).json({ error: { message: err.message } });
+  } catch (err) {
+    res.status(errorProps(err).status ?? 400).json({ error: { message: errorMessage(err) } });
     return;
   }
   const baseUrl = endpoint.baseUrl;
@@ -1399,8 +1400,8 @@ keysRouter.post('/custom', async (req: Request, res: Response) => {
         displayName: e.displayName,
         modality: kindOf(e) as 'image' | 'audio' | 'transcription',
       }))());
-    } catch (err: any) {
-      perModelErrors.push({ model: e.modelId, error: err?.message ?? 'media registration failed' });
+    } catch (err) {
+      perModelErrors.push({ model: e.modelId, error: errorMessage(err, 'media registration failed') });
     }
   }
 
@@ -1421,8 +1422,8 @@ keysRouter.post('/custom', async (req: Request, res: Response) => {
         quotaLabel: 'custom endpoint',
       });
       embeddingsRegistered.push({ model: e.modelId });
-    } catch (err: any) {
-      perModelErrors.push({ model: e.modelId, error: err?.message ?? 'embedding registration failed' });
+    } catch (err) {
+      perModelErrors.push({ model: e.modelId, error: errorMessage(err, 'embedding registration failed') });
     }
   }
 
@@ -1549,8 +1550,8 @@ keysRouter.post('/import', (req: Request, res: Response, next: NextFunction) => 
         total: result.keys.length + result.skipped.length,
         modelsRegistered,
       });
-    } catch (handlerErr: any) {
-      res.status(handlerErr.status ?? 500).json({ error: { message: handlerErr.message } });
+    } catch (handlerErr) {
+      res.status(errorProps(handlerErr).status ?? 500).json({ error: { message: errorMessage(handlerErr) } });
     }
   });
 });
@@ -1609,8 +1610,8 @@ keysRouter.post('/preview', (req: Request, res: Response, next: NextFunction) =>
       }
 
       res.json({ keys, total: keys.length, skipped, duplicates: duplicateCount });
-    } catch (handlerErr: any) {
-      res.status(handlerErr.status ?? 500).json({ error: { message: handlerErr.message } });
+    } catch (handlerErr) {
+      res.status(errorProps(handlerErr).status ?? 500).json({ error: { message: errorMessage(handlerErr) } });
     }
   });
 });

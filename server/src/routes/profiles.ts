@@ -9,6 +9,7 @@ import type { Request, Response } from 'express';
 import { z } from 'zod';
 import { getDb } from '../db/index.js';
 import { monthlyBudgetScore } from '../lib/budget.js';
+import { errorMessage } from '../lib/error-props.js';
 
 export const profilesRouter = Router();
 
@@ -433,8 +434,8 @@ profilesRouter.post('/:id/sort/:preset', (req: Request, res: Response) => {
   try {
     sortProfileModels(db, profileId, preset);
     res.json({ success: true, preset });
-  } catch (error: any) {
-    res.status(400).json({ error: { message: error.message } });
+  } catch (error) {
+    res.status(400).json({ error: { message: errorMessage(error) } });
   }
 });
 

@@ -50,6 +50,7 @@ import {
 } from '../services/fusion.js';
 import { applyDecisionRouting, routingStrategyHeader } from '../services/routing-decision.js';
 import { resolveListedClaudeAlias } from '../services/anthropic-map.js';
+import { errorMessage, errorProps } from '../lib/error-props.js';
 
 export const responsesRouter = Router();
 
@@ -839,10 +840,10 @@ export async function handleResponses(req: Request, res: Response): Promise<void
   } else if (isAutoModel(routedModel)) {
     try {
       resolvedChain = resolveRoutingChain(routedModel);
-    } catch (err: any) {
-      if (err?.status === 400) {
+    } catch (err) {
+      if (errorProps(err).status === 400) {
         res.status(400).json({
-          error: { message: err.message, type: 'invalid_request_error' },
+          error: { message: errorMessage(err), type: 'invalid_request_error' },
         });
         return;
       }
@@ -959,11 +960,11 @@ export async function handleResponses(req: Request, res: Response): Promise<void
         enforceFusionResponseFormat(result, samplingParams.response_format);
         res.setHeader('X-Routed-Via', safeHeaderValue(result.routedVia));
         res.json(buildFusionResponseObject(responseId, result));
-      } catch (err: any) {
+      } catch (err) {
         if (err instanceof FusionError) {
           res.status(err.status).json({
             error: {
-              message: err.message,
+              message: errorMessage(err),
               type: err.status === 429 ? 'rate_limit_error' : err.status >= 500 ? 'server_error' : 'invalid_request_error',
               ...(err.code ? { code: err.code } : {}),
             },
@@ -971,7 +972,7 @@ export async function handleResponses(req: Request, res: Response): Promise<void
         } else {
           res.status(502).json({
             error: {
-              message: `fusion error: ${sanitizeProviderErrorMessage(err?.message)}`,
+              message: `fusion error: ${sanitizeProviderErrorMessage(errorMessage(err))}`,
               type: 'server_error',
             },
           });
@@ -1141,10 +1142,10 @@ export async function handleResponses(req: Request, res: Response): Promise<void
 
       fusionSse('response.completed', { response: responseObject });
       res.end();
-    } catch (err: any) {
+    } catch (err) {
       const message = err instanceof FusionError
-        ? err.message
-        : `fusion error: ${sanitizeProviderErrorMessage(err?.message)}`;
+        ? errorMessage(err)
+        : `fusion error: ${sanitizeProviderErrorMessage(errorMessage(err))}`;
       const type = err instanceof FusionError
         ? (err.status === 429 ? 'rate_limit_error' : err.status >= 500 ? 'server_error' : 'invalid_request_error')
         : 'server_error';
@@ -1499,7 +1500,7 @@ export async function handleResponses(req: Request, res: Response): Promise<void
           });
           logRequest(route.platform, route.modelId, route.keyId, 'success', estimatedInputTokens, totalOutputTokens, Date.now() - start, null, ttfbMs, null, null, 'http');
           return 'done';
-        } catch (streamErr: any) {
+        } catch (streamErr) {
           // Client abort mid-stream: the pump's own `if (clientGone) break`
           // can lose the race against the fetch-signal rejection, so the
           // abort may surface here instead. Rethrow — the shared loop's
@@ -1510,7 +1511,7 @@ export async function handleResponses(req: Request, res: Response): Promise<void
           // response.failed event honestly and stop. A pre-commit failure throws
           // through to the shared loop for cooldown + failover.
           if (streamStarted) {
-            const safe = sanitizeProviderErrorMessage(streamErr.message);
+            const safe = sanitizeProviderErrorMessage(errorMessage(streamErr));
             traceRouteEvent('Responses', {
               event: 'fail',
               requestId: requestGroupId,

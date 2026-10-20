@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { extractApiToken } from './proxy.js';
 import { resolveAuth } from '../lib/system-prompt.js';
 import { runModerations, ModerationError } from '../services/moderation.js';
+import { errorMessage } from '../lib/error-props.js';
 
 export const moderationRouter = Router();
 
@@ -56,11 +57,11 @@ moderationRouter.post('/moderations', async (req: Request, res: Response) => {
       results: upstream.results ?? [],
       _provider: provider,
     });
-  } catch (err: any) {
+  } catch (err) {
     const status = err instanceof ModerationError ? err.status : 502;
     res.status(status >= 400 && status < 600 ? status : 502).json({
       error: {
-        message: err?.message ?? 'moderation request failed',
+        message: errorMessage(err, 'moderation request failed'),
         type: status === 429 ? 'rate_limit_error' : 'server_error',
       },
     });

@@ -16,6 +16,7 @@ import { secondsUntilNextMonth } from './key-budget.js';
 import { reserveProviderCredential, type ReservedProviderCredential } from './provider-credential.js';
 import { isOnCooldown, setCooldown } from './ratelimit.js';
 import { markKeyHealthyFromRequest } from './health.js';
+import { errorMessage } from '../lib/error-props.js';
 
 // Web search over the key pool (#1174).
 //
@@ -526,8 +527,8 @@ export async function runSearch(query: string, opts: SearchOptions = {}): Promis
           provider: row.platform,
           engine: row.model_id,
         };
-      } catch (err: any) {
-        const e = err instanceof SearchError ? err : new SearchError(String(err?.message ?? err), 502);
+      } catch (err) {
+        const e = err instanceof SearchError ? err : new SearchError(errorMessage(err), 502);
         logSearch(row, credential.id, 'error', Date.now() - started, 0, clientAgent, e.message.slice(0, 300));
         coolDown(row, credential.id, e);
         lastError = e;

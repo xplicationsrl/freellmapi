@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import type { ChatMessage } from '@freellmapi/shared/types.js';
+import { errorMessage } from './error-props.js';
 
 // Inbound image normalization. Vision payloads ride inline as base64 data
 // URLs, and agents replay their ENTIRE history every turn — one real Codex
@@ -90,11 +91,11 @@ async function loadSharp(): Promise<Sharp | null> {
   }
   try {
     sharpModule = (await import('sharp')).default;
-  } catch (err: any) {
+  } catch (err) {
     sharpModule = null;
     console.warn(
       '[ImageNormalize] sharp is unavailable, inbound images will not be resized ' +
-      `(set IMAGE_NORMALIZE=off to silence this): ${err?.message ?? err}`,
+      `(set IMAGE_NORMALIZE=off to silence this): ${errorMessage(err) ?? err}`,
     );
   }
   return sharpModule;

@@ -17,6 +17,7 @@ import {
 } from '../services/auth.js';
 import { setupCodeMatches, clearSetupCode } from '../lib/setup-code.js';
 import { generateResetCode, resetCodeMatches, clearResetCode } from '../lib/reset-code.js';
+import { errorMessage, errorProps } from '../lib/error-props.js';
 
 export const authRouter = Router();
 
@@ -317,9 +318,9 @@ authRouter.post('/change-email', (req: Request, res: Response) => {
     }
     failedPasswordAttempts.delete(session.userId);
     res.json({ success: true, email: parsed.data.newEmail.trim().toLowerCase() });
-  } catch (err: any) {
-    if (err.code === 'email_taken') {
-      res.status(409).json({ error: { message: err.message, type: 'email_taken' } });
+  } catch (err) {
+    if (errorProps(err).code === 'email_taken') {
+      res.status(409).json({ error: { message: errorMessage(err), type: 'email_taken' } });
     } else {
       throw err;
     }

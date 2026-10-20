@@ -6,6 +6,7 @@ import { getSetting } from '../db/index.js';
 import { decrypt, encrypt } from './crypto.js';
 import { assertProviderUrlAllowed, isLoopbackOrPrivateHostname } from './url-guard.js';
 import type { ProxyMode } from '@freellmapi/shared/types.js';
+import { errorMessage } from './error-props.js';
 
 // #590 (per-key proxy): the SAME provider may be reached through different
 // exit IPs per key (geo-ban / risk-control avoidance). Providers are process
@@ -546,8 +547,8 @@ async function resolveDispatcher(): Promise<{ dispatcher: unknown; isSocks: bool
     const dispatcher = new ProxyAgentCtor({ uri: _proxyUrl });
     cached = { dispatcher, proxyUrl: _proxyUrl, isSocks: false, ts: now };
     return { dispatcher, isSocks: false };
-  } catch (err: any) {
-    console.error(`[proxy] Failed to create dispatcher for "${redactProxyUrl(_proxyUrl)}": ${err.message}`);
+  } catch (err) {
+    console.error(`[proxy] Failed to create dispatcher for "${redactProxyUrl(_proxyUrl)}": ${errorMessage(err)}`);
     cached = { dispatcher: undefined, proxyUrl: _proxyUrl, isSocks: false, ts: now };
     return undefined;
   }
@@ -980,8 +981,8 @@ async function resolvePerKeyDispatcher(proxyUrl: string): Promise<{ dispatcher: 
     const dispatcher = new ProxyAgentCtor({ uri: proxyUrl });
     rememberPerKeyDispatcher(proxyUrl, { dispatcher, isSocks: false, ts: now });
     return { dispatcher, isSocks: false };
-  } catch (err: any) {
-    console.error(`[proxy] Failed to create per-key dispatcher for "${redactProxyUrl(proxyUrl)}": ${err.message}`);
+  } catch (err) {
+    console.error(`[proxy] Failed to create per-key dispatcher for "${redactProxyUrl(proxyUrl)}": ${errorMessage(err)}`);
     rememberPerKeyDispatcher(proxyUrl, { dispatcher: undefined, isSocks: false, ts: now });
     return undefined;
   }
@@ -1022,8 +1023,8 @@ export function flushProxyCache(): void {
     if (current?.constructor) {
       (globalThis as Record<symbol, unknown>)[sym] = new current.constructor();
     }
-  } catch (err: any) {
-    console.warn(`[proxy] could not replace the global fetch dispatcher on wake: ${err?.message ?? err}`);
+  } catch (err) {
+    console.warn(`[proxy] could not replace the global fetch dispatcher on wake: ${errorMessage(err) ?? err}`);
   }
 }
 
@@ -1116,7 +1117,7 @@ export async function probeProxyUrl(
     // Any other HTTP response proves the proxy route works; the upstream may
     // still answer 4xx without a key, which is connectivity, not proxy failure.
     return { ok: true, latencyMs: Date.now() - started, status: response.status, target };
-  } catch (err: any) {
-    return { ok: false, latencyMs: Date.now() - started, target, error: err?.message ?? String(err) };
+  } catch (err) {
+    return { ok: false, latencyMs: Date.now() - started, target, error: errorMessage(err) ?? String(err) };
   }
 }

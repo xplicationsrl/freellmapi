@@ -2,6 +2,7 @@ import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { z } from 'zod';
 import { listDecisionModels, runDecision, setDecisionModelEnabled, DecisionError } from '../services/decision.js';
+import { errorMessage, errorProps } from '../lib/error-props.js';
 
 // Dashboard: the Models → Decision page. Models come from the catalog's
 // decisionModels registry; this lists them with key and usage counts, lets the
@@ -58,8 +59,8 @@ decisionsRouter.post('/try', async (req: Request, res: Response) => {
       { model, clientAgent: 'dashboard' },
     );
     res.json(result);
-  } catch (err: any) {
+  } catch (err) {
     const status = err instanceof DecisionError ? err.status : 502;
-    res.status(status).json({ error: { message: err?.message ?? 'Decision failed', ...(err?.code ? { code: err.code } : {}) } });
+    res.status(status).json({ error: { message: errorMessage(err, 'Decision failed'), ...(errorProps(err).code ? { code: errorProps(err).code } : {}) } });
   }
 });

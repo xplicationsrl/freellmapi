@@ -5,6 +5,7 @@ import { getDb, setSetting } from '../db/index.js';
 import { decrypt, maskKey } from '../lib/crypto.js';
 import { deleteUnusedCustomEndpointKey } from '../lib/custom-provider-cleanup.js';
 import { resolveCustomEndpointKey } from '../services/custom-endpoint.js';
+import { errorMessage } from '../lib/error-props.js';
 import {
   listEmbeddingModels,
   getDefaultFamily,
@@ -116,10 +117,10 @@ embeddingsRouter.post('/custom', async (req: Request, res: Response) => {
   let dimensions: number;
   try {
     dimensions = await probeEmbeddingDimensions(baseUrl, probeKey, modelId);
-  } catch (err: any) {
+  } catch (err) {
     const status = err instanceof EmbeddingsError ? err.status : 502;
     res.status(status >= 400 && status < 600 ? status : 502).json({
-      error: { message: `custom embedding probe failed: ${err?.message ?? 'unknown error'}` },
+      error: { message: `custom embedding probe failed: ${errorMessage(err, 'unknown error')}` },
     });
     return;
   }
@@ -145,12 +146,12 @@ embeddingsRouter.post('/custom', async (req: Request, res: Response) => {
   let result: { modelDbId: number; keyId: number; storedKeyForMask: string };
   try {
     result = upsert();
-  } catch (err: any) {
+  } catch (err) {
     if (err instanceof EmbeddingsError) {
       // `upstream_error`, never `authentication_error`: this status is relayed
       // from the operator's own endpoint, and a client that reads a bare 401 as
       // "session expired" would sign the operator out for testing a bad key.
-      res.status(err.status).json({ error: { message: err.message, type: 'upstream_error' } });
+      res.status(err.status).json({ error: { message: errorMessage(err), type: 'upstream_error' } });
       return;
     }
     throw err;

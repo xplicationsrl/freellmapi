@@ -11,6 +11,7 @@ import { runImageGeneration, runVideoGeneration, runSpeech, runTranscription, in
 import { retryAfterSeconds } from '../lib/retry-hint.js';
 import { safeHeaderValue } from '../lib/header-value.js';
 import { requireInferenceAuth } from '../lib/inference-auth.js';
+import { errorMessage, errorProps } from '../lib/error-props.js';
 
 // Non-chat /v1 inference endpoints: embeddings, rerank, search, image / video /
 // speech generation and transcription. Mounted by proxyRouter (routes/proxy.ts)
@@ -49,11 +50,11 @@ mediaProxyRouter.post('/embeddings', async (req: Request, res: Response) => {
       provider: result.platform,
       usage: { prompt_tokens: result.inputTokens, total_tokens: result.inputTokens },
     });
-  } catch (err: any) {
+  } catch (err) {
     const status = err instanceof EmbeddingsError ? err.status : 502;
     const code = err instanceof EmbeddingsError ? inferenceBudgetCode(err, res) : {};
     const type = status === 400 ? 'invalid_request_error' : status === 429 ? 'rate_limit_error' : 'server_error';
-    res.status(status).json({ error: { message: `embedding error: ${err?.message ?? 'unknown'}`, type, ...code } });
+    res.status(status).json({ error: { message: `embedding error: ${errorMessage(err, 'unknown')}`, type, ...code } });
   }
 });
 
@@ -85,14 +86,14 @@ mediaProxyRouter.post('/rerank', async (req: Request, res: Response) => {
       model: result.modelId,
       provider: result.platform,
     });
-  } catch (err: any) {
+  } catch (err) {
     const status = err instanceof RerankError ? err.status : 502;
     if (err instanceof RerankError) {
       const retryAfter = rerankRetryAfterSec(err);
       if (retryAfter !== undefined) res.setHeader('Retry-After', String(retryAfter));
     }
     const type = status === 400 ? 'invalid_request_error' : status === 429 ? 'rate_limit_error' : 'server_error';
-    res.status(status).json({ error: { message: `rerank error: ${err?.message ?? 'unknown'}`, type } });
+    res.status(status).json({ error: { message: `rerank error: ${errorMessage(err, 'unknown')}`, type } });
   }
 });
 
@@ -132,7 +133,7 @@ mediaProxyRouter.post('/search', async (req: Request, res: Response) => {
       provider: result.provider,
       engine: result.engine,
     });
-  } catch (err: any) {
+  } catch (err) {
     if (res.headersSent || abort.signal.aborted) return;
     const status = err instanceof SearchError ? err.status : 502;
     if (err instanceof SearchError) {
@@ -142,9 +143,9 @@ mediaProxyRouter.post('/search', async (req: Request, res: Response) => {
     const type = status === 400 ? 'invalid_request_error' : status === 429 ? 'rate_limit_error' : 'server_error';
     res.status(status).json({
       error: {
-        message: `search error: ${err?.message ?? 'unknown'}`,
+        message: `search error: ${errorMessage(err, 'unknown')}`,
         type,
-        ...(err instanceof SearchError && err.code ? { code: err.code } : {}),
+        ...(err instanceof SearchError && err.code ? { code: errorProps(err).code } : {}),
       },
     });
   }
@@ -210,7 +211,7 @@ async function handleDecision(req: Request, res: Response): Promise<void> {
       answers: result.answers,
       usage: result.usage,
     });
-  } catch (err: any) {
+  } catch (err) {
     if (res.headersSent || abort.signal.aborted) return;
     const status = err instanceof DecisionError ? err.status : 502;
     if (err instanceof DecisionError) {
@@ -220,9 +221,9 @@ async function handleDecision(req: Request, res: Response): Promise<void> {
     const type = status === 400 ? 'invalid_request_error' : status === 429 ? 'rate_limit_error' : 'server_error';
     res.status(status).json({
       error: {
-        message: `decision error: ${err?.message ?? 'unknown'}`,
+        message: `decision error: ${errorMessage(err, 'unknown')}`,
         type,
-        ...(err instanceof DecisionError && err.code ? { code: err.code } : {}),
+        ...(err instanceof DecisionError && err.code ? { code: errorProps(err).code } : {}),
       },
     });
   }
@@ -298,11 +299,11 @@ mediaProxyRouter.post('/images/generations', async (req: Request, res: Response)
       model: result.modelId,
       provider: result.platform,
     });
-  } catch (err: any) {
+  } catch (err) {
     const status = err instanceof MediaError ? err.status : 502;
     const code = err instanceof MediaError ? inferenceBudgetCode(err, res) : {};
     const httpStatus = status >= 400 && status < 600 ? status : 502;
-    res.status(httpStatus).json({ error: { message: `image generation error: ${err?.message ?? 'unknown'}`, type: mediaErrorType(status), ...code } });
+    res.status(httpStatus).json({ error: { message: `image generation error: ${errorMessage(err, 'unknown')}`, type: mediaErrorType(status), ...code } });
   }
 });
 
@@ -354,14 +355,14 @@ mediaProxyRouter.post('/videos/generations', async (req: Request, res: Response)
     res.setHeader('X-Provider', safeHeaderValue(result.platform));
     res.setHeader('X-Model', safeHeaderValue(result.modelId));
     res.send(result.video);
-  } catch (err: any) {
+  } catch (err) {
     // Nothing to report to a socket that is already gone.
     if (clientAbort.signal.aborted || res.writableEnded) return;
     const status = err instanceof MediaError ? err.status : 502;
     const code = err instanceof MediaError ? inferenceBudgetCode(err, res) : {};
     const httpStatus = status >= 400 && status < 600 ? status : 502;
     res.status(httpStatus).json({
-      error: { message: `video generation error: ${err?.message ?? 'unknown'}`, type: mediaErrorType(status), ...code },
+      error: { message: `video generation error: ${errorMessage(err, 'unknown')}`, type: mediaErrorType(status), ...code },
     });
   }
 });
@@ -389,11 +390,11 @@ mediaProxyRouter.post('/audio/speech', async (req: Request, res: Response) => {
     res.setHeader('Content-Type', result.contentType);
     res.setHeader('X-Provider', safeHeaderValue(result.platform));
     res.send(result.audio);
-  } catch (err: any) {
+  } catch (err) {
     const status = err instanceof MediaError ? err.status : 502;
     const code = err instanceof MediaError ? inferenceBudgetCode(err, res) : {};
     const httpStatus = status >= 400 && status < 600 ? status : 502;
-    res.status(httpStatus).json({ error: { message: `speech error: ${err?.message ?? 'unknown'}`, type: mediaErrorType(status), ...code } });
+    res.status(httpStatus).json({ error: { message: `speech error: ${errorMessage(err, 'unknown')}`, type: mediaErrorType(status), ...code } });
   }
 });
 
@@ -512,10 +513,10 @@ mediaProxyRouter.post('/audio/transcriptions', (req: Request, res: Response, nex
       return;
     }
     res.json({ text: result.text });
-  } catch (err: any) {
+  } catch (err) {
     const status = err instanceof MediaError ? err.status : 502;
     const code = err instanceof MediaError ? inferenceBudgetCode(err, res) : {};
     const httpStatus = status >= 400 && status < 600 ? status : 502;
-    res.status(httpStatus).json({ error: { message: `transcription error: ${err?.message ?? 'unknown'}`, type: mediaErrorType(status), ...code } });
+    res.status(httpStatus).json({ error: { message: `transcription error: ${errorMessage(err, 'unknown')}`, type: mediaErrorType(status), ...code } });
   }
 });

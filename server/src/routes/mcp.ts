@@ -12,6 +12,7 @@ import { getCompressionStats } from '../services/compression/stats.js';
 import { getQuotaOutlook } from '../services/quota-outlook.js';
 import { sanitizeProviderErrorMessage } from '../lib/error-redaction.js';
 import { z } from 'zod';
+import { errorMessage, errorProps } from '../lib/error-props.js';
 
 // ─────────────────────────────────────────────────────────────────────────
 // MCP server for the gateway (POST /mcp) — Model Context Protocol over
@@ -355,8 +356,8 @@ async function askFreeLlmApi(args: Record<string, unknown>, req: Request, res: R
         ? payload.execution_id
         : response.headers.get('x-request-id'),
     };
-  } catch (error: any) {
-    if (error?.name === 'AbortError') {
+  } catch (error) {
+    if (errorProps(error).name === 'AbortError') {
       throw new Error(`FreeLLMAPI inference timed out or was cancelled after ${timeoutMs}ms`);
     }
     throw error;
@@ -619,9 +620,9 @@ async function dispatchRpc(msg: JsonRpcRequest, id: number | string | null, req:
       try {
         const args = (msg.params?.arguments as Record<string, unknown>) ?? {};
         return rpcResult(id, toolJson(await tool.run(args, req, res)));
-      } catch (err: any) {
+      } catch (err) {
         // Tool-level failures are results with isError, not protocol errors.
-        return rpcResult(id, toolError(err?.message ?? 'tool failed'));
+        return rpcResult(id, toolError(errorMessage(err, 'tool failed')));
       }
     }
     default:

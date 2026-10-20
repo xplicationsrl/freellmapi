@@ -42,6 +42,7 @@ import { modelsProxyRouter } from './proxy-models.js';
 import { getRequestGroupId, withExecutionId, traceRouteEvent } from '../lib/request-trace.js';
 import { rememberReasoning, rememberedReasoningFor, restoreSessionReasoning, getSessionKey, getStickyModel, setStickyModel, clearReasoningMemory } from '../lib/session-memory.js';
 import { completionPromptToMessages, completionTextFromChat, completionReasoningText, completionIdFromChat, legacyCompletionChunk } from '../lib/legacy-completions.js';
+import { errorMessage } from '../lib/error-props.js';
 
 // Re-exported for existing importers (responses, inbound-chat, tests).
 export { streamChunkText, streamReasoningText, extractApiToken, getRequestGroupId, traceRouteEvent, getStickyModel, setStickyModel, clearReasoningMemory, completionReasoningText };
@@ -420,7 +421,7 @@ proxyRouter.post('/completions', async (req: Request, res: Response) => {
           });
           logRequest(route.platform, route.modelId, route.keyId, 'success', estimatedInputTokens, totalOutputTokens, Date.now() - start, null, ttfbMs, pinnedModelId, null, 'http');
           return 'done';
-        } catch (streamErr: any) {
+        } catch (streamErr) {
           // Client abort mid-stream: the pump's own `if (clientGone) break`
           // can lose the race against the fetch-signal rejection, so the
           // abort may surface here instead. Rethrow — the shared loop's
@@ -428,7 +429,7 @@ proxyRouter.post('/completions', async (req: Request, res: Response) => {
           // error log row (the socket is gone; nothing to render).
           if (isClientAbortError(streamErr)) throw streamErr;
           if (headerSent) {
-            console.error(`[Proxy] Mid-stream legacy completion error from ${route.displayName}:`, streamErr.message);
+            console.error(`[Proxy] Mid-stream legacy completion error from ${route.displayName}:`, errorMessage(streamErr));
             const payload = { error: { message: `Provider error (${route.displayName}): stream interrupted`, type: 'stream_error' } };
             try { res.write(`data: ${JSON.stringify(payload)}\n\n`); } catch { /* socket gone */ }
             try { res.write('data: [DONE]\n\n'); res.end(); } catch { /* socket gone */ }
@@ -439,9 +440,9 @@ proxyRouter.post('/completions', async (req: Request, res: Response) => {
               platform: route.platform,
               model: route.modelId,
               latencyMs: Date.now() - start,
-              error: sanitizeProviderErrorMessage(streamErr.message),
+              error: sanitizeProviderErrorMessage(errorMessage(streamErr)),
             });
-            logRequest(route.platform, route.modelId, route.keyId, 'error', estimatedInputTokens, totalOutputTokens, Date.now() - start, sanitizeProviderErrorMessage(streamErr.message), ttfbMs, pinnedModelId, null, 'http', failureAttributionFor(streamErr));
+            logRequest(route.platform, route.modelId, route.keyId, 'error', estimatedInputTokens, totalOutputTokens, Date.now() - start, sanitizeProviderErrorMessage(errorMessage(streamErr)), ttfbMs, pinnedModelId, null, 'http', failureAttributionFor(streamErr));
             return 'committed';
           }
           throw streamErr;
@@ -900,8 +901,8 @@ proxyRouter.post('/chat/completions', async (req: Request, res: Response) => {
           }
           writeFrame({ ...base, choices: [{ index: 0, delta: {}, finish_reason: 'stop' }], usage: response.usage });
         }
-      } catch (err: any) {
-        const message = err instanceof FusionError ? err.message : `fusion error: ${sanitizeProviderErrorMessage(err?.message)}`;
+      } catch (err) {
+        const message = err instanceof FusionError ? errorMessage(err) : `fusion error: ${sanitizeProviderErrorMessage(errorMessage(err))}`;
         const type = err instanceof FusionError
           ? (err.status === 429 ? 'rate_limit_error' : err.status >= 500 ? 'server_error' : 'invalid_request_error')
           : 'server_error';
@@ -940,18 +941,18 @@ proxyRouter.post('/chat/completions', async (req: Request, res: Response) => {
       }
       res.setHeader('X-Routed-Via', safeHeaderValue(routedVia));
       res.json({ ...response, execution_id: requestGroupId });
-    } catch (err: any) {
+    } catch (err) {
       if (err instanceof FusionError) {
         res.status(err.status).json({
           error: {
-            message: err.message,
+            message: errorMessage(err),
             type: err.status === 429 ? 'rate_limit_error' : err.status >= 500 ? 'server_error' : 'invalid_request_error',
             ...(err.code ? { code: err.code } : {}),
           },
           execution_id: requestGroupId,
         });
       } else {
-        res.status(502).json({ error: { message: `fusion error: ${sanitizeProviderErrorMessage(err?.message)}`, type: 'server_error' }, execution_id: requestGroupId });
+        res.status(502).json({ error: { message: `fusion error: ${sanitizeProviderErrorMessage(errorMessage(err))}`, type: 'server_error' }, execution_id: requestGroupId });
       }
     }
     return;
@@ -1732,7 +1733,7 @@ proxyRouter.post('/chat/completions', async (req: Request, res: Response) => {
           logRequest(route.platform, route.modelId, route.keyId, 'success', inputTokens, outputTokens, Date.now() - start, null, ttfbMs, pinnedModelId,
             observeServedModel({ platform: route.platform, requestedModel: route.modelId, servedModel: upstreamModel }), 'http');
           return 'done';
-        } catch (streamErr: any) {
+        } catch (streamErr) {
           // Client abort mid-stream: the pump's own `if (clientGone) break`
           // can lose the race against the fetch-signal rejection, so the
           // abort may surface here instead. Rethrow — the shared loop's
@@ -1742,7 +1743,7 @@ proxyRouter.post('/chat/completions', async (req: Request, res: Response) => {
           if (headerSent) {
             // Mid-stream error after real payload reached the client — finish
             // the SSE response honestly instead of leaving the client hanging.
-            console.error(`[Proxy] Mid-stream error from ${route.displayName}:`, streamErr.message);
+            console.error(`[Proxy] Mid-stream error from ${route.displayName}:`, errorMessage(streamErr));
             const payload = { error: { message: `Provider error (${route.displayName}): stream interrupted`, type: 'stream_error' } };
             try { res.write(`data: ${JSON.stringify(payload)}\n\n`); } catch { /* socket gone */ }
             try { res.write('data: [DONE]\n\n'); res.end(); } catch { /* socket gone */ }
@@ -1753,9 +1754,9 @@ proxyRouter.post('/chat/completions', async (req: Request, res: Response) => {
               platform: route.platform,
               model: route.modelId,
               latencyMs: Date.now() - start,
-              error: sanitizeProviderErrorMessage(streamErr.message),
+              error: sanitizeProviderErrorMessage(errorMessage(streamErr)),
             });
-            logRequest(route.platform, route.modelId, route.keyId, 'error', estimatedInputTokens, totalOutputTokens, Date.now() - start, sanitizeProviderErrorMessage(streamErr.message), ttfbMs, pinnedModelId, null, 'http', failureAttributionFor(streamErr));
+            logRequest(route.platform, route.modelId, route.keyId, 'error', estimatedInputTokens, totalOutputTokens, Date.now() - start, sanitizeProviderErrorMessage(errorMessage(streamErr)), ttfbMs, pinnedModelId, null, 'http', failureAttributionFor(streamErr));
             return 'committed';
           }
           // Headers never sent — bubble to the shared loop, which cooldowns this

@@ -33,6 +33,7 @@ import { compressRequest, formatCompressionHeader } from '../services/compressio
 import { normalizeMessageImages } from '../lib/image-normalize.js';
 import { maybeServeAnthropicWebSearch, serverToolUseToText, webSearchResultToText } from '../lib/anthropic-web-search.js';
 import { applyDecisionRouting, routingStrategyHeader } from '../services/routing-decision.js';
+import { errorMessage, errorProps } from '../lib/error-props.js';
 
 // Anthropic-compatible Messages API (`POST /v1/messages`). This is a thin
 // translation layer over the SAME router/fallback/analytics machinery the
@@ -567,9 +568,9 @@ export async function handleMessages(req: Request, res: Response): Promise<void>
       // Named auto:<profile> / auto:smart get their own sticky bucket. Plain
       // `auto` stays unscoped so Claude Code session affinity is unchanged.
       strategyKey = resolvedChain.strategyKey === 'auto' ? undefined : resolvedChain.strategyKey;
-    } catch (err: any) {
-      if (err?.status === 400) {
-        sendError(res, 400, 'invalid_request_error', err.message);
+    } catch (err) {
+      if (errorProps(err).status === 400) {
+        sendError(res, 400, 'invalid_request_error', errorMessage(err));
         return;
       }
       throw err;
@@ -704,7 +705,7 @@ export async function handleMessages(req: Request, res: Response): Promise<void>
             sessionId, pinned: resolved.pinned, stickyScope, strategyKey, disarmHedge: dispatchCtx.disarmHedge, state,
           });
           return 'done';
-        } catch (err: any) {
+        } catch (err) {
           // The stream already committed (message_start sent) and surfaced its
           // own error event; stop without failover or a second response.
           if (err instanceof StreamAlreadyStarted) return 'committed';
@@ -1099,7 +1100,7 @@ async function streamCompletion(
     recordUpstreamSuccess(route, ctx.estimatedInputTokens + outputTokens, ctx.state);
     if (!ctx.pinned || ctx.stickyScope) setStickyModel(messages, route.modelDbId, ctx.sessionId, ctx.stickyScope ?? ctx.strategyKey);
     logRequest(route.platform, route.modelId, route.keyId, 'success', ctx.estimatedInputTokens, outputTokens, Date.now() - ctx.start, null, null, ctx.pinnedModelId, null, 'http');
-  } catch (err: any) {
+  } catch (err) {
     if (err instanceof StreamAlreadyStarted) throw err;
     // Client abort mid-stream: the pump's own `if (ctx.clientGone()) break`
     // can lose the race against the fetch-signal rejection, so the abort may
@@ -1112,7 +1113,7 @@ async function streamCompletion(
       // honestly instead of leaving Claude Code hanging, and stop the retry loop.
       writeSse(res, 'error', { type: 'error', error: { type: 'api_error', message: `Provider error (${route.displayName}): stream interrupted` } });
       try { res.end(); } catch { /* socket gone */ }
-      logRequest(route.platform, route.modelId, route.keyId, 'error', ctx.estimatedInputTokens, outputChars, Date.now() - ctx.start, sanitizeProviderErrorMessage(err.message), null, ctx.pinnedModelId, null, 'http', failureAttributionFor(err));
+      logRequest(route.platform, route.modelId, route.keyId, 'error', ctx.estimatedInputTokens, outputChars, Date.now() - ctx.start, sanitizeProviderErrorMessage(errorMessage(err)), null, ctx.pinnedModelId, null, 'http', failureAttributionFor(err));
       throw new StreamAlreadyStarted();
     }
     // Headers never sent — bubble to the outer loop for failover.

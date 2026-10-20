@@ -28,6 +28,7 @@ import { getHeadroomThresholds, setHeadroomThresholds, getTaskWeightShare, setTa
 import { MCP_ENABLED_SETTING, isMcpServerEnabled } from './mcp.js';
 import { z } from 'zod';
 import { getAppVersion } from '../lib/app-version.js';
+import { errorMessage } from '../lib/error-props.js';
 import {
   UNIFIED_MAX_TOKENS_SETTING,
   UNIFIED_MAX_TOKENS_AUTO,
@@ -161,6 +162,18 @@ settingsRouter.get('/anthropic-map', (_req: Request, res: Response) => {
   res.json({ map: getClaudeModelMap() });
 });
 
+// What was wrong with a rejected model map: a schema error lists the fields (at
+// most five), anything else falls back to its own message.
+function validationDetail(err: unknown): string {
+  if (err instanceof z.ZodError) {
+    return err.errors
+      .map(issue => (issue.path.length ? `${issue.path.join('.')}: ${issue.message}` : issue.message))
+      .slice(0, 5)
+      .join(', ');
+  }
+  return errorMessage(err, 'invalid');
+}
+
 // Update the Claude Code model map. Partial: send just the families you want to
 // change; each value is 'auto', a catalog model_id, or a tier selector
 // (`tier:pro` | `tier:mid` | `tier:normal`) that routes over the whole
@@ -168,10 +181,8 @@ settingsRouter.get('/anthropic-map', (_req: Request, res: Response) => {
 settingsRouter.put('/anthropic-map', (req: Request, res: Response) => {
   try {
     res.json({ map: setClaudeModelMap(req.body) });
-  } catch (err: any) {
-    const detail = err?.errors
-      ? err.errors.map((e: any) => (e.path?.length ? `${e.path.join('.')}: ${e.message}` : e.message)).slice(0, 5).join(', ')
-      : (err?.message ?? 'invalid');
+  } catch (err) {
+    const detail = validationDetail(err);
     res.status(400).json({ error: { message: `Invalid anthropic model map: ${detail}`, type: 'invalid_request_error' } });
   }
 });
@@ -183,10 +194,8 @@ settingsRouter.get('/gemini-map', (_req: Request, res: Response) => {
 settingsRouter.put('/gemini-map', (req: Request, res: Response) => {
   try {
     res.json({ map: setGeminiModelMap(req.body) });
-  } catch (err: any) {
-    const detail = err?.errors
-      ? err.errors.map((e: any) => (e.path?.length ? `${e.path.join('.')}: ${e.message}` : e.message)).slice(0, 5).join(', ')
-      : (err?.message ?? 'invalid');
+  } catch (err) {
+    const detail = validationDetail(err);
     res.status(400).json({ error: { message: `Invalid Gemini model map: ${detail}`, type: 'invalid_request_error' } });
   }
 });
@@ -368,8 +377,8 @@ settingsRouter.put('/headroom', (req: Request, res: Response) => {
     setHeadroomThresholds(parsed.data.rampStart, parsed.data.floor);
     const { rampStart, floor } = getHeadroomThresholds();
     res.json({ rampStart: rampStart ?? null, floor: floor ?? null });
-  } catch (err: any) {
-    res.status(400).json({ error: { message: `Invalid headroom thresholds: ${err.message}`, type: 'invalid_request_error' } });
+  } catch (err) {
+    res.status(400).json({ error: { message: `Invalid headroom thresholds: ${errorMessage(err)}`, type: 'invalid_request_error' } });
   }
 });
 
@@ -395,8 +404,8 @@ settingsRouter.put('/task-weight-share', (req: Request, res: Response) => {
   try {
     setTaskWeightShare(parsed.data.share);
     res.json({ share: getTaskWeightShare() });
-  } catch (err: any) {
-    res.status(400).json({ error: { message: `Invalid task-weight-share: ${err.message}`, type: 'invalid_request_error' } });
+  } catch (err) {
+    res.status(400).json({ error: { message: `Invalid task-weight-share: ${errorMessage(err)}`, type: 'invalid_request_error' } });
   }
 });
 
@@ -423,8 +432,8 @@ settingsRouter.put('/min-reliability-floor', (req: Request, res: Response) => {
   try {
     setMinReliabilityFloor(parsed.data.floor);
     res.json({ floor: getMinReliabilityFloor() ?? null });
-  } catch (err: any) {
-    res.status(400).json({ error: { message: `Invalid min-reliability-floor: ${err.message}`, type: 'invalid_request_error' } });
+  } catch (err) {
+    res.status(400).json({ error: { message: `Invalid min-reliability-floor: ${errorMessage(err)}`, type: 'invalid_request_error' } });
   }
 });
 

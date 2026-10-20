@@ -64,6 +64,7 @@ import { logRequest, persistRequestAttempts } from './request-log.js';
 import { withKeyProxy } from './proxy.js';
 import { getEndpointTimeBudgetMs } from './ttfb-budget.js';
 import { learnOutputCapFromError, learnedOutputCap } from './output-cap.js';
+import { errorMessage } from './error-props.js';
 
 // Every surface caps failover hops at the same number.
 export const FALLBACK_MAX_RETRIES = 20;
@@ -142,8 +143,8 @@ function benchKeyAcrossPlatform(
     modelIds = (getDb().prepare(
       'SELECT model_id FROM models WHERE platform = ? AND enabled = 1 AND (key_id IS NULL OR key_id = ?)',
     ).all(route.platform, route.keyId) as { model_id: string }[]).map(r => r.model_id);
-  } catch (dbErr: any) {
-    console.warn(`[FallbackLoop] could not list ${route.platform} models to bench key ${route.keyId}: ${dbErr?.message ?? dbErr}`);
+  } catch (dbErr) {
+    console.warn(`[FallbackLoop] could not list ${route.platform} models to bench key ${route.keyId}: ${errorMessage(dbErr) ?? dbErr}`);
     return;
   }
   let benched = 0;
@@ -1517,7 +1518,7 @@ async function runFallbackLoopAttempts(hooks: FallbackHooks, trace: RequestTrace
       // arrives already decrypted on the route (services/router.ts), so an
       // attempt costs nothing extra — no query, no decrypt.
       outcome = await withKeyProxy(route.proxyUrl, () => hooks.dispatch(route, attempt, { disarmHedge }));
-    } catch (err: any) {
+    } catch (err) {
       // Client-caused abort: the composed fetch signal fired because OUR
       // client hung up mid-attempt (see newClientAbortError). Not a
       // provider-health signal — no cooldown, no penalty, no failure stats,
@@ -1596,7 +1597,7 @@ async function runFallbackLoopAttempts(hooks: FallbackHooks, trace: RequestTrace
         // instead of re-stalling on this route every request. Errors that
         // arrive EARLY (the common Groq tool_use_failed shape) stay unbenced —
         // a fast verdict costs the ladder nothing.
-        const errStr = err?.message ?? '';
+        const errStr = errorMessage(err, '');
         if (
           budgetMs > 0
           && typeof errStr === 'string' && errStr.includes('in-band provider error')

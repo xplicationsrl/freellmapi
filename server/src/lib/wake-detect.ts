@@ -1,4 +1,5 @@
 // Detect that the host slept (laptop lid closed, VM paused) and give the
+import { errorMessage } from './error-props.js';
 // server a chance to shake off stale state the moment it comes back. While
 // the process is suspended nothing runs — timers, health probes, keep-alive
 // sockets all freeze — so the first requests after wake used to hit dead
@@ -74,8 +75,8 @@ function invokeHooks(event: WakeEvent): void {
     Promise.resolve(hooks.onWake(event)).catch((err) => {
       console.error(`[wake-detect] onWake handler error: ${err?.message ?? err}`);
     });
-  } catch (err: any) {
-    console.error(`[wake-detect] onWake handler threw synchronously: ${err?.message ?? err}`);
+  } catch (err) {
+    console.error(`[wake-detect] onWake handler threw synchronously: ${errorMessage(err) ?? err}`);
   }
 }
 

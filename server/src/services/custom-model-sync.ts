@@ -5,6 +5,7 @@ import { registerCustomModels, type CustomModelEntry } from './custom-model-regi
 import { isCustomModelTombstoned } from './custom-model-tombstone.js';
 import { listCustomEndpoints } from './custom-endpoint.js';
 import { endpointScopeForBaseUrl } from '../lib/endpoint-scope.js';
+import { errorMessage } from '../lib/error-props.js';
 
 // ── Scheduled custom-model sync (#674/#663/#656) ─────────────────────────────
 //
@@ -127,8 +128,8 @@ export async function runCustomModelSync(db: Db): Promise<CustomModelSyncResult>
         const registered = registerCustomModels(db, endpoint.baseUrl, undefined, undefined, endpoint.keyId, fresh);
         result.added += registered.registered.filter(m => m.created).length;
       }
-    } catch (err: any) {
-      const message = err?.message ?? String(err);
+    } catch (err) {
+      const message = errorMessage(err) ?? String(err);
       result.failures.push({ baseUrl: endpoint.baseUrl, error: message });
       console.error(`[custom-model-sync] ${endpoint.baseUrl}: ${message}`);
     }

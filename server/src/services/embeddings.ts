@@ -21,6 +21,7 @@ import { SPEKA_BASE_URL } from '../providers/speka.js';
 import { ELECTRONHUB_BASE_URL } from '../providers/electronhub.js';
 import { INFERBASE_BASE_URL } from '../providers/inferbase.js';
 import { LLMTR_BASE_URL } from '../providers/llmtr.js';
+import { errorMessage } from '../lib/error-props.js';
 
 export interface EmbeddingModelRow {
   id: number;
@@ -416,8 +417,8 @@ export async function runEmbeddings(model: string | undefined, inputs: string[],
         vectors: out.vectors,
         inputTokens: tokens,
       };
-    } catch (err: any) {
-      const e = err instanceof EmbeddingsError ? err : new EmbeddingsError(String(err?.message ?? err), 502);
+    } catch (err) {
+      const e = err instanceof EmbeddingsError ? err : new EmbeddingsError(errorMessage(err), 502);
       logEmbeddingRequest(row, credential.id, 'error', 0, Date.now() - started, e.message.slice(0, 300));
       lastError = e;
       hints.record(e.status, e.retryAfterMs);

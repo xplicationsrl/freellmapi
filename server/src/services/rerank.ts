@@ -2,6 +2,7 @@ import { getDb } from '../db/index.js';
 import { decrypt } from '../lib/crypto.js';
 import { parseRetryAfterMs } from '../providers/base.js';
 import { secondsUntilNextMonth } from './key-budget.js';
+import { errorMessage } from '../lib/error-props.js';
 
 // Cohere-style rerank over the existing free-tier key pool (#1029). Deliberately
 // narrow first slice: platform='cohere' keys and custom OpenAI-compatible
@@ -102,8 +103,8 @@ export async function runRerank(model: string | undefined, query: string, docume
     try {
       const out = await callProvider(cand, model, query, documents, n);
       return { platform: cand.platform, modelId: out.modelId, results: out.results };
-    } catch (err: any) {
-      lastError = err instanceof RerankError ? err : new RerankError(String(err?.message ?? err), 502);
+    } catch (err) {
+      lastError = err instanceof RerankError ? err : new RerankError(errorMessage(err), 502);
     }
   }
   throw new RerankError(

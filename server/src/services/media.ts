@@ -21,6 +21,7 @@ import { SPEECHIFY_BASE_URL, SPEECHIFY_VERSION } from '../providers/speechify.js
 import { TYPHOON_BASE_URL } from '../providers/typhoon.js';
 import { ELECTRONHUB_BASE_URL } from '../providers/electronhub.js';
 import { FREEAI_BASE_URL, freeAiAudioUrl } from '../providers/freeai.js';
+import { errorMessage } from '../lib/error-props.js';
 
 /** Platforms with a media adapter below. catalog-sync gates media rows on this
  *  (decoupled from the chat provider registry — e.g. SiliconFlow is media-only). */
@@ -870,8 +871,8 @@ export async function runImageGeneration(model: string | undefined, params: Imag
       }
       logMedia(row, credential.id, 'success', Date.now() - started, null);
       return { platform: row.platform, modelId: row.model_id, images };
-    } catch (err: any) {
-      const e = err instanceof MediaError ? err : new MediaError(String(err?.message ?? err), 502);
+    } catch (err) {
+      const e = err instanceof MediaError ? err : new MediaError(errorMessage(err), 502);
       logMedia(row, credential.id, 'error', Date.now() - started, e.message.slice(0, 300));
       lastError = e;
       hints.record(e.status, e.retryAfterMs);
@@ -914,8 +915,8 @@ export async function inlineImageUrls(
     let response: Response;
     try {
       response = await proxyFetch(image.url, { signal, redirect: 'error' }, platform, 'image', INLINE_IMAGE_TIMEOUT_MS);
-    } catch (err: any) {
-      throw new MediaError(`could not download the generated image: ${String(err?.message ?? err).slice(0, 120)}`, 502);
+    } catch (err) {
+      throw new MediaError(`could not download the generated image: ${errorMessage(err).slice(0, 120)}`, 502);
     }
     if (!response.ok) {
       throw new MediaError(`could not download the generated image (HTTP ${response.status})`, 502);
@@ -965,8 +966,8 @@ export async function runVideoGeneration(
       if (!out.video.length) throw new MediaError('upstream returned no video', 502);
       logMedia(row, credential.id, 'success', Date.now() - started, null);
       return { platform: row.platform, modelId: row.model_id, ...out };
-    } catch (err: any) {
-      const e = err instanceof MediaError ? err : new MediaError(String(err?.message ?? err), 502);
+    } catch (err) {
+      const e = err instanceof MediaError ? err : new MediaError(errorMessage(err), 502);
       logMedia(row, credential.id, 'error', Date.now() - started, e.message.slice(0, 300));
       if (e.status === 429 && credential.id != null) setCooldown(row.platform, row.model_id, credential.id);
       lastError = e;
@@ -1261,8 +1262,8 @@ export async function runTranscription(model: string | undefined, p: Transcripti
       }
       logMedia(logRow, credential.id, 'success', Date.now() - started, null);
       return { platform: m.platform, modelId: m.modelId, ...out };
-    } catch (err: any) {
-      const e = err instanceof MediaError ? err : new MediaError(String(err?.message ?? err), 502);
+    } catch (err) {
+      const e = err instanceof MediaError ? err : new MediaError(errorMessage(err), 502);
       logMedia(logRow, credential.id, 'error', Date.now() - started, e.message.slice(0, 300));
       if (e.status === 429 && credential.id != null) {
         setCooldown(m.platform, m.modelId, credential.id);
@@ -1299,8 +1300,8 @@ export async function runSpeech(model: string | undefined, params: SpeechParams)
       if (!out.audio.length) throw new MediaError('upstream returned no audio', 502);
       logMedia(row, credential.id, 'success', Date.now() - started, null);
       return { platform: row.platform, modelId: row.model_id, audio: out.audio, contentType: out.contentType };
-    } catch (err: any) {
-      const e = err instanceof MediaError ? err : new MediaError(String(err?.message ?? err), 502);
+    } catch (err) {
+      const e = err instanceof MediaError ? err : new MediaError(errorMessage(err), 502);
       logMedia(row, credential.id, 'error', Date.now() - started, e.message.slice(0, 300));
       lastError = e;
       hints.record(e.status, e.retryAfterMs);

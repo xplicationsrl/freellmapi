@@ -1,4 +1,5 @@
 import { getDb, getSetting } from '../db/index.js';
+import { errorMessage } from '../lib/error-props.js';
 
 // Written by catalog-sync on every completed run (services/catalog-sync.ts).
 // Its presence is the only "the catalog is real, not just the migration seed"
@@ -127,11 +128,11 @@ export function warnOnRoutingOverrideDrift(
   let parsed: unknown;
   try {
     parsed = JSON.parse(raw);
-  } catch (err: any) {
+  } catch (err) {
     drift.malformed = true;
     logger.warn(
       `[config] MODEL_ROUTING_OVERRIDES is not valid JSON and is being ignored entirely `
-      + `(${err?.message ?? err}). Expected an object like {"gpt-4o": 0.2}.`,
+      + `(${errorMessage(err) ?? err}). Expected an object like {"gpt-4o": 0.2}.`,
     );
     return drift;
   }

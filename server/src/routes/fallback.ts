@@ -19,6 +19,7 @@ import { overriddenFieldNames } from '../services/model-state.js';
 import { parseModelScope, scopeAllows } from '../lib/model-scope.js';
 import { getQuotaOutlook } from '../services/quota-outlook.js';
 import { getDecisionRoutingStatus, setDecisionRoutingSettings } from '../services/routing-decision.js';
+import { errorMessage } from '../lib/error-props.js';
 
 export const fallbackRouter = Router();
 
@@ -106,8 +107,8 @@ fallbackRouter.put('/routing', (req: Request, res: Response) => {
   if (parsed.data.weights) {
     try {
       setCustomWeights(parsed.data.weights);
-    } catch (err: any) {
-      res.status(400).json({ error: { message: err?.message ?? 'Invalid custom weights' } });
+    } catch (err) {
+      res.status(400).json({ error: { message: errorMessage(err, 'Invalid custom weights') } });
       return;
     }
   }
@@ -129,8 +130,8 @@ fallbackRouter.put('/routing', (req: Request, res: Response) => {
       endHour: parsed.data.peakEndHour,
       timezone: parsed.data.peakTimezone,
     });
-  } catch (err: any) {
-    res.status(400).json({ error: { message: err?.message ?? 'Invalid peak-hours settings' } });
+  } catch (err) {
+    res.status(400).json({ error: { message: errorMessage(err, 'Invalid peak-hours settings') } });
     return;
   }
   // `presets` is the raw preset table (unchanged); `weights` is what the router

@@ -5,6 +5,7 @@
 import { initDb, getDb } from '../db/index.js';
 import { decrypt } from '../lib/crypto.js';
 import { getProvider } from '../providers/index.js';
+import { errorMessage } from '../lib/error-props.js';
 
 initDb();
 const db = getDb();
@@ -51,8 +52,8 @@ for (const row of models) {
     const raw = res.choices?.[0]?.message?.content;
     const reply = typeof raw === 'string' ? raw.slice(0, 40) : '';
     results.push({ row, ok: true, ms: Date.now() - start, reply });
-  } catch (err: any) {
-    results.push({ row, ok: false, ms: Date.now() - start, error: String(err?.message ?? err).slice(0, 200) });
+  } catch (err) {
+    results.push({ row, ok: false, ms: Date.now() - start, error: errorMessage(err).slice(0, 200) });
   }
 }
 

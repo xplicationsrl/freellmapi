@@ -8,6 +8,7 @@ import { proxyFetch } from '../lib/proxy.js';
 import { secondsUntilNextMonth } from './key-budget.js';
 import { reserveProviderCredential, type ReservedProviderCredential } from './provider-credential.js';
 import { isOnCooldown, setCooldown } from './ratelimit.js';
+import { errorMessage } from '../lib/error-props.js';
 
 // Decision models over the key pool.
 //
@@ -353,8 +354,8 @@ export async function runDecision(body: DecisionRequest, opts: DecisionOptions =
         const out = await ADAPTERS[row.platform]!(credential, row.model_id, body, opts.signal);
         logDecision(row, credential.id, 'ok', Date.now() - started, questionCount, out.usage.input_tokens, clientAgent, null);
         return { model: row.model_id, provider: row.platform, answers: out.answers, usage: out.usage };
-      } catch (err: any) {
-        const e = err instanceof DecisionError ? err : new DecisionError(String(err?.message ?? err), 502);
+      } catch (err) {
+        const e = err instanceof DecisionError ? err : new DecisionError(errorMessage(err), 502);
         logDecision(row, credential.id, 'error', Date.now() - started, questionCount, 0, clientAgent, e.message.slice(0, 300));
         coolDown(row, credential.id, e);
         lastError = e;

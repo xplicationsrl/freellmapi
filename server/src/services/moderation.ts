@@ -15,6 +15,7 @@ import { getDb } from '../db/index.js';
 import { getClientContext } from '../lib/client-context.js';
 import { decrypt } from '../lib/crypto.js';
 import { proxyFetch } from '../lib/proxy.js';
+import { errorMessage } from '../lib/error-props.js';
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -210,8 +211,8 @@ export async function runModerations(
         model: (json.model as string) ?? row.modelId,
         result: json,
       };
-    } catch (err: any) {
-      const e = err instanceof ModerationError ? err : new ModerationError(String(err?.message ?? err), 502);
+    } catch (err) {
+      const e = err instanceof ModerationError ? err : new ModerationError(errorMessage(err), 502);
       logModerationRequest(row, 'error', Date.now() - started, e.message.slice(0, 300));
       lastError = e;
     }

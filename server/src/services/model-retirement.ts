@@ -19,6 +19,7 @@ import { summarizeAttemptError } from '../lib/error-redaction.js';
 import { isCatalogManagedModel, retireCatalogModelUpstream } from './model-state.js';
 import { modelStatsKey } from '../lib/endpoint-scope.js';
 import { providerLog } from '../lib/server-logs.js';
+import { errorMessage } from '../lib/error-props.js';
 
 /** How many DISTINCT requests must report a 'probable' signal before acting. */
 export const RETIREMENT_CONFIRMATIONS_REQUIRED = 2;
@@ -96,8 +97,8 @@ export function noteModelRetirementSignal(
       { provider: row.platform, model: row.model_id, event: 'model_retired' },
     );
     return true;
-  } catch (dbErr: any) {
-    console.warn(`[ModelRetirement] could not record retirement for ${key}: ${dbErr?.message ?? dbErr}`);
+  } catch (dbErr) {
+    console.warn(`[ModelRetirement] could not record retirement for ${key}: ${errorMessage(dbErr) ?? dbErr}`);
     return false;
   }
 }

@@ -11,6 +11,7 @@ import { extractApiToken, timingSafeStringEqual } from './proxy.js';
 import { runInboundChat, type InboundChatResult, type InboundChatWire } from '../lib/inbound-chat.js';
 import { runEmbeddings, embeddingsRetryAfterSec, EmbeddingsError } from '../services/embeddings.js';
 import { validateSession } from '../services/auth.js';
+import { errorMessage } from '../lib/error-props.js';
 
 export const ollamaRouter = Router();
 
@@ -582,13 +583,13 @@ async function handleEmbed(req: Request, res: Response, legacy: boolean): Promis
         prompt_eval_count: result.inputTokens,
       });
     }
-  } catch (error: any) {
+  } catch (error) {
     const status = error instanceof EmbeddingsError ? error.status : 502;
     if (error instanceof EmbeddingsError) {
       const retrySec = embeddingsRetryAfterSec(error);
       if (retrySec !== undefined) res.setHeader('Retry-After', retrySec);
     }
-    res.status(status).json({ error: error.message ?? 'embedding request failed' });
+    res.status(status).json({ error: errorMessage(error, 'embedding request failed') });
   }
 }
 

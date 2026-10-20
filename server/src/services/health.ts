@@ -11,6 +11,7 @@ import type { Scheduler } from '../lib/scheduler.js';
 import { sanitizeProviderErrorMessage } from '../lib/error-redaction.js';
 import { providerLog } from '../lib/server-logs.js';
 import { triggerBuiltinModelDiscovery } from './builtin-model-discovery.js';
+import { errorMessage, errorProps } from '../lib/error-props.js';
 
 const DEFAULT_CHECK_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
 // Floor of 60s: a misconfigured tiny interval turns the health pass into a
@@ -342,7 +343,7 @@ export async function checkKeyHealth(keyId: number): Promise<KeyStatus> {
     }
 
     return status;
-  } catch (err: any) {
+  } catch (err) {
     // Transport errors (DNS/timeout/TLS) — provider unreachable, not necessarily
     // a bad key. Mark status='error' but do NOT increment failure counter — auto-
     // disable is reserved for confirmed 401/403 (returned by validateKey as false).
@@ -354,8 +355,8 @@ export async function checkKeyHealth(keyId: number): Promise<KeyStatus> {
     // A 429 here means the provider rate-limited the validation itself:
     // remember it so the scheduled pass backs off instead of re-asking every
     // 5 minutes (#1369). Other transport errors carry no such instruction.
-    if (err?.status === 429) recordValidationRateLimited(keyId);
-    const lastError = sanitizeProviderErrorMessage(err?.message ?? err);
+    if (errorProps(err).status === 429) recordValidationRateLimited(keyId);
+    const lastError = sanitizeProviderErrorMessage(errorMessage(err) ?? err);
     console.error(
       `[Health] Key ${keyId} (${row.platform}, base=${row.base_url ?? 'default'}) ` +
       `transport error: ${lastError} — status preserved as '${row.status}'`,
@@ -377,7 +378,7 @@ export async function checkKeyHealth(keyId: number): Promise<KeyStatus> {
     // proof the provider is reachable, so it counts as a break in the streak,
     // not an increment.
     let parked = false;
-    if (err?.status === 429) transportFailures.delete(keyId);
+    if (errorProps(err).status === 429) transportFailures.delete(keyId);
     else parked = recordTransportFailure(keyId, row.platform);
     db.prepare("UPDATE api_keys SET last_health_error = ?, last_checked_at = datetime('now') WHERE id = ?")
       .run(lastError, keyId);

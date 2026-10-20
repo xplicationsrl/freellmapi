@@ -22,6 +22,7 @@ import { sanitizeProviderErrorMessage } from '../lib/error-redaction.js';
 import { getSetting, setSetting } from '../db/index.js';
 import type { CompletionOptions } from '../providers/base.js';
 import { routeOutputBudget } from '../lib/output-cap.js';
+import { errorMessage, errorProps } from '../lib/error-props.js';
 
 // The virtual model id that triggers multi-model synthesis. Mirrors how
 // `auto` is a virtual id the router intercepts (see routes/proxy.ts).
@@ -307,9 +308,9 @@ export async function runModelCall(
     let route: RouteResult | null;
     try {
       route = getRoute(skipKeys, skipModels);
-    } catch (err: any) {
+    } catch (err) {
       // routeRequest throws when the whole chain is exhausted (judge path).
-      lastError = sanitizeProviderErrorMessage(err?.message);
+      lastError = sanitizeProviderErrorMessage(errorMessage(err));
       break;
     }
     if (!route) break;
@@ -353,8 +354,8 @@ export async function runModelCall(
         rawChoice: hasToolCalls ? choice : undefined,
         usage,
       };
-    } catch (err: any) {
-      const safe = sanitizeProviderErrorMessage(err?.message);
+    } catch (err) {
+      const safe = sanitizeProviderErrorMessage(errorMessage(err));
       // #1347: mirror the fallback loop — with provider-moment attribution on,
       // a 429/5xx/timeout/transport failure on a fusion panel slot is the
       // provider's bad minute, not model evidence: the key still cools down,
@@ -379,7 +380,7 @@ export async function runModelCall(
           ? { durationMs: getPaymentRequiredCooldownMs(), source: 'credit' as const }
           : isModelAccessForbiddenError(err)
           ? { durationMs: getModelForbiddenCooldownMs(), source: 'tier' as const }
-          : getCooldownDecisionForLimit(route.platform, route.modelId, route.keyId, { rpd: route.rpdLimit, tpd: route.tpdLimit }, err.retryAfterMs, { quotaSignal: isRateLimitSignal(err) });
+          : getCooldownDecisionForLimit(route.platform, route.modelId, route.keyId, { rpd: route.rpdLimit, tpd: route.tpdLimit }, errorProps(err).retryAfterMs, { quotaSignal: isRateLimitSignal(err) });
         setCooldown(route.platform, route.modelId, route.keyId, decision.durationMs, decision.source);
         if (attribution !== 'provider_moment') recordRateLimitHit(route.modelDbId);
         continue;
@@ -424,7 +425,7 @@ async function runJudgeStreaming(
 
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     let route: RouteResult | null;
-    try { route = getRoute(skipKeys, skipModels); } catch (err: any) { lastError = sanitizeProviderErrorMessage(err?.message); break; }
+    try { route = getRoute(skipKeys, skipModels); } catch (err) { lastError = sanitizeProviderErrorMessage(errorMessage(err)); break; }
     if (!route) break;
     // A pinned judge keeps handing back its one model (see runModelCall).
     if (skipModels.has(route.modelDbId)) {
@@ -460,8 +461,8 @@ async function runJudgeStreaming(
       recordSuccess(route.modelDbId);
       logRequest(route.platform, route.modelId, route.keyId, 'success', estimatedTokens, out, Date.now() - startedAt, null, null, FUSION_TAG, null, 'http');
       return { ok: true, route, text, usage };
-    } catch (err: any) {
-      const safe = sanitizeProviderErrorMessage(err?.message);
+    } catch (err) {
+      const safe = sanitizeProviderErrorMessage(errorMessage(err));
       // #1347: same attribution as the panel path above.
       const attribution = failureAttributionFor(err);
       logRequest(route.platform, route.modelId, route.keyId, 'error', 0, 0, Date.now() - startedAt, safe, null, FUSION_TAG, null, 'http', attribution);
@@ -487,7 +488,7 @@ async function runJudgeStreaming(
           ? { durationMs: getPaymentRequiredCooldownMs(), source: 'credit' as const }
           : isModelAccessForbiddenError(err)
           ? { durationMs: getModelForbiddenCooldownMs(), source: 'tier' as const }
-          : getCooldownDecisionForLimit(route.platform, route.modelId, route.keyId, { rpd: route.rpdLimit, tpd: route.tpdLimit }, err.retryAfterMs, { quotaSignal: isRateLimitSignal(err) });
+          : getCooldownDecisionForLimit(route.platform, route.modelId, route.keyId, { rpd: route.rpdLimit, tpd: route.tpdLimit }, errorProps(err).retryAfterMs, { quotaSignal: isRateLimitSignal(err) });
         setCooldown(route.platform, route.modelId, route.keyId, decision.durationMs, decision.source);
         if (attribution !== 'provider_moment') recordRateLimitHit(route.modelDbId);
         continue;

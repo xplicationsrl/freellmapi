@@ -47,6 +47,7 @@ import { newClientAbortError, isUpstreamClassificationOutput } from './error-cla
 import { logRequest } from './request-log.js';
 import { getStickyModel, setStickyModel } from './session-memory.js';
 import type { CompletionOptions } from '../providers/base.js';
+import { errorMessage, errorProps } from './error-props.js';
 
 export interface InboundChatRequest {
   model?: string;
@@ -185,8 +186,8 @@ export async function runInboundChat(
   let pin: ResolvedPin;
   try {
     pin = resolvePin(input.model, input.messages, input.sessionId);
-  } catch (error: any) {
-    wire.sendError(res, error.status ?? 404, error.message, error.code ?? 'model_not_found');
+  } catch (error) {
+    wire.sendError(res, errorProps(error).status ?? 404, errorMessage(error), errorProps(error).code ?? 'model_not_found');
     return;
   }
 
@@ -542,9 +543,9 @@ export async function runInboundChat(
           'http',
         );
         return 'done';
-      } catch (error: any) {
+      } catch (error) {
         if (!committed) throw error;
-        wire.sendStreamError?.(res, sanitizeProviderErrorMessage(error.message));
+        wire.sendStreamError?.(res, sanitizeProviderErrorMessage(errorMessage(error)));
         if (!res.writableEnded) res.end();
         logRequest(
           route.platform,
@@ -554,7 +555,7 @@ export async function runInboundChat(
           estimatedInputTokens,
           outputTokens,
           Date.now() - start,
-          sanitizeProviderErrorMessage(error.message),
+          sanitizeProviderErrorMessage(errorMessage(error)),
           null,
           pin.pinnedLabel,
           null,

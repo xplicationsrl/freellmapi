@@ -573,7 +573,7 @@ export async function runInboundChat(
         estimatedInputTokens,
         0,
         Date.now() - start,
-        sanitizeProviderErrorMessage(error.message),
+        sanitizeProviderErrorMessage(errorProps(error).message),
         null,
         pin.pinnedLabel,
         null,
@@ -585,7 +585,7 @@ export async function runInboundChat(
       wire.sendError(
         res,
         502,
-        `Provider error (${route.displayName}): ${sanitizeProviderErrorMessage(error.message)}`,
+        `Provider error (${route.displayName}): ${sanitizeProviderErrorMessage(errorProps(error).message)}`,
         'upstream_error',
       );
     },

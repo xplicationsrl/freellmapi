@@ -14,13 +14,14 @@ export interface ErrorProps {
   retryAfterMs?: number;
 }
 
-function field(err: unknown, key: string): unknown {
+/** Any named property of a caught value (undefined when it is not an object or lacks it). */
+export function errorField(err: unknown, key: string): unknown {
   return typeof err === 'object' && err !== null ? (err as Record<string, unknown>)[key] : undefined;
 }
 
 /** The message of a caught value: its own `message` string, else `fallback`, else String(err). */
 export function errorMessage(err: unknown, fallback?: string): string {
-  const message = field(err, 'message');
+  const message = errorField(err, 'message');
   if (typeof message === 'string') return message;
   if (fallback !== undefined) return fallback;
   if (typeof err === 'string') return err;
@@ -29,11 +30,11 @@ export function errorMessage(err: unknown, fallback?: string): string {
 
 /** The `status`, `code`, `name`, `message` and `retryAfterMs` of a caught value, each only if it has the right type. */
 export function errorProps(err: unknown): ErrorProps {
-  const message = field(err, 'message');
-  const name = field(err, 'name');
-  const status = field(err, 'status');
-  const code = field(err, 'code');
-  const retryAfterMs = field(err, 'retryAfterMs');
+  const message = errorField(err, 'message');
+  const name = errorField(err, 'name');
+  const status = errorField(err, 'status');
+  const code = errorField(err, 'code');
+  const retryAfterMs = errorField(err, 'retryAfterMs');
   return {
     message: typeof message === 'string' ? message : undefined,
     name: typeof name === 'string' ? name : undefined,
@@ -41,4 +42,14 @@ export function errorProps(err: unknown): ErrorProps {
     code: typeof code === 'string' ? code : undefined,
     retryAfterMs: typeof retryAfterMs === 'number' ? retryAfterMs : undefined,
   };
+}
+
+/** True only when the caught value carries `name === true` (a marker like `clientAbort` set with Object.assign). */
+export function errorFlag(err: unknown, name: string): boolean {
+  return errorField(err, name) === true;
+}
+
+/** The `cause` of a caught value, if it has one. */
+export function errorCause(err: unknown): unknown {
+  return errorField(err, 'cause');
 }

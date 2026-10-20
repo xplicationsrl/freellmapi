@@ -42,7 +42,7 @@ import { modelsProxyRouter } from './proxy-models.js';
 import { getRequestGroupId, withExecutionId, traceRouteEvent } from '../lib/request-trace.js';
 import { rememberReasoning, rememberedReasoningFor, restoreSessionReasoning, getSessionKey, getStickyModel, setStickyModel, clearReasoningMemory } from '../lib/session-memory.js';
 import { completionPromptToMessages, completionTextFromChat, completionReasoningText, completionIdFromChat, legacyCompletionChunk } from '../lib/legacy-completions.js';
-import { errorMessage } from '../lib/error-props.js';
+import { errorMessage, errorProps } from '../lib/error-props.js';
 
 // Re-exported for existing importers (responses, inbound-chat, tests).
 export { streamChunkText, streamReasoningText, extractApiToken, getRequestGroupId, traceRouteEvent, getStickyModel, setStickyModel, clearReasoningMemory, completionReasoningText };
@@ -527,7 +527,7 @@ proxyRouter.post('/completions', async (req: Request, res: Response) => {
     },
     logFailure: (route, err, attempt) => {
       const latency = Date.now() - start;
-      const safeError = sanitizeProviderErrorMessage(err.message);
+      const safeError = sanitizeProviderErrorMessage(errorProps(err).message);
       traceRouteEvent('Proxy', {
         event: 'fail',
         requestId: requestGroupId,
@@ -543,7 +543,7 @@ proxyRouter.post('/completions', async (req: Request, res: Response) => {
       setFallbackHeaders(res, attempt, attemptLog);
       res.status(502).json({
         error: {
-          message: `Provider error (${route.displayName}): ${sanitizeProviderErrorMessage(err.message)}`,
+          message: `Provider error (${route.displayName}): ${sanitizeProviderErrorMessage(errorProps(err).message)}`,
           type: 'provider_error',
         },
         execution_id: requestGroupId,
@@ -1993,7 +1993,7 @@ proxyRouter.post('/chat/completions', async (req: Request, res: Response) => {
     },
     logFailure: (route, err, attempt) => {
       const latency = Date.now() - start;
-      const safeError = sanitizeProviderErrorMessage(err.message);
+      const safeError = sanitizeProviderErrorMessage(errorProps(err).message);
       traceRouteEvent('Proxy', {
         event: 'fail',
         requestId: requestGroupId,
@@ -2010,7 +2010,7 @@ proxyRouter.post('/chat/completions', async (req: Request, res: Response) => {
       setFallbackHeaders(res, attempt, attemptLog);
       res.status(502).json({
         error: {
-          message: `Provider error (${route.displayName}): ${sanitizeProviderErrorMessage(err.message)}`,
+          message: `Provider error (${route.displayName}): ${sanitizeProviderErrorMessage(errorProps(err).message)}`,
           type: 'provider_error',
         },
         execution_id: requestGroupId,

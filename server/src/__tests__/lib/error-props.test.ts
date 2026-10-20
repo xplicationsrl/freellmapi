@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { errorMessage, errorProps } from '../../lib/error-props.js';
+import { errorCause, errorFlag, errorMessage, errorProps } from '../../lib/error-props.js';
 
 describe('errorMessage', () => {
   it('reads the message of an Error or any object that has one', () => {
@@ -38,5 +38,22 @@ describe('errorProps', () => {
       expect(() => errorProps(value)).not.toThrow();
       expect(errorProps(value).status).toBeUndefined();
     }
+  });
+});
+
+describe('errorFlag / errorCause', () => {
+  it('is true only for a boolean true marker, and false for anything else or a non-object', () => {
+    expect(errorFlag(Object.assign(new Error('x'), { clientAbort: true }), 'clientAbort')).toBe(true);
+    expect(errorFlag({ clientAbort: 'yes' }, 'clientAbort')).toBe(false);
+    expect(errorFlag({}, 'clientAbort')).toBe(false);
+    expect(errorFlag(null, 'clientAbort')).toBe(false);
+    expect(errorFlag('str', 'clientAbort')).toBe(false);
+  });
+
+  it('returns the cause of an object, and undefined otherwise', () => {
+    const cause = new Error('inner');
+    expect(errorCause(new Error('outer', { cause }))).toBe(cause);
+    expect(errorCause({})).toBeUndefined();
+    expect(errorCause(undefined)).toBeUndefined();
   });
 });

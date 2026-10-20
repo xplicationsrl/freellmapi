@@ -123,11 +123,27 @@ function valueImportsIn(source: string): string[] {
   return found;
 }
 
+/** A relative import whose target is itself a listed pure module. It cannot
+ *  bring in I/O, and it cannot close a cycle either: the target has no value
+ *  imports of its own beyond other pure modules (each is checked below). So a
+ *  pure module may share a pure helper instead of copying it. */
+function importsAPureModule(line: string): boolean {
+  const target = /from\s*['"]\.\/([\w-]+)\.js['"]/.exec(line);
+  return target !== null && PURE_MODULES.includes(`${target[1]}.ts`);
+}
+
 describe('pure lib modules stay pure', () => {
-  it.each(PURE_MODULES)('%s has no value imports', (filename) => {
+  it.each(PURE_MODULES)('%s has no value imports (other than pure modules)', (filename) => {
     const source = fs.readFileSync(path.join(LIB, filename), 'utf8');
 
-    expect(valueImportsIn(source)).toEqual([]);
+    expect(valueImportsIn(source).filter(line => !importsAPureModule(line))).toEqual([]);
+  });
+
+  it('excuses an import of another pure module, but not of anything else', () => {
+    expect(importsAPureModule("import { errorMessage } from './error-props.js';")).toBe(true);
+    expect(importsAPureModule("import { getDb } from '../db/index.js';")).toBe(false);
+    expect(importsAPureModule("import { x } from './scheduler.js';")).toBe(false); // listed, but not guarded
+    expect(importsAPureModule("import { y } from './not-a-lib-file.js';")).toBe(false);
   });
 
   it('every listed module actually exists', () => {

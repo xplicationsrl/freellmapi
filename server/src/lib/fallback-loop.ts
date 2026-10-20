@@ -1,3 +1,4 @@
+import { errorField, errorFlag, errorMessage, errorProps } from './error-props.js';
 import { nextMonthResetAt } from '../services/key-budget.js';
 // One shared provider retry/fallback loop for every OpenAI-, Responses- and
 // Anthropic-shaped chat surface (routes/proxy.ts legacy /completions and
@@ -64,7 +65,6 @@ import { logRequest, persistRequestAttempts } from './request-log.js';
 import { withKeyProxy } from './proxy.js';
 import { getEndpointTimeBudgetMs } from './ttfb-budget.js';
 import { learnOutputCapFromError, learnedOutputCap } from './output-cap.js';
-import { errorMessage } from './error-props.js';
 
 // Every surface caps failover hops at the same number.
 export const FALLBACK_MAX_RETRIES = 20;
@@ -299,7 +299,7 @@ export function msUntilNextPacificMidnight(now = Date.now()): number {
  *   - anything else → the transient/daily escalation ladder, honoring the
  *     provider's Retry-After as a floor (getCooldownDurationForLimit).
  */
-export function cooldownForError(route: RouteResult, err: any): number {
+export function cooldownForError(route: RouteResult, err: unknown): number {
   return cooldownDecisionForError(route, err).durationMs;
 }
 
@@ -313,7 +313,7 @@ export function cooldownForError(route: RouteResult, err: any): number {
  * getCooldownDecisionForLimit, which tags 'authoritative' only when an explicit
  * Retry-After actually determined the expiry.
  */
-export function cooldownDecisionForError(route: RouteResult, err: any): CooldownDecision {
+export function cooldownDecisionForError(route: RouteResult, err: unknown): CooldownDecision {
   if (isPaymentRequiredError(err)) return { durationMs: getPaymentRequiredCooldownMs(), source: 'credit' };
   // Before the model-forbidden check: a suspended account is a 403 too, but
   // it is the KEY that is out, for as long as an empty balance would be — and
@@ -324,16 +324,16 @@ export function cooldownDecisionForError(route: RouteResult, err: any): Cooldown
     if (route.platform === 'google') {
       // RetryInfo can describe a simultaneous per-minute violation. It cannot
       // reopen a daily allowance before the Pacific reset (#1339).
-      return { durationMs: Math.max(msUntilNextPacificMidnight(), err?.retryAfterMs ?? 0), source: 'authoritative' };
+      return { durationMs: Math.max(msUntilNextPacificMidnight(), errorProps(err).retryAfterMs ?? 0), source: 'authoritative' };
     }
-    return { durationMs: err?.retryAfterMs ?? msUntilNextUtcMidnight(), source: 'authoritative' };
+    return { durationMs: errorProps(err).retryAfterMs ?? msUntilNextUtcMidnight(), source: 'authoritative' };
   }
   return getCooldownDecisionForLimit(
     route.platform,
     route.modelId,
     route.keyId,
     { rpd: route.rpdLimit, tpd: route.tpdLimit },
-    err?.retryAfterMs,
+    errorProps(err).retryAfterMs,
     // Only a real 429/rate-limit error may feed the null-limits exhaustion
     // heuristic; a timeout or 5xx is retryable but says nothing about quota,
     // so it stays on the short transient bench instead of the ladder (#592).
@@ -395,15 +395,15 @@ export function clearModelFailureWindows(): number {
 // skipBench exemption still holds. Called exactly once per retryable failure,
 // from recordRetryableFailure; the loop reuses its returned decision for the
 // breaker so the two consumers can never disagree.
-function consumeSkipBenchExemption(route: RouteResult, err: any): boolean {
+function consumeSkipBenchExemption(route: RouteResult, err: unknown): boolean {
   const key = `${route.platform}:${route.modelId}:${route.keyId}`;
-  if (err?.skipBench !== true) {
+  if (!errorFlag(err, 'skipBench')) {
     // A normally-penalized failure breaks the streak: the cooldown ladder is
     // already handling whatever is wrong with this model+key.
     emptyCompletionStreaks.delete(key);
     return false;
   }
-  if (err?.skipModelForRequest === true) return true;
+  if (errorFlag(err, 'skipModelForRequest')) return true;
   const streak = (emptyCompletionStreaks.get(key) ?? 0) + 1;
   emptyCompletionStreaks.set(key, streak);
   return streak < EMPTY_COMPLETION_STREAK_LIMIT;
@@ -438,7 +438,7 @@ function consumeSkipBenchExemption(route: RouteResult, err: any): boolean {
  *
  * Callers add the just-failed key to skipKeys via this function (do not pre-add).
  */
-export function recordRetryableFailure(route: RouteResult, err: any, state: FallbackState, now: number = Date.now()): boolean {
+export function recordRetryableFailure(route: RouteResult, err: unknown, state: FallbackState, now: number = Date.now()): boolean {
   // `skipModelForRequest: true` = the failure is MODEL behavior, not key
   // state (ignored response_format, JSON truncated at max_tokens): a sibling
   // key would reproduce it exactly, so rule out the whole model for this
@@ -446,7 +446,7 @@ export function recordRetryableFailure(route: RouteResult, err: any, state: Fall
   // Context-too-large is MODEL-level too: a sibling key serves the same model
   // with the same context window (and, for Groq-style per-key TPM 413s, the
   // same tier ceiling), so it would reject the same request identically.
-  if (isModelNotFoundError(err) || isModelAccessForbiddenError(err) || isContextTooLargeError(err) || err?.skipModelForRequest === true) {
+  if (isModelNotFoundError(err) || isModelAccessForbiddenError(err) || isContextTooLargeError(err) || errorFlag(err, 'skipModelForRequest')) {
     state.skipModels.add(route.modelDbId);
   }
   // A stale CATALOG (not a single dead model) answers model-not-found on every
@@ -486,7 +486,7 @@ export function recordRetryableFailure(route: RouteResult, err: any, state: Fall
   // when there's nothing to latch. Max wins so a smaller later reading of
   // the same request can't drop the estimate.
   if (isContextTooLargeError(err) || isProviderBadRequestError(err)) {
-    const reported = parseProviderReportedSize(route.platform, err?.message);
+    const reported = parseProviderReportedSize(route.platform, errorProps(err).message);
     if (reported != null) {
       const field = reported.kind === 'input' ? 'observedInputTokens' : 'observedTotalTokens';
       state[field] = Math.max(state[field] ?? 0, reported.tokens);
@@ -510,8 +510,8 @@ export function recordRetryableFailure(route: RouteResult, err: any, state: Fall
   // turn (Claude Code ships ~16k tokens of tool schemas) sink every small-TPM
   // model it touched, so later ordinary requests found the pool rate limited.
   if (isContextTooLargeError(err)) {
-    learnLimitFromError(route.modelDbId, err);
-    learnContextWindowFromError(route.modelDbId, err);
+    learnLimitFromError(route.modelDbId, errorProps(err));
+    learnContextWindowFromError(route.modelDbId, errorProps(err));
     return false;
   }
   // A max_tokens above this model's output ceiling (Claude Code asks for
@@ -613,7 +613,7 @@ export function recordRetryableFailure(route: RouteResult, err: any, state: Fall
       recordModelFailure(route.modelDbId);
     }
   }
-  learnLimitFromError(route.modelDbId, err);
+  learnLimitFromError(route.modelDbId, errorProps(err));
   return false;
 }
 
@@ -718,7 +718,7 @@ export interface AttemptRecord {
   errorClass: AttemptErrorClass;
 }
 
-export function classifyAttemptError(err: any): AttemptErrorClass {
+export function classifyAttemptError(err: unknown): AttemptErrorClass {
   if (isKeyAuthError(err)) return 'auth';
   if (isPaymentRequiredError(err)) return 'out_of_credits';
   if (isDailyQuotaExhaustedError(err)) return 'daily_quota_exhausted';
@@ -732,7 +732,7 @@ export function classifyAttemptError(err: any): AttemptErrorClass {
   // shape — keep it out of provider_bad_request so the trail reads honestly.
   if (isProviderDegradedError(err)) return 'upstream_error';
   if (isProviderBadRequestError(err)) return 'provider_bad_request';
-  const msg = (err?.message ?? '').toLowerCase();
+  const msg = errorMessage(err, '').toLowerCase();
   if (msg.includes('empty completion')) return 'empty_completion';
   if (msg.includes('ignored response_format') || msg.includes('truncated json')) return 'format_ignored';
   // Before the generic classes so the trail names the real cause rather than
@@ -740,7 +740,7 @@ export function classifyAttemptError(err: any): AttemptErrorClass {
   if (msg.includes('invalid tool arguments')) return 'invalid_tool_arguments';
   if (isTimeoutErrorText(msg)) return 'timeout';
   if (msg.includes('429') || msg.includes('rate limit') || msg.includes('too many requests') || msg.includes('quota')) return 'rate_limited';
-  const status = typeof err?.status === 'number' ? err.status : 0;
+  const status = errorProps(err).status ?? 0;
   if (status >= 500 || msg.includes('500') || msg.includes('502') || msg.includes('503') || msg.includes('unavailable') || msg.includes('internal server error')) return 'upstream_error';
   return 'error';
 }
@@ -963,8 +963,8 @@ const UNAVAILABLE_UNTIL_KNOWN_TIME: ReadonlySet<AttemptErrorClass> = new Set([
  * All bodies carry the attempt trail (what was tried, per attempt) and, where
  * meaningful, the soonest-cooldown-reset hint.
  */
-export function exhaustedRetryError(lastError: any, maxRetries?: number, ctx?: ExhaustionContext): ExhaustionBody {
-  const safeLastError = sanitizeProviderErrorMessage(lastError?.message);
+export function exhaustedRetryError(lastError: unknown, maxRetries?: number, ctx?: ExhaustionContext): ExhaustionBody {
+  const safeLastError = sanitizeProviderErrorMessage(errorProps(lastError).message);
   const attempts = ctx?.attempts ?? [];
   const trail = attempts.length > 0 ? ` Attempt trail: ${formatAttemptTrail(attempts)}.` : '';
   const budgetNote = ctx?.timedOut
@@ -1146,9 +1146,15 @@ function classifyRoutingDiagLine(line: string): RoutingDiagClass {
   return 'other';
 }
 
-export function routingExhaustionBody(routeErr: any): ExhaustionBody {
-  const diag: string[] = Array.isArray(routeErr?.diagnostics) ? routeErr.diagnostics : [];
-  const message: string = routeErr?.message ?? 'No model available to route this request';
+/** The routing diagnostics a routing error carries (strings only). */
+function diagnosticsOf(routeErr: unknown): string[] {
+  const diagnostics = errorField(routeErr, 'diagnostics');
+  return Array.isArray(diagnostics) ? diagnostics.filter((line): line is string => typeof line === 'string') : [];
+}
+
+export function routingExhaustionBody(routeErr: unknown): ExhaustionBody {
+  const diag = diagnosticsOf(routeErr);
+  const message: string = errorMessage(routeErr, 'No model available to route this request');
   const classes = diag.map(classifyRoutingDiagLine);
 
   if (diag.length === 0 || classes.every(c => c === 'config')) {
@@ -1199,7 +1205,7 @@ export function routingExhaustionBody(routeErr: any): ExhaustionBody {
   // rate-limit exhaustion.
   return {
     kind: 'rate_limit',
-    status: typeof routeErr?.status === 'number' ? routeErr.status : 429,
+    status: errorProps(routeErr).status ?? 429,
     type: 'rate_limit_error',
     code: 'routing_exhausted',
     message,
@@ -1214,8 +1220,8 @@ export function routingExhaustionBody(routeErr: any): ExhaustionBody {
  *  routes/proxy.ts ever did, so /v1/messages, /v1/responses and the inbound
  *  wires logged nothing. The loop owns the format; surfaces only name
  *  themselves via FallbackHooks.logIdentity. */
-function logRoutingExhaustion(routeErr: any, identity?: FallbackHooks['logIdentity']): void {
-  const disposition: string[] = Array.isArray(routeErr?.diagnostics) ? routeErr.diagnostics : [];
+function logRoutingExhaustion(routeErr: unknown, identity?: FallbackHooks['logIdentity']): void {
+  const disposition = diagnosticsOf(routeErr);
   const surface = identity?.surface ?? 'unidentified surface';
   const req = identity?.requestId ? ` req=${identity.requestId.replace(/-/g, '').slice(0, 6)}` : '';
   const requested = identity?.requestedModel ? ` requested=${identity.requestedModel}` : '';
@@ -1319,11 +1325,11 @@ export interface FallbackHooks {
   dispatch(route: RouteResult, attempt: number, ctx: DispatchContext): Promise<DispatchOutcome>;
 
   /** Trace + log a per-attempt failure (per-surface scope + logRequest args). */
-  logFailure(route: RouteResult, err: any, attempt: number): void;
+  logFailure(route: RouteResult, err: unknown, attempt: number): void;
 
   /** Render a non-retryable provider error (per-surface body/status). `attempt`
    *  is the failing attempt's index = the number of prior fallback hops. */
-  onFatal(route: RouteResult, err: any, attempt: number): void;
+  onFatal(route: RouteResult, err: unknown, attempt: number): void;
 
   /**
    * Render exhaustion when route() threw. `exhaustion` is always the shared
@@ -1332,7 +1338,7 @@ export interface FallbackHooks {
    * routing gave up before any upstream was tried. `lastError` is null in the
    * zero-attempt case; `routeErr` is passed for logging/diagnostics.
    */
-  onRoutingExhausted(lastError: any, routeErr: any, exhaustion: ExhaustionBody, info: ExhaustionInfo): void;
+  onRoutingExhausted(lastError: unknown, routeErr: unknown, exhaustion: ExhaustionBody, info: ExhaustionInfo): void;
 
   /** Render exhaustion after the attempt cap or the time budget was hit. */
   onExhausted(exhaustion: ExhaustionBody, info: ExhaustionInfo): void;
@@ -1380,7 +1386,7 @@ async function runFallbackLoopAttempts(hooks: FallbackHooks, trace: RequestTrace
     }
     return ord;
   };
-  let lastError: any = null;
+  let lastError: unknown = null;
 
   // Circuit-breaker guardrail (default off): the Nth consecutive upstream
   // failure aborts the chain with a 503 instead of grinding the remaining
@@ -1465,7 +1471,7 @@ async function runFallbackLoopAttempts(hooks: FallbackHooks, trace: RequestTrace
     // the provider's actual words, which is exactly what the dashboard's
     // drill-down needs to answer "why did this hop fail".
     const attemptStartedAt = Date.now();
-    const traceAttempt = (outcome: AttemptOutcome, err?: any): void => {
+    const traceAttempt = (outcome: AttemptOutcome, err?: unknown): void => {
       trace.records.push({
         ordinal: trace.records.length,
         platform: route.platform,
@@ -1475,7 +1481,7 @@ async function runFallbackLoopAttempts(hooks: FallbackHooks, trace: RequestTrace
         outcome,
         startOffsetMs: attemptStartedAt - startedAt,
         durationMs: Date.now() - attemptStartedAt,
-        errorSummary: err != null ? summarizeAttemptError(err?.message) : null,
+        errorSummary: err != null ? summarizeAttemptError(errorProps(err).message) : null,
       });
     };
 

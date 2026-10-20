@@ -803,11 +803,11 @@ export async function handleMessages(req: Request, res: Response): Promise<void>
       return 'done';
     },
     logFailure: (route, err) => {
-      logRequest(route.platform, route.modelId, route.keyId, 'error', estimatedInputTokens, 0, Date.now() - start, sanitizeProviderErrorMessage(err.message), null, pinnedModelId, null, 'http', failureAttributionFor(err));
+      logRequest(route.platform, route.modelId, route.keyId, 'error', estimatedInputTokens, 0, Date.now() - start, sanitizeProviderErrorMessage(errorProps(err).message), null, pinnedModelId, null, 'http', failureAttributionFor(err));
     },
     onFatal: (route, err, attempt) => {
       setFallbackHeaders(res, attempt, attemptLog);
-      sendError(res, 502, 'api_error', `Provider error (${route.displayName}): ${sanitizeProviderErrorMessage(err.message)}`);
+      sendError(res, 502, 'api_error', `Provider error (${route.displayName}): ${sanitizeProviderErrorMessage(errorProps(err).message)}`);
     },
     onRoutingExhausted: (lastError, routeErr, exhaustion, info) => {
       setFallbackHeaders(res, info.attempts.length, info.attempts);

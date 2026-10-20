@@ -3,8 +3,10 @@
 // no I/O — so they live in a neutral lib module that any of those can import
 // without forming an import cycle (fusion ↔ proxy in particular).
 
-export function isRetryableError(err: any): boolean {
-  const msg = (err.message ?? '').toLowerCase();
+import { errorCause, errorFlag, errorMessage, errorProps } from './error-props.js';
+
+export function isRetryableError(err: unknown): boolean {
+  const msg = errorMessage(err, '').toLowerCase();
   // Trust the upstream HTTP status the provider attached to the error first
   // (providerHttpError in providers/base.ts sets err.status on every adapter).
   // This structured check is the robust primary signal; the message-substring
@@ -20,7 +22,7 @@ export function isRetryableError(err: any): boolean {
   // 422 (notably Mistral's strict validation) is a provider-side request-shape
   // rejection: fail over to another provider, but if the whole chain rejects it
   // exhaustedRetryError renders a client-facing 400 via isProviderBadRequestError.
-  const status = typeof err?.status === 'number' ? err.status : 0;
+  const status = errorProps(err).status ?? 0;
   if (status === 408 || status === 409 || status === 410 || status === 422 || status === 429 || status >= 500) return true;
   return msg.includes('429') || msg.includes('rate limit') || msg.includes('too many requests')
     || msg.includes('quota') || msg.includes('resource_exhausted')
@@ -164,16 +166,14 @@ const TRANSPORT_MESSAGE_HINTS = [
 function errorChainLinks(err: unknown): Array<{ code: string; message: string }> {
   const links: Array<{ code: string; message: string }> = [];
   const seen = new Set<unknown>();
-  let cur: any = err;
+  let cur: unknown = err;
   for (let depth = 0; cur != null && depth <= TRANSPORT_CAUSE_MAX_DEPTH; depth++) {
     if (typeof cur !== 'object' && typeof cur !== 'function') break;
     if (seen.has(cur)) break;
     seen.add(cur);
-    links.push({
-      code: typeof cur.code === 'string' ? cur.code : '',
-      message: typeof cur.message === 'string' ? cur.message : '',
-    });
-    cur = cur.cause;
+    const { code, message } = errorProps(cur);
+    links.push({ code: code ?? '', message: message ?? '' });
+    cur = errorCause(cur);
   }
   return links;
 }
@@ -181,7 +181,7 @@ function errorChainLinks(err: unknown): Array<{ code: string; message: string }>
 /** True when the error — or anything in its bounded cause chain — is a
  * transient network transport failure: a reset, dropped, refused or timed-out
  * socket, a failed TLS handshake, or an undici transport code. */
-export function isTransportError(err: any): boolean {
+export function isTransportError(err: unknown): boolean {
   if (err == null) return false;
   // A client hang-up and the fallback time-budget hedge BOTH reach undici as an
   // aborted socket, and undici labels that abort UND_ERR_ABORTED — the very
@@ -218,10 +218,10 @@ export function isTransportError(err: any): boolean {
 // Mirrors the other classifiers: trust the structured status when the adapter
 // attached one (providerHttpError sets err.status everywhere); fall back to
 // message markers only when there is no status.
-export function isRateLimitSignal(err: any): boolean {
-  const status = typeof err?.status === 'number' ? err.status : 0;
+export function isRateLimitSignal(err: unknown): boolean {
+  const status = errorProps(err).status ?? 0;
   if (status !== 0) return status === 429;
-  const msg = (err?.message ?? '').toLowerCase();
+  const msg = errorMessage(err, '').toLowerCase();
   return msg.includes('429') || msg.includes('rate limit') || msg.includes('too many requests')
     || msg.includes('quota') || msg.includes('resource_exhausted');
 }
@@ -269,10 +269,10 @@ export function newClientAbortError(): Error {
  * structured marker is the primary signal; `cause` is checked because some
  * transports re-wrap the abort reason, and the message substring is the last
  * resort for errors that were stringified across a boundary. */
-export function isClientAbortError(err: any): boolean {
-  if (err?.clientAbort === true) return true;
-  if (err?.cause && (err.cause as { clientAbort?: boolean }).clientAbort === true) return true;
-  const msg = (err?.message ?? '').toLowerCase();
+export function isClientAbortError(err: unknown): boolean {
+  if (errorFlag(err, 'clientAbort')) return true;
+  if (errorFlag(errorCause(err), 'clientAbort')) return true;
+  const msg = errorMessage(err, '').toLowerCase();
   return msg.includes('client disconnected');
 }
 
@@ -291,10 +291,10 @@ export function newHedgeAbortError(): Error {
 }
 
 /** True when an error is (or wraps) the time-budget hedge abort above. */
-export function isHedgeAbortError(err: any): boolean {
-  if (err?.hedgeAbort === true) return true;
-  if (err?.cause && (err.cause as { hedgeAbort?: boolean }).hedgeAbort === true) return true;
-  const msg = (err?.message ?? '').toLowerCase();
+export function isHedgeAbortError(err: unknown): boolean {
+  if (errorFlag(err, 'hedgeAbort')) return true;
+  if (errorFlag(errorCause(err), 'hedgeAbort')) return true;
+  const msg = errorMessage(err, '').toLowerCase();
   return msg.includes('fallback time budget expired');
 }
 
@@ -303,10 +303,10 @@ export function isHedgeAbortError(err: any): boolean {
  * AbortSignal.timeout, or the client disconnect above. Adapters that wrap
  * res.json() in a diagnostic catch (openai-compat's non-JSON-body split) must
  * rethrow these instead of classifying them as a malformed provider body. */
-export function isAbortLikeError(err: any): boolean {
+export function isAbortLikeError(err: unknown): boolean {
   if (isClientAbortError(err)) return true;
   const name = (err as { name?: string })?.name;
-  return name === 'AbortError' || name === 'TimeoutError' || /\baborted\b/i.test(err?.message ?? '');
+  return name === 'AbortError' || name === 'TimeoutError' || /\baborted\b/i.test(errorMessage(err, ''));
 }
 
 // A 401 / invalid-API-key error from a provider. KEY-fatal, not request-fatal:
@@ -328,10 +328,10 @@ export function isAbortLikeError(err: any): boolean {
 //     ordinary payload rejections never classify as key-auth.
 //   - any other status → not key-auth (e.g. a 403 stays model-forbidden).
 //   - no status at all → key-specific OR generic auth substrings.
-export function isKeyAuthError(err: any): boolean {
-  const status = typeof err?.status === 'number' ? err.status : 0;
+export function isKeyAuthError(err: unknown): boolean {
+  const status = errorProps(err).status ?? 0;
   if (status === 401) return true;
-  const msg = (err?.message ?? '').toLowerCase();
+  const msg = errorMessage(err, '').toLowerCase();
   const keySpecific = msg.includes('api key not valid')
     || msg.includes('api key expired')
     || msg.includes('api_key_invalid');
@@ -359,10 +359,10 @@ export function isKeyAuthError(err: any): boolean {
 // request too big for the model is never a spent allowance.
 const UPGRADE_UPSELL = /\bupgrade to [^.?!]*?\btoday\b/g;
 
-export function isDailyQuotaExhaustedError(err: any): boolean {
-  if (err?.dailyQuotaExhausted === true) return true;
+export function isDailyQuotaExhaustedError(err: unknown): boolean {
+  if (errorFlag(err, 'dailyQuotaExhausted')) return true;
   if (isContextTooLargeError(err)) return false;
-  const msg = (err?.message ?? '').toLowerCase().replace(UPGRADE_UPSELL, '');
+  const msg = errorMessage(err, '').toLowerCase().replace(UPGRADE_UPSELL, '');
   if (!/daily|per[ -_]?day|\btoday\b/.test(msg)) return false;
   return /allocation|quota|limit|exhaust|used up/.test(msg);
 }
@@ -373,8 +373,8 @@ export function isDailyQuotaExhaustedError(err: any): boolean {
 // invoked"}` — the request is fine; the deployment is sick. Must NOT classify
 // as a provider bad-request: exhausting on it would render a client-blaming
 // 400 invalid_request_error for what is capacity/health, not request shape.
-export function isProviderDegradedError(err: any): boolean {
-  const msg = (err?.message ?? '').toLowerCase();
+export function isProviderDegradedError(err: unknown): boolean {
+  const msg = errorMessage(err, '').toLowerCase();
   return msg.includes('degraded');
 }
 
@@ -393,7 +393,7 @@ export function isProviderDegradedError(err: any): boolean {
 // token count, a duration ("… took 5003ms") or a key-scoped message naming an
 // unavailable model would each condemn a healthy platform for the whole request.
 // A message check therefore only runs when there is no status to trust.
-export function isProviderLevelError(err: any): boolean {
+export function isProviderLevelError(err: unknown): boolean {
   // A failure the thrower explicitly scoped to the MODEL (`skipModelForRequest`
   // — an ignored response_format, invalid tool arguments) is never provider
   // health, and its message quotes caller- and model-supplied text: a tool
@@ -401,14 +401,14 @@ export function isProviderLevelError(err: any): boolean {
   // would otherwise trip the substring checks below and condemn a healthy
   // platform for the whole request. The structured marker is authoritative;
   // the text is not.
-  if (err?.skipModelForRequest === true) return false;
-  const status = typeof err?.status === 'number' ? err.status : 0;
+  if (errorFlag(err, 'skipModelForRequest')) return false;
+  const status = errorProps(err).status ?? 0;
   if (status >= 500) return true;
   // A DEGRADED hosted deployment (NVIDIA NIM, #522) is provider health wearing
   // a 400 — same source of truth as everywhere else, not a second substring.
   if (isProviderDegradedError(err)) return true;
   if (status !== 0) return false;
-  const msg = (err?.message ?? '').toLowerCase();
+  const msg = errorMessage(err, '').toLowerCase();
   return isTimeoutErrorText(msg)
     || msg.includes('econnrefused') || msg.includes('econnreset')
     || msg.includes('fetch failed');   // undici transport error (DNS/TLS/proxy down)
@@ -425,18 +425,18 @@ export function isProviderLevelError(err: any): boolean {
 // (401/403), quota (402), model-not-found (404/410), context-too-large,
 // empty completions and model-scoped 400s, which keep their existing
 // key/model-scoped handling.
-export function isProviderMomentFailure(err: any): boolean {
+export function isProviderMomentFailure(err: unknown): boolean {
   // A canceled request (client hang-up, time-budget hedge) is the gateway's
   // own doing. isTransportError already treats those as non-transport, but
   // the timeout-marker text check below could still match an abort message.
   if (isClientAbortError(err) || isHedgeAbortError(err)) return false;
-  if (err?.skipModelForRequest === true) return false;
-  const status = typeof err?.status === 'number' ? err.status : 0;
+  if (errorFlag(err, 'skipModelForRequest')) return false;
+  const status = errorProps(err).status ?? 0;
   if (status === 429 || status >= 500) return true;
   if (isProviderDegradedError(err)) return true;
   if (isTransportError(err)) return true;
   if (isStreamTruncatedError(err)) return true;
-  const msg = (err?.message ?? '').toLowerCase();
+  const msg = errorMessage(err, '').toLowerCase();
   if (isTimeoutErrorText(msg)) return true;
   // Rate-limit wording without a structured status: some gateways answer a
   // throttled request with a 200/500 body that only says "rate limit".
@@ -466,10 +466,10 @@ export function isUpstreamClassificationOutput(text: unknown, platform?: string)
 // Provider-side 400s are retryable because another provider may accept the same
 // request shape. If every routed provider rejects it, however, the client should
 // see an invalid-request error rather than a misleading rate-limit exhaustion.
-export function isProviderBadRequestError(err: any): boolean {
+export function isProviderBadRequestError(err: unknown): boolean {
   if (isProviderDegradedError(err)) return false;
-  const status = typeof err?.status === 'number' ? err.status : 0;
-  const msg = (err?.message ?? '').toLowerCase();
+  const status = errorProps(err).status ?? 0;
+  const msg = errorMessage(err, '').toLowerCase();
   if (status === 400) return msg.includes('api error 400');
   if (status === 422) return msg.includes('api error 422') || msg.includes('unprocessable entity');
   if (status !== 0) return false;
@@ -497,10 +497,10 @@ export function isProviderBadRequestError(err: any): boolean {
 // other classifiers in this file work. Retryable (a sibling candidate may have
 // a larger window), but when EVERY attempt dies this way the exhaustion ladder
 // renders an honest 413 instead of a generic failure.
-export function isContextTooLargeError(err: any): boolean {
-  if (err?.status === 413) return true;
-  if (typeof err?.code === 'string' && err.code.toLowerCase() === 'context_length_exceeded') return true;
-  const msg = (err?.message ?? '').toLowerCase();
+export function isContextTooLargeError(err: unknown): boolean {
+  if (errorProps(err).status === 413) return true;
+  if (errorProps(err).code?.toLowerCase() === 'context_length_exceeded') return true;
+  const msg = errorMessage(err, '').toLowerCase();
   return msg.includes('context_length_exceeded')
     // Agnes AI and some OpenAI-compat aggregators raise a bare
     // ContextWindowExceededError whose OpenAIException body arrives truncated
@@ -544,14 +544,14 @@ export function isContextTooLargeError(err: any): boolean {
 const STATED_STATUS = /\bapi error (\d{3})\b|\(http (\d{3})\)/;
 const STANDALONE_402 = /(?<![\w.])402(?![\w.])/;
 
-export function isPaymentRequiredError(err: any): boolean {
-  const msg = String(err?.message ?? '').toLowerCase();
+export function isPaymentRequiredError(err: unknown): boolean {
+  const msg = errorMessage(err, '').toLowerCase();
   if (msg.includes('payment required')
     || msg.includes('insufficient_quota') || msg.includes('insufficient credit')
     || msg.includes('insufficient balance')) return true;
 
   const stated = msg.match(STATED_STATUS);
-  const status = typeof err?.status === 'number' ? err.status : Number(stated?.[1] ?? stated?.[2]);
+  const status = errorProps(err).status ?? Number(stated?.[1] ?? stated?.[2]);
   if (Number.isFinite(status)) return status === 402;
   return STANDALONE_402.test(msg);
 }
@@ -567,13 +567,13 @@ const MODEL_ID_DOES_NOT_EXIST = /\bmodel\b\s+['"`]?[^\s'"`]{1,200}['"`]?\s+(?:do
 // retry loop skips the entire model for the rest of the request instead of
 // burning one fallback attempt per key on the same dead route.
 // (PR #111, credits @barbotkonv.)
-export function isModelNotFoundError(err: any): boolean {
+export function isModelNotFoundError(err: unknown): boolean {
   // 404 (removed/deprecated) and 410 (permanently Gone) are both MODEL-level: every
   // key for the platform fails the same way, so skip the whole model for the rest
   // of the request instead of burning one fallback attempt per sibling key. 410
   // added for #339 (Ollama Cloud "Gone"); prefer the structured status when present.
-  if (err?.status === 404 || err?.status === 410) return true;
-  const msg = (err?.message ?? '').toLowerCase();
+  if (errorProps(err).status === 404 || errorProps(err).status === 410) return true;
+  const msg = errorMessage(err, '').toLowerCase();
   return msg.includes('404') || msg.includes('not found') || msg.includes('no endpoints found')
     || msg.includes('410') || msg.includes('gone')
     // Some aggregators report a removed/stale model with a 400 (not a 404) whose
@@ -611,9 +611,9 @@ export function isModelNotFoundError(err: any): boolean {
 // /models probe still passes, so the health checker never demotes the key.
 // Status-gated to 403 (or a status-less message that names one) so provider
 // wording alone can never condemn a healthy key.
-export function isAccountSuspendedError(err: any): boolean {
-  const status = typeof err?.status === 'number' ? err.status : 0;
-  const msg = (err?.message ?? '').toLowerCase();
+export function isAccountSuspendedError(err: unknown): boolean {
+  const status = errorProps(err).status ?? 0;
+  const msg = errorMessage(err, '').toLowerCase();
   if (status !== 403 && !(status === 0 && msg.includes('403'))) return false;
   return /\b(plan|account|subscription) (is|has been|was) (temporarily )?(disabled|suspended|banned|deactivated)\b/.test(msg)
     || msg.includes('due to abuse');
@@ -625,9 +625,9 @@ export function isAccountSuspendedError(err: any): boolean {
 // rather than trying it again with a sibling key. Distinct from a dead key —
 // validateKey returns false on 401/403, so the health checker disables genuinely
 // forbidden keys; a 403 reaching here is model-not-on-this-tier. See issue #256.
-export function isModelAccessForbiddenError(err: any): boolean {
-  if (err?.status === 403) return true;
-  const msg = (err?.message ?? '').toLowerCase();
+export function isModelAccessForbiddenError(err: unknown): boolean {
+  if (errorProps(err).status === 403) return true;
+  const msg = errorMessage(err, '').toLowerCase();
   if (msg.includes('403') || msg.includes('forbidden')) return true;
   // Not every provider spells "this key may not use this model" as a 403 (issue
   // #618): observed live as a 400 whose body reads "user is not allowed to
@@ -639,7 +639,7 @@ export function isModelAccessForbiddenError(err: any): boolean {
   // phrasings that name access/permission to the MODEL. A bare "Bad Request",
   // a generic "Unauthorized" (which isKeyAuthError owns), or a parameter
   // rejection must keep their current classification.
-  const status = typeof err?.status === 'number' ? err.status : 0;
+  const status = errorProps(err).status ?? 0;
   if (status !== 0 && status !== 400 && status !== 401) return false;
   return MODEL_ACCESS_DENIED_PHRASES.some(phrase => msg.includes(phrase));
 }
@@ -702,9 +702,9 @@ const MODEL_GONE_PHRASES = [
   'is deprecated',
 ];
 
-export function modelRetirementSignal(err: any): ModelRetirementConfidence | null {
-  const msg = (err?.message ?? '').toLowerCase();
-  const status = typeof err?.status === 'number' ? err.status : 0;
+export function modelRetirementSignal(err: unknown): ModelRetirementConfidence | null {
+  const msg = errorMessage(err, '').toLowerCase();
+  const status = errorProps(err).status ?? 0;
   const gone = status === 410 || /\berror 410\b/.test(msg) || /\b410 gone\b/.test(msg);
   // An end-of-life phrase is only definitive when the status agrees the model
   // is not there. On its own it is just text, and 'definitive' skips the
@@ -731,8 +731,8 @@ export function modelRetirementSignal(err: any): ModelRetirementConfidence | nul
 // bad luck: three empty-ended truncations in a row on the same route
 // reliably precede another one. Callers use this signal to bench the route
 // after a short streak instead of re-paying the round trip every request.
-export function isStreamTruncatedError(err: any): boolean {
-  const msg = (err?.message ?? '').toLowerCase();
+export function isStreamTruncatedError(err: unknown): boolean {
+  const msg = errorMessage(err, '').toLowerCase();
   return msg.includes('stream ended unexpectedly')
     || msg.includes('no [done], no finish_reason')
     // undici surfaces an abrupt RST as "terminated" on the body read; with

@@ -6,6 +6,54 @@ import { providerIdFor, providerDisplayName } from '../lib/provider-identity.js'
 import { normalizeBaseUrl } from '../lib/endpoint-scope.js';
 import { searchAnalytics, type SearchAnalyticsRange } from '../services/search.js';
 
+// Row shapes of the aggregate queries below. Aggregates (AVG, SUM, a rate over
+// a NULLIF) are NULL when a group has nothing to count, hence `| null`; COUNT
+// never is. They document the SELECT lists and are not checked against SQLite.
+interface ByModelRow {
+  platform: string; base_url: string; model_id: string; display_name: string | null; requests: number;
+  success_rate: number | null; avg_latency_ms: number | null; total_input_tokens: number | null;
+  total_output_tokens: number | null; pinned_requests: number | null; est_cost: number | null;
+}
+interface ByPlatformRow {
+  platform: string; base_url: string; requests: number; latency_count: number; success_rate: number | null;
+  avg_latency_ms: number | null; avg_ttfb_ms: number | null; error_count: number | null;
+  avg_tokens_per_second: number | null; total_input_tokens: number | null; total_output_tokens: number | null;
+}
+interface ByClientRow {
+  client_agent: string; requests: number; success_rate: number | null; avg_latency_ms: number | null;
+  total_input_tokens: number | null; total_output_tokens: number | null; last_seen_at: string | null;
+}
+interface ByKeyRow {
+  key_id: number | null; label: string | null; platform: string | null; requests: number;
+  success_rate: number | null; avg_latency_ms: number | null; total_input_tokens: number | null;
+  total_output_tokens: number | null;
+}
+interface TimeseriesRow {
+  timestamp: string; requests: number | null; success_count: number | null; failure_count: number | null;
+  input_tokens: number | null; output_tokens: number | null;
+}
+interface ErrorDetailRow { platform: string; model_id: string; error_category: string; count: number }
+interface ErrorCategoryRow { category: string; count: number }
+interface ErrorPlatformRow { platform: string; base_url: string; count: number }
+interface RecentErrorRow {
+  id: number; platform: string; base_url: string; model_id: string; error: string | null;
+  latency_ms: number | null; created_at: string;
+}
+interface RequestLogRow {
+  id: number; platform: string; model_id: string; requested_model: string | null; request_type: string | null;
+  status: string; input_tokens: number | null; output_tokens: number | null; latency_ms: number | null;
+  error: string | null; client_ip: string | null; client_user_agent: string | null; client_agent: string | null;
+  created_at_iso: string; attempt_count: number; key_label: string | null;
+}
+interface RequestDetailRow extends Omit<RequestLogRow, 'attempt_count' | 'key_label'> {
+  served_model: string | null; ttfb_ms: number | null;
+}
+interface AttemptRow {
+  ordinal: number; platform: string; model_id: string; key_ordinal: number | null; key_label: string | null;
+  outcome: string; start_offset_ms: number | null; duration_ms: number | null; error_summary: string | null;
+}
+
+
 export const analyticsRouter = Router();
 
 // The endpoint identity of a request, in SQL: the serving key's base_url, ''
@@ -274,7 +322,7 @@ analyticsRouter.get('/by-model', (req: Request, res: Response) => {
     WHERE r.created_at >= ?
     GROUP BY r.platform, ${ENDPOINT_ID_SQL}, r.model_id
     ORDER BY requests DESC
-  `).all(FALLBACK_INPUT_PER_M, FALLBACK_OUTPUT_PER_M, since) as any[];
+  `).all(FALLBACK_INPUT_PER_M, FALLBACK_OUTPUT_PER_M, since) as ByModelRow[];
 
   res.json(rows.map(r => ({
     platform: r.platform,
@@ -287,7 +335,7 @@ analyticsRouter.get('/by-model', (req: Request, res: Response) => {
     requests: r.requests,
     // success_rate is NULL when every row in the group was canceled.
     successRate: Math.round((r.success_rate ?? 0) * 10) / 10,
-    avgLatencyMs: Math.round(r.avg_latency_ms),
+    avgLatencyMs: Math.round(r.avg_latency_ms ?? 0),
     totalInputTokens: r.total_input_tokens ?? 0,
     totalOutputTokens: r.total_output_tokens ?? 0,
     // Requests this model served because the client pinned it by name.
@@ -330,7 +378,7 @@ analyticsRouter.get('/by-platform', (req: Request, res: Response) => {
     WHERE r.created_at >= ?
     GROUP BY r.platform, ${ENDPOINT_ID_SQL}
     ORDER BY requests DESC
-  `).all(since) as any[];
+  `).all(since) as ByPlatformRow[];
 
   // P95 latency is a per-group percentile; SQLite has no native percentile
   // aggregate, so we take the nearest-rank value per group with a small
@@ -368,7 +416,7 @@ analyticsRouter.get('/by-platform', (req: Request, res: Response) => {
       endpoint: providerDisplayName(r.platform, baseUrl),
       requests: r.requests,
       successRate: Math.round((r.success_rate ?? 0) * 10) / 10,
-      avgLatencyMs: Math.round(r.avg_latency_ms),
+      avgLatencyMs: Math.round(r.avg_latency_ms ?? 0),
       p95LatencyMs: p95Row ? Math.round(p95Row.latency_ms) : null,
       avgTtfbMs: r.avg_ttfb_ms != null ? Math.round(r.avg_ttfb_ms) : null,
       errorCount: r.error_count ?? 0,
@@ -397,7 +445,7 @@ analyticsRouter.get('/by-client', (req: Request, res: Response) => {
     WHERE created_at >= ?
     GROUP BY client_agent
     ORDER BY requests DESC
-  `).all(since) as any[];
+  `).all(since) as ByClientRow[];
 
   res.json(rows.map(row => ({
     clientAgent: row.client_agent,
@@ -434,7 +482,7 @@ analyticsRouter.get('/by-key', (req: Request, res: Response) => {
     GROUP BY r.key_id
     ORDER BY requests DESC
     LIMIT 50
-  `).all(since) as any[];
+  `).all(since) as ByKeyRow[];
 
   res.json(rows.map(r => ({
     keyId: r.key_id,
@@ -444,7 +492,7 @@ analyticsRouter.get('/by-key', (req: Request, res: Response) => {
     platform: r.platform ?? null,
     requests: r.requests,
     successRate: Math.round((r.success_rate ?? 0) * 10) / 10,
-    avgLatencyMs: Math.round(r.avg_latency_ms),
+    avgLatencyMs: Math.round(r.avg_latency_ms ?? 0),
     totalInputTokens: r.total_input_tokens ?? 0,
     totalOutputTokens: r.total_output_tokens ?? 0,
   })));
@@ -485,7 +533,7 @@ analyticsRouter.get('/timeline', (req: Request, res: Response) => {
     WHERE hour >= ?
     GROUP BY timestamp
     ORDER BY timestamp ASC
-  `).all(dateFormat, tzModifier, since) as any[];
+  `).all(dateFormat, tzModifier, since) as TimeseriesRow[];
 
   res.json(rows.map(r => ({
     timestamp: r.timestamp,
@@ -528,7 +576,7 @@ analyticsRouter.get('/error-distribution', (req: Request, res: Response) => {
     WHERE status = 'error' AND created_at >= ?
     GROUP BY platform, error_category
     ORDER BY count DESC
-  `).all(since) as any[];
+  `).all(since) as ErrorDetailRow[];
 
   // Also get totals by category
   const byCategory = db.prepare(`
@@ -548,7 +596,7 @@ analyticsRouter.get('/error-distribution', (req: Request, res: Response) => {
     WHERE status = 'error' AND created_at >= ?
     GROUP BY category
     ORDER BY count DESC
-  `).all(since) as any[];
+  `).all(since) as ErrorCategoryRow[];
 
   // Errors by provider. Endpoint-scoped like /by-platform: one bar per custom
   // relay, not one bar pooling every relay's failures under "custom" (#889) —
@@ -561,7 +609,7 @@ analyticsRouter.get('/error-distribution', (req: Request, res: Response) => {
     WHERE r.status = 'error' AND r.created_at >= ?
     GROUP BY r.platform, ${ENDPOINT_ID_SQL}
     ORDER BY count DESC
-  `).all(since) as any[];
+  `).all(since) as ErrorPlatformRow[];
 
   const byPlatform = byPlatformRows.map(r => {
     const baseUrl: string | null = r.base_url || null;
@@ -598,7 +646,7 @@ analyticsRouter.get('/errors', (req: Request, res: Response) => {
     WHERE r.status = 'error' AND r.created_at >= ?
     ORDER BY r.created_at DESC
     LIMIT 50
-  `).all(since) as any[];
+  `).all(since) as RecentErrorRow[];
 
   res.json(rows.map(r => {
     const baseUrl: string | null = r.base_url || null;
@@ -709,7 +757,7 @@ analyticsRouter.get('/requests', (req: Request, res: Response) => {
     WHERE r.created_at >= ?${filterSql}
     ORDER BY r.created_at DESC, r.id DESC
     LIMIT ? OFFSET ?
-  `).all(since, ...filterParams, limit, offset) as any[];
+  `).all(since, ...filterParams, limit, offset) as RequestLogRow[];
 
   res.json({
     total,
@@ -762,7 +810,7 @@ analyticsRouter.get('/requests/:id', (req: Request, res: Response) => {
            strftime('%Y-%m-%dT%H:%M:%SZ', created_at) as created_at_iso
     FROM requests
     WHERE id = ?
-  `).get(id) as any;
+  `).get(id) as RequestDetailRow | undefined;
   if (!r) {
     res.status(404).json({ error: 'request not found' });
     return;
@@ -773,7 +821,7 @@ analyticsRouter.get('/requests/:id', (req: Request, res: Response) => {
     FROM request_attempts
     WHERE request_id = ?
     ORDER BY ordinal ASC
-  `).all(id) as any[];
+  `).all(id) as AttemptRow[];
 
   res.json({
     id: r.id,

@@ -1636,7 +1636,7 @@ export async function handleResponses(req: Request, res: Response): Promise<void
     },
     logFailure: (route, err, attempt) => {
       const latency = Date.now() - start;
-      const safeError = sanitizeProviderErrorMessage(err.message);
+      const safeError = sanitizeProviderErrorMessage(errorProps(err).message);
       traceRouteEvent('Responses', {
         event: 'fail',
         requestId: requestGroupId,
@@ -1650,7 +1650,7 @@ export async function handleResponses(req: Request, res: Response): Promise<void
     },
     onFatal: (route, err, attempt) => {
       setFallbackHeaders(res, attempt, attemptLog);
-      res.status(502).json({ error: { message: `Provider error (${route.displayName}): ${sanitizeProviderErrorMessage(err.message)}`, type: 'provider_error' } });
+      res.status(502).json({ error: { message: `Provider error (${route.displayName}): ${sanitizeProviderErrorMessage(errorProps(err).message)}`, type: 'provider_error' } });
     },
     onRoutingExhausted: (lastError, routeErr, exhaustion, info) => {
       if (streamStarted) {

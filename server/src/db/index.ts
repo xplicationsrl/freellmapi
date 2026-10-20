@@ -4,7 +4,7 @@ import path from 'path';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'url';
 import { runMigrationsSync } from './migrate/runner.js';
-import { initEncryptionKey, isEncryptionKeyInitialized } from '../lib/crypto.js';
+import { initEncryptionKey, isEncryptionKeyInitialized, encrypt, decrypt } from '../lib/crypto.js';
 import { restrictAllToOwner, restrictDirToOwner } from '../lib/file-permissions.js';
 import { nodeSqliteFactory } from './node-sqlite.js';
 import type { Db, DbFactory } from './types.js';
@@ -222,16 +222,49 @@ export function initDb(
   return db;
 }
 
+// The unified key is stored encrypted at rest with the same AES-256-GCM key
+// that protects provider keys, so a copy of the DB file alone no longer yields
+// the inference credential. Format: enc:v1:<iv>:<authTag>:<ciphertext> (hex).
+// Rows written before this change hold the bare key; they are upgraded the
+// first time they are read.
+const UNIFIED_KEY_ENC_PREFIX = 'enc:v1:';
+
+function sealUnifiedKey(key: string): string {
+  const { encrypted, iv, authTag } = encrypt(key);
+  return `${UNIFIED_KEY_ENC_PREFIX}${iv}:${authTag}:${encrypted}`;
+}
+
+function openUnifiedKey(stored: string): string {
+  const [iv, authTag, encrypted] = stored.slice(UNIFIED_KEY_ENC_PREFIX.length).split(':');
+  return decrypt(encrypted, iv, authTag);
+}
+
 export function getUnifiedApiKey(): string {
   const db = getDb();
   const row = db.prepare("SELECT value FROM settings WHERE key = 'unified_api_key'").get() as { value: string };
+  if (row.value.startsWith(UNIFIED_KEY_ENC_PREFIX)) {
+    try {
+      return openUnifiedKey(row.value);
+    } catch {
+      // Sealed under a different ENCRYPTION_KEY and unrecoverable. Fail
+      // closed by minting a fresh key rather than leaving /v1 unusable; the
+      // dashboard shows the new one.
+      console.warn('[auth] Stored unified API key could not be decrypted with the current ENCRYPTION_KEY; generated a new one.');
+      return regenerateUnifiedKey();
+    }
+  }
+  // Legacy plaintext row: upgrade it in place once encryption is available.
+  if (isEncryptionKeyInitialized()) {
+    db.prepare("UPDATE settings SET value = ? WHERE key = 'unified_api_key'").run(sealUnifiedKey(row.value));
+  }
   return row.value;
 }
 
 export function regenerateUnifiedKey(): string {
   const db = getDb();
   const key = `freellmapi-${crypto.randomBytes(24).toString('hex')}`;
-  db.prepare("UPDATE settings SET value = ? WHERE key = 'unified_api_key'").run(key);
+  db.prepare("UPDATE settings SET value = ? WHERE key = 'unified_api_key'")
+    .run(isEncryptionKeyInitialized() ? sealUnifiedKey(key) : key);
   return key;
 }
 

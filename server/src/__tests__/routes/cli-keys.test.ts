@@ -3,7 +3,7 @@ import type { AddressInfo } from 'node:net';
 import express from 'express';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { main } from '../../../../cli/src/index.js';
-import { getDb, initDb } from '../../db/index.js';
+import { getDb, getUnifiedApiKey, initDb } from '../../db/index.js';
 import { decrypt } from '../../lib/crypto.js';
 import { requireAuth } from '../../middleware/requireAuth.js';
 import { resolveProvider } from '../../providers/index.js';
@@ -78,8 +78,7 @@ describe('CLI provider keys through the dashboard API', () => {
   });
 
   it('rejects a unified proxy key as dashboard authentication', async () => {
-    const unified = getDb().prepare("SELECT value FROM settings WHERE key = 'unified_api_key'").get() as { value: string };
-    await expect(main(['keys', 'list', '--url', url, '--token', unified.value]))
+    await expect(main(['keys', 'list', '--url', url, '--token', getUnifiedApiKey()]))
       .rejects.toThrow('Dashboard authentication failed');
     expect(output).toBe('');
   });

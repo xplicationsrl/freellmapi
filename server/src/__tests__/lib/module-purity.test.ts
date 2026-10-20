@@ -51,6 +51,8 @@ const PURE_MODULES = [
   'content.ts',
   'conversation-recall.ts',
   'think-tags.ts',
+  'auto-model.ts',
+  'stream-text.ts',
 ];
 
 // Pure in fact today, but NOT declared invariant: nothing in the codebase

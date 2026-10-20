@@ -15,7 +15,7 @@ import { invalidToolArgumentsError, invalidToolCallReasons, isToolArgumentValida
 import { sanitizeProviderErrorMessage } from '../lib/error-redaction.js';
 import { rescueInlineToolCalls, startsWithDialectMarker, couldBecomeDialectMarker, containsDialectMarker } from '../lib/tool-call-rescue.js';
 import { getContextHandoffMode, recordIncomingMessages, maybeInjectContextHandoff, recordSuccessfulModel, hasPriorModel, HANDOFF_MAX_TOKENS } from '../services/context-handoff.js';
-import { isFusionModel, runFusion, fusionConfigSchema, FusionError, FUSION_MODEL_ID } from '../services/fusion.js';
+import { isFusionModel, runFusion, FusionError, FUSION_MODEL_ID } from '../services/fusion.js';
 import { isRetryableError, isPaymentRequiredError, isModelNotFoundError, isModelAccessForbiddenError, isClientAbortError, newClientAbortError, newHedgeAbortError, isUpstreamClassificationOutput } from '../lib/error-classify.js';
 import { logRequest } from '../lib/request-log.js';
 import { observeServedModel } from '../lib/served-model.js';
@@ -24,37 +24,28 @@ import { normalizeIdempotencyKey, hashIdempotencyKey, computeIdempotencyFingerpr
 import { runFallbackLoop, newFallbackState, fallbackRoutingTokens, recordUpstreamSuccess, exhaustedRetryError, setFallbackHeaders, exhaustionErrorPayload, setExhaustionHeaders, type AttemptRecord } from '../lib/fallback-loop.js';
 import { routedViaValue, safeHeaderValue } from '../lib/header-value.js';
 import { applyTokenBudget, tokenBudgetMessage } from '../lib/guardrails.js';
-import { samplingParamSchemaFields, pickSamplingParams, supportedParametersForPlatforms } from '../lib/sampling-params.js';
+import { pickSamplingParams } from '../lib/sampling-params.js';
 import { enforceJsonContent } from '../lib/structured-output.js';
 import type { Platform } from '@freellmapi/shared/types.js';
 import { inferQuotaPoolKey, type QuotaObservationContext } from '../services/provider-quota.js';
 import { isUnifyEnabled, getModelGroups, resolveRequestedIdForDispatch } from '../services/model-groups.js';
-import { buildModelListing, type NormalizedModel } from '../services/model-listing.js';
-import { claudeFamilyDiscoveryEntries } from '../services/anthropic-map.js';
 import { compressRequest, formatCompressionHeader } from '../services/compression/pipeline.js';
 import { requireInferenceAuth, extractApiToken } from '../lib/inference-auth.js';
 import { mediaProxyRouter } from './proxy-media.js';
+import { toolCallArgsToString, stopSchema, providerSafeStop, chatCompletionSchema } from '../lib/chat-schemas.js';
+import { isAutoModel } from '../lib/auto-model.js';
+import { streamChunkText, streamReasoningText } from '../lib/stream-text.js';
+import { modelsProxyRouter } from './proxy-models.js';
 import { getRequestGroupId, withExecutionId, traceRouteEvent } from '../lib/request-trace.js';
 import { rememberReasoning, rememberedReasoningFor, restoreSessionReasoning, getSessionKey, getStickyModel, setStickyModel, clearReasoningMemory } from '../lib/session-memory.js';
 import { completionPromptToMessages, completionTextFromChat, completionReasoningText, completionIdFromChat, legacyCompletionChunk } from '../lib/legacy-completions.js';
 
 // Re-exported for existing importers (responses, inbound-chat, tests).
-export { extractApiToken, getRequestGroupId, traceRouteEvent, getStickyModel, setStickyModel, clearReasoningMemory, completionReasoningText };
+export { streamChunkText, streamReasoningText, extractApiToken, getRequestGroupId, traceRouteEvent, getStickyModel, setStickyModel, clearReasoningMemory, completionReasoningText };
 
 export const proxyRouter = Router();
 proxyRouter.use(mediaProxyRouter);
-
-// Virtual "auto" model. Clients like Hermes require a non-empty `model` field
-// on every request, but freellmapi's whole point is to pick the model itself.
-// Requesting this id means "let the router decide" — identical to omitting
-// `model` entirely.
-const AUTO_MODEL_ID = 'auto';
-
-function isAutoModel(modelId: string | undefined): boolean {
-  if (!modelId) return true;
-  const lower = modelId.toLowerCase();
-  return lower === AUTO_MODEL_ID || lower.startsWith(`${AUTO_MODEL_ID}:`);
-}
+proxyRouter.use(modelsProxyRouter);
 
 // timingSafeStringEqual moved to lib/system-prompt.ts (resolveAuth needs it
 // and importing it back from this route would be a cycle). Re-exported here
@@ -77,355 +68,13 @@ function quotaContextForRoute(route: RouteResult, endpoint: string): QuotaObserv
 // existing importers (routes/responses.ts, proxy-retry.test.ts historically).
 export { exhaustedRetryError };
 
-// OpenAI-compatible /models endpoint (used by Hermes for metadata) 
-// shows API models which is linked by the user
-proxyRouter.get('/models', (req: Request, res: Response) => {
-  if (!requireInferenceAuth(req, res)) return;
-
-  // By default we return the WHOLE catalog (one row per model id), each tagged
-  // with whether it is currently usable, so a client can see everything and know
-  // what's connected vs. disabled/keyless (#242). `?available=true` (aliases
-  // `?connected=true`, `?ready=true`) narrows the list to only models that can
-  // serve a request right now — the previous default behavior. The `ready`
-  // alias is the machine-readable filter a meta-gateway uses (#433) to ask
-  // "which models can this instance actually serve now". `available` is computed as
-  // "enabled AND an enabled key can serve it"; dedup prefers an available
-  // instance of a model id over a disabled/keyless one.
-  // Shared catalog listing (one source of truth for the OpenAI and Anthropic
-  // /v1/models endpoints — see services/model-listing.ts). `autoContextWindow`
-  // is the honest ceiling for the virtual "auto" model: the largest context
-  // window among models that can serve a request right now. Advertising null
-  // makes OpenAI-compatible clients (opencode, Continue) fall back to their own
-  // conservative default and truncate long inputs before they reach us (#282).
-  const { models: allListed, autoContextWindow } = buildModelListing();
-
-  const q = String(req.query.available ?? req.query.connected ?? req.query.ready ?? '').toLowerCase();
-  const onlyAvailable = q === '1' || q === 'true' || q === 'yes';
-  const listed = onlyAvailable ? allListed.filter(m => m.available === 1) : allListed;
-
-  // Named fallback chains (#960/#895): every user-defined profile is exposed
-  // as an `auto:<name>` model so a client can pick a specific fallback chain
-  // per request (auto:my-group) instead of only the active one. Available iff
-  // at least one model in that profile's chain can serve a request right now.
-  const profileRows = getDb().prepare(`
-    SELECT p.id, p.name,
-           EXISTS (
-             SELECT 1
-             FROM profile_models pm
-             JOIN models m ON m.id = pm.model_db_id AND m.enabled = 1
-             WHERE pm.profile_id = p.id AND pm.enabled = 1
-               AND EXISTS (
-                 SELECT 1 FROM api_keys k
-                 WHERE k.platform = m.platform AND k.enabled = 1
-                   AND (m.key_id IS NULL OR k.id = m.key_id)
-               )
-           ) AS usable,
-           (SELECT MAX(m2.context_window)
-            FROM profile_models pm2
-            JOIN models m2 ON m2.id = pm2.model_db_id AND m2.enabled = 1
-            WHERE pm2.profile_id = p.id AND pm2.enabled = 1) AS max_ctx
-    FROM profiles p
-    WHERE p.type = 'custom'
-    ORDER BY p.sort_order, p.id
-  `).all() as { id: number; name: string; usable: number; max_ctx: number | null }[];
-
-  // Claude-family discovery entries (#880). The Anthropic-shaped GET /v1/models
-  // in routes/anthropic.ts already lists one id per Claude family so clients
-  // that only accept Claude-looking ids can discover anything at all — but that
-  // handler only answers when the caller sends an `anthropic-version` header.
-  // Claude Desktop's gateway picker fetches this path WITHOUT that header, so
-  // it fell through to the OpenAI-shaped listing below and still saw zero
-  // Claude-shaped ids. Emit the same entries here, from the same builder, so
-  // both shapes agree on what the gateway will serve. Listed only when
-  // something can actually serve them, and never when the id would collide
-  // with a real catalog row.
-  const listedIds = new Set(listed.map(m => m.id));
-  const claudeFamilyEntries = allListed.some(m => m.available === 1)
-    ? claudeFamilyDiscoveryEntries()
-      .filter(a => !listedIds.has(a.id))
-      .map(a => ({
-        id: a.id,
-        object: 'model' as const,
-        created: 0,
-        owned_by: 'freellmapi',
-        name: a.displayName,
-        context_window: autoContextWindow,
-        context_length: autoContextWindow,
-        available: true,
-        unavailable_reason: null,
-      }))
-    : [];
-
-  // Machine-readable execution filter: `?execution_status=ready` narrows to
-  // models a request can actually serve RIGHT NOW (a key that is not scoped
-  // away, cooling down or out of window). `ready` implies available;
-  // `needsKey`/`exhausted` select the rest. Matched case-insensitively because
-  // the value itself is camelCase; an unrecognised value filters nothing, the
-  // same way an unrecognised `?available=` does. Like `?available=`, this
-  // narrows only the catalog rows: `auto`, `fusion` and the named chains are
-  // router entries, not models with keys of their own.
-  const esValues: Record<string, NormalizedModel['executionStatus']> = {
-    ready: 'ready', needskey: 'needsKey', exhausted: 'exhausted',
-  };
-  const es = esValues[String(req.query.execution_status ?? '').toLowerCase()];
-  const esFiltered = es ? listed.filter(m => m.executionStatus === es) : listed;
-
-  res.json({
-    object: 'list',
-    data: [
-      {
-        id: AUTO_MODEL_ID,
-        object: 'model',
-        created: 0,
-        owned_by: 'freellmapi',
-        name: 'Auto (router picks the best available model)',
-        context_window: autoContextWindow,
-        // `context_length` is OpenRouter's field name and the one most
-        // OpenAI-compatible clients read; emit both so whichever a client
-        // looks for is populated. Additive — clients ignore unknown fields.
-        context_length: autoContextWindow,
-        available: true,
-        unavailable_reason: null,
-      },
-      {
-        id: FUSION_MODEL_ID,
-        object: 'model',
-        created: 0,
-        owned_by: 'freellmapi',
-        name: 'Fusion (panel of models answer in parallel, a judge synthesizes one answer)',
-        context_window: autoContextWindow,
-        context_length: autoContextWindow,
-        // Available whenever auto is — fusion needs at least one routable model.
-        available: autoContextWindow != null,
-        unavailable_reason: autoContextWindow != null ? null : 'no_models',
-      },
-      ...claudeFamilyEntries,
-      ...profileRows.map(p => ({
-        id: `auto:${p.name.toLowerCase()}`,
-        object: 'model',
-        created: 0,
-        owned_by: 'freellmapi',
-        name: `Auto: ${p.name} (named fallback chain)`,
-        context_window: p.max_ctx,
-        context_length: p.max_ctx,
-        available: p.usable === 1,
-        unavailable_reason: p.usable === 1 ? null : 'no_models',
-      })),
-      ...esFiltered.map(m => ({
-        id: m.id,
-        object: 'model',
-        created: 0,
-        owned_by: m.ownedBy,
-        name: m.name,
-        context_window: m.contextWindow,
-        context_length: m.contextWindow,
-        // Non-standard but additive: OpenAI clients ignore unknown fields.
-        available: m.available === 1,
-        unavailable_reason: m.available === 1 ? null : (m.enabled === 1 ? 'no_key' : 'disabled'),
-        // Machine-readable dynamic status: 'ready' | 'needsKey' | 'exhausted'
-        // (see services/model-listing.ts). Agents can filter with
-        // ?execution_status=ready and route around exhausted models.
-        execution_status: m.executionStatus,
-        // OpenRouter's field name; agents use it to pick knobs per model. For
-        // a unify group this is the intersection over member platforms — a
-        // param is only advertised when every platform the router might pick
-        // honors it.
-        supported_parameters: supportedParametersForPlatforms(m.platforms, { tools: m.supportsTools }),
-      })),
-    ],
-  });
-});
-
-
 const MAX_RETRIES = 20;
-
-// Echo-tolerant tool calls: agents replay OUR responses back as history, and
-// not all of them preserve the strict OpenAI shape. `type` may be dropped
-// (re-added on forward), Gemini-lineage agents (Qwen Code, AionUI) often
-// send `arguments` as a parsed object instead of a JSON string, and `id` may
-// be missing or empty (ids aren't a Gemini concept) — all get normalized
-// below rather than 400-ing the whole session. Missing ids are synthesized
-// and paired with their tool-result messages by order. (#200)
-const toolCallSchema = z.object({
-  id: z.string().optional(),
-  type: z.literal('function').optional(),
-  function: z.object({
-    name: z.string().min(1),
-    arguments: z.union([z.string(), z.record(z.string(), z.unknown())]),
-  }),
-  thought_signature: z.string().optional(),
-});
-
-const toolCallArgsToString = (args: string | Record<string, unknown>): string =>
-  typeof args === 'string' ? args : JSON.stringify(args);
-
-// OpenAI multimodal envelope. Clients like opencode / continue.dev send
-// content as an array of typed blocks even when only text is present, and
-// Gemini-lineage agents send part-style blocks like `{ "text": "..." }` with
-// no `type` at all. Accept any object (or bare string) as a block; flatten to
-// string for providers that don't support arrays (Cohere, Cloudflare).
-// Non-text blocks pass z validation but get dropped by contentToString —
-// vision/audio still isn't supported. (#200)
-const contentBlockSchema = z.union([z.string(), z.record(z.string(), z.unknown())]);
-const contentSchema = z.union([z.string(), z.array(contentBlockSchema)]);
-
-const systemMessageSchema = z.object({
-  role: z.literal('system'),
-  content: contentSchema,
-  name: z.string().optional(),
-});
-
-// OpenAI's newer SDKs send the system prompt as role:"developer"; accept it
-// and forward as "system" — none of the routed providers know the developer
-// role. (#200)
-const developerMessageSchema = z.object({
-  role: z.literal('developer'),
-  content: contentSchema,
-  name: z.string().optional(),
-});
-
-const userMessageSchema = z.object({
-  role: z.literal('user'),
-  content: contentSchema,
-  name: z.string().optional(),
-});
-
-// Assistant turns may carry empty/null content and no tool_calls — OpenAI
-// accepts these in conversation history (a turn that produced no visible text,
-// a placeholder, a tool turn whose content was emptied), and clients replay
-// them verbatim. We accept them too and coerce empty/null content to "" before
-// forwarding (see message build below) rather than 400-ing a payload OpenAI
-// would take. (#165)
-const assistantMessageSchema = z.object({
-  role: z.literal('assistant'),
-  content: z.union([contentSchema, z.null()]).optional(),
-  name: z.string().optional(),
-  // tool_calls: null (not just missing) is what several agents replay for
-  // no-tool assistant turns — aionrs (AionUI's engine) writes it into every
-  // session-resumed assistant echo. Treated as absent. (#200)
-  tool_calls: z.array(toolCallSchema).nullable().optional(),
-  // Thinking trace echoed back by a client. DeepSeek thinking models on
-  // OpenCode Zen 400 ("reasoning_content in thinking mode must be passed back")
-  // unless the prior turn's reasoning_content is replayed, so keep it through
-  // validation instead of stripping it. See issue #255.
-  reasoning_content: z.string().nullable().optional(),
-  // Moonshot's "partial" prefill flag. A plain z.object (no .passthrough())
-  // would silently strip it; keep it through validation so it can be forwarded
-  // to Moonshot/Kimi models, which document it. See issue #1038.
-  partial: z.boolean().optional(),
-});
-
-// Tool results may arrive with null/missing content (a tool that returned
-// nothing) and a missing/empty tool_call_id (Gemini-lineage agents) — coerced
-// to "" and paired by order with the preceding tool_calls respectively. (#200)
-const toolMessageSchema = z.object({
-  role: z.literal('tool'),
-  content: z.union([contentSchema, z.null()]).optional(),
-  tool_call_id: z.string().optional(),
-  name: z.string().optional(),
-});
-
-// Legacy function-calling shape (pre-tools OpenAI API). Old clients still
-// replay these in history; forwarded as a tool message. (#200)
-const functionMessageSchema = z.object({
-  role: z.literal('function'),
-  name: z.string().min(1),
-  content: z.union([contentSchema, z.null()]).optional(),
-});
-
-const toolDefinitionSchema = z.object({
-  // Some agents omit `type` on tool definitions; re-defaulted to 'function'
-  // on forward. (#200)
-  type: z.literal('function').optional(),
-  function: z.object({
-    name: z.string().min(1),
-    description: z.string().optional(),
-    parameters: z.record(z.string(), z.unknown()).optional(),
-    strict: z.boolean().optional(),
-  }),
-});
-
-const toolChoiceSchema = z.union([
-  // 'any' is the Mistral/Gemini wording for OpenAI's 'required'; mapped on
-  // forward. (#200)
-  z.enum(['none', 'auto', 'required', 'any']),
-  z.object({
-    type: z.literal('function'),
-    function: z.object({
-      name: z.string().min(1),
-    }),
-  }),
-]);
-
-const stopSchema = z.union([z.string(), z.array(z.string()).min(1).max(64)]);
-
-function providerSafeStop(stop: string | string[] | undefined): string | string[] | undefined {
-  if (!Array.isArray(stop)) return stop;
-  return stop.slice(0, 4);
-}
-
-const chatCompletionSchema = z.object({
-  messages: z.array(z.union([
-    systemMessageSchema,
-    developerMessageSchema,
-    userMessageSchema,
-    assistantMessageSchema,
-    toolMessageSchema,
-    functionMessageSchema,
-  ])).min(1),
-  model: z.string().optional(),
-  temperature: z.number().min(0).max(2).optional(),
-  // Some clients send max_tokens <= 0 (or -1) to mean "no limit"; accepted and
-  // treated as unset on forward. (#200)
-  max_tokens: z.number().int().optional(),
-  top_p: z.number().min(0).max(1).optional(),
-  stop: stopSchema.optional(),
-  stream: z.boolean().optional(),
-  stream_options: z.object({
-    include_usage: z.boolean().optional(),
-  }).optional(),
-  // Top-level tool knobs may arrive as explicit nulls from clients that
-  // serialize every field of their request struct; all treated as absent
-  // and never forwarded as null. (#200)
-  tools: z.array(toolDefinitionSchema).nullable().optional(),
-  tool_choice: toolChoiceSchema.nullable().optional(),
-  parallel_tool_calls: z.boolean().nullable().optional(),
-  // Fusion config — only meaningful when `model` is the virtual "fusion" id.
-  // Ignored for every other model. See services/fusion.ts.
-  fusion: fusionConfigSchema.optional(),
-  // Extended sampling + structured-output params (top_k, seed, penalties,
-  // logit_bias, logprobs, response_format, max_completion_tokens…), forwarded
-  // per the platform policy in lib/sampling-params.ts.
-  ...samplingParamSchemaFields,
-});
 
 // Upstream-error classifiers live in lib/error-classify.ts so the fusion
 // service can share them without an import cycle; imported above for internal
 // use and re-exported here for existing importers (routes/responses.ts,
 // proxy-retry.test.ts) that pull them from this module.
 export { isRetryableError, isPaymentRequiredError, isModelNotFoundError, isModelAccessForbiddenError };
-
-// Pull the incremental text out of a streaming chunk for token counting.
-// Must tolerate chunks that carry no `choices` array at all: some providers
-// (e.g. Groq) emit usage/keepalive frames shaped like `{usage:{...}}` with no
-// `choices`. Indexing `chunk.choices[0]` on those throws "Cannot read
-// properties of undefined (reading '0')", which — once the SSE stream has
-// started — aborts the response mid-flight with no chance to fall back.
-export function streamChunkText(chunk: any): string {
-  return chunk?.choices?.[0]?.delta?.content ?? '';
-}
-
-// Pull the incremental reasoning text out of a streaming chunk. Reasoning
-// models stream thinking via `reasoning_content` (Z.ai, DeepSeek-style — the
-// <think> extractor in base.ts normalizes inline tags into the same field) or
-// `reasoning` (Ollama-style) before the first visible answer token; both
-// spellings must count for ttfb and output-token estimates. Same shape
-// tolerance as streamChunkText. (#764)
-export function streamReasoningText(chunk: any): string {
-  const delta = chunk?.choices?.[0]?.delta;
-  const r = delta?.reasoning_content ?? delta?.reasoning;
-  return typeof r === 'string' ? r : '';
-}
 
 const CompletionBody = z.object({
   model: z.string().optional(),

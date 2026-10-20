@@ -40,9 +40,15 @@ import * as requestModelAttribution from '../migrations/20260913_000001_request_
 import * as customEndpointGroupLabel from '../migrations/20260930_000001_custom_endpoint_group_label.js';
 import * as searchEngines from '../migrations/20261013_000001_search_engines.js';
 import * as conversationOwner from '../migrations/20261016_000001_conversation_owner.js';
+import * as decisionRequests from '../migrations/20261016_000001_decision_requests.js';
+import * as llmtrReenableKeys from '../migrations/20261017_000001_llmtr_reenable_keys.js';
+import * as removeGithubProvider from '../migrations/20261017_000002_remove_github_provider.js';
+import * as requestFailureAttribution from '../migrations/20261017_233153_request_failure_attribution.js';
 import * as playgroundProjects from '../migrations/20261019_000001_playground_projects.js';
+import * as removeAurayProvider from '../migrations/20261019_000001_remove_auray_provider.js';
 import * as playgroundMemories from '../migrations/20261019_000002_playground_memories.js';
 import * as playgroundChatTurns from '../migrations/20261019_000003_playground_chat_turns.js';
+import * as keyLastHealthyAt from '../migrations/20261020_000001_key_last_healthy_at.js';
 
 export interface MigrationModule {
   up(db: Db): void;
@@ -95,9 +101,15 @@ export const KEY_MONTHLY_USAGE_FILENAME = '20260914_000001_key_monthly_usage.ts'
 export const QUOTA_SNAPSHOT_FRESHNESS_FILENAME = '20260915_000001_quota_snapshot_freshness.ts';
 export const SEARCH_ENGINES_FILENAME = '20261013_000001_search_engines.ts';
 export const CONVERSATION_OWNER_FILENAME = '20261016_000001_conversation_owner.ts';
+export const DECISION_REQUESTS_FILENAME = '20261016_000001_decision_requests.ts';
+export const LLMTR_REENABLE_KEYS_FILENAME = '20261017_000001_llmtr_reenable_keys.ts';
+export const REMOVE_GITHUB_PROVIDER_FILENAME = '20261017_000002_remove_github_provider.ts';
+export const REQUEST_FAILURE_ATTRIBUTION_FILENAME = '20261017_233153_request_failure_attribution.ts';
 export const PLAYGROUND_PROJECTS_FILENAME = '20261019_000001_playground_projects.ts';
+export const REMOVE_AURAY_PROVIDER_FILENAME = '20261019_000001_remove_auray_provider.ts';
 export const PLAYGROUND_MEMORIES_FILENAME = '20261019_000002_playground_memories.ts';
 export const PLAYGROUND_CHAT_TURNS_FILENAME = '20261019_000003_playground_chat_turns.ts';
+export const KEY_LAST_HEALTHY_AT_FILENAME = '20261020_000001_key_last_healthy_at.ts';
 
 export const DEFAULT_MIGRATIONS: readonly DefaultMigration[] = [
   { filename: LEGACY_BASELINE_FILENAME, module: legacyBaseline },
@@ -141,7 +153,13 @@ export const DEFAULT_MIGRATIONS: readonly DefaultMigration[] = [
   { filename: CUSTOM_ENDPOINT_GROUP_LABEL_FILENAME, module: customEndpointGroupLabel },
   { filename: SEARCH_ENGINES_FILENAME, module: searchEngines },
   { filename: CONVERSATION_OWNER_FILENAME, module: conversationOwner },
+  { filename: DECISION_REQUESTS_FILENAME, module: decisionRequests },
+  { filename: LLMTR_REENABLE_KEYS_FILENAME, module: llmtrReenableKeys },
+  { filename: REMOVE_GITHUB_PROVIDER_FILENAME, module: removeGithubProvider },
+  { filename: REQUEST_FAILURE_ATTRIBUTION_FILENAME, module: requestFailureAttribution },
   { filename: PLAYGROUND_PROJECTS_FILENAME, module: playgroundProjects },
+  { filename: REMOVE_AURAY_PROVIDER_FILENAME, module: removeAurayProvider },
   { filename: PLAYGROUND_MEMORIES_FILENAME, module: playgroundMemories },
   { filename: PLAYGROUND_CHAT_TURNS_FILENAME, module: playgroundChatTurns },
+  { filename: KEY_LAST_HEALTHY_AT_FILENAME, module: keyLastHealthyAt },
 ];

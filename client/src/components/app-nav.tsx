@@ -27,6 +27,7 @@ export const modelItems = [
   { to: '/models/image', labelKey: 'models.imageTab' },
   { to: '/models/video', labelKey: 'models.videoTab' },
   { to: '/models/audio', labelKey: 'models.audioTab' },
+  { to: '/models/decision', labelKey: 'decision.tab' },
   { to: '/models/search', labelKey: 'search.tab' },
   { to: '/models/fusion', labelKey: 'models.fusionTab' },
 ] as const

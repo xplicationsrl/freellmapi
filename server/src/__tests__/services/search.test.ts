@@ -14,6 +14,7 @@ import {
 import { SEARCH_PLATFORMS as SHARED_SEARCH_PLATFORMS } from '../../../../shared/types.js';
 import { SEARCH_PLATFORMS } from '../../lib/search-platforms.js';
 import { seedSearchEngines } from '../helpers/search-engines.js';
+import { clearLastHealthyStampState } from '../../services/health.js';
 
 const realFetch = globalThis.fetch;
 
@@ -106,6 +107,23 @@ describe('search service', () => {
       { title: 'B', url: 'https://b', content: 'beta', score: 0.5 },
     ]);
     expect(logRows()).toEqual([{ engine_id: 'exa-search', platform: 'exa', status: 'ok', result_count: 2 }]);
+  });
+
+  it('a served search marks the key as working; a failed one does not (#1493)', async () => {
+    clearLastHealthyStampState();
+    const good = addKey('exa');
+    getDb().prepare("UPDATE api_keys SET status = 'unknown' WHERE id = ?").run(good);
+    mockFetch(() => json({ results: [{ title: 'A', url: 'https://a', text: 'alpha' }] }));
+    await runSearch('q');
+    expect(getDb().prepare('SELECT status, last_healthy_at FROM api_keys WHERE id = ?').get(good))
+      .toMatchObject({ status: 'healthy', last_healthy_at: expect.any(String) });
+
+    getDb().prepare('DELETE FROM api_keys').run();
+    clearAllCooldowns(Number.MAX_SAFE_INTEGER);
+    const bad = addKey('exa');
+    mockFetch(() => json({ error: 'boom' }, 500));
+    await expect(runSearch('q')).rejects.toBeInstanceOf(SearchError);
+    expect(getDb().prepare('SELECT last_healthy_at FROM api_keys WHERE id = ?').get(bad)).toEqual({ last_healthy_at: null });
   });
 
   it('passes Tavily topic/answer through and keeps its scores', async () => {
@@ -262,6 +280,17 @@ describe('search service', () => {
     expect(err).toBeInstanceOf(SearchError);
     expect(err.status).toBe(429);
     expect(err.retryAfterMs).toBe(30_000);
+  });
+
+  it('reads a back-off stated in the error body when there is no header', async () => {
+    addKey('tavily');
+    // Tavily states its cap in prose; Exa in a RetryInfo-shaped field. With no
+    // Retry-After header, the chain used to fall back to the 60s heuristic.
+    mockFetch(() => new Response('too many requests, try again in 15 seconds', { status: 429 }));
+    const err = await runSearch('q').catch(e => e) as SearchError;
+    expect(err).toBeInstanceOf(SearchError);
+    expect(err.status).toBe(429);
+    expect(err.retryAfterMs).toBe(15_000);
   });
 
   it('reports a provider 401 as a 502, never as the caller’s auth failure', async () => {

@@ -23,6 +23,7 @@ const ImagePage = lazy(() => import('@/pages/ImagePage'))
 const VideoPage = lazy(() => import('@/pages/VideoPage'))
 const AudioPage = lazy(() => import('@/pages/AudioPage'))
 const SearchPage = lazy(() => import('@/pages/SearchPage'))
+const DecisionPage = lazy(() => import('@/pages/DecisionPage'))
 const MediaDetailPage = lazy(() => import('@/pages/MediaDetailPage'))
 const EmbeddingDetailPage = lazy(() => import('@/pages/EmbeddingDetailPage'))
 const AnalyticsPage = lazy(() => import('@/pages/AnalyticsPage'))
@@ -182,6 +183,7 @@ function App() {
                           <Route path="/models/audio/:id" element={<MediaDetailPage modality="audio" />} />
                           <Route path="/models/transcription/:id" element={<MediaDetailPage modality="transcription" />} />
                           <Route path="/models/search" element={<SearchPage />} />
+                          <Route path="/models/decision" element={<DecisionPage />} />
                           <Route path="/playground" element={<PlaygroundPage />} />
                           <Route path="/keys" element={<KeysPage />} />
                           <Route path="/agents" element={<AgentsPage />} />

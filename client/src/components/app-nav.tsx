@@ -124,7 +124,7 @@ export function AppNavFooter({ onOpenSettings }: { onOpenSettings: () => void })
 export function AppNavSidebar({ onOpenSettings }: { onOpenSettings: () => void }) {
   return (
     <aside className="flex w-64 shrink-0 flex-col border-e border-border/40 bg-sidebar text-sidebar-foreground">
-      <div className="flex shrink-0 items-center px-3 pt-3 pb-2">
+      <div className="flex shrink-0 items-center gap-1 px-3 pt-3 pb-1">
         <Link
           to="/playground"
           className="min-w-0 flex-1 rounded-lg px-1 py-1 transition-opacity hover:opacity-80"

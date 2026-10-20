@@ -3,25 +3,20 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 
-// The Playground only scrolls inside its transcript pane if every ancestor
-// between <body> and that pane carries a definite height. One unconditional
-// `min-h-screen` on the shell breaks it: min-height is a floor, not a ceiling,
-// so the shell grows with the chat and the document scrolls instead. The
-// contract lives in a couple of class strings in App.tsx
-// and regresses silently, so it is pinned here like the chain manager pins
-// its routing.
+// Keep navigation within the viewport while long pages scroll independently.
 const here = path.dirname(fileURLToPath(import.meta.url))
 const app = readFileSync(path.join(here, 'App.tsx'), 'utf8')
 const playground = readFileSync(path.join(here, 'pages/PlaygroundPage.tsx'), 'utf8')
 
 describe('app shell heights', () => {
-  it('pins full-bleed routes to the viewport, padded routes to the document', () => {
-    // h-dvh gives the shell a definite height so the flex chain below can
-    // constrain the transcript; overflow-hidden stops the document itself
-    // from scrolling. Padded routes keep plain min-height and scroll as a
-    // document — clipping them under h-dvh would leave long pages with no
-    // scrollbar at all.
-    expect(app).toMatch(/fullBleed \? 'h-dvh overflow-hidden' : 'min-h-screen'/)
+  it('pins every route to the viewport so navigation stays visible', () => {
+    expect(app).toContain('flex flex-col h-dvh overflow-hidden')
+    expect(app).not.toContain('min-h-screen')
+  })
+
+  it('lets padded pages scroll independently of the sidebar', () => {
+    expect(app).toContain("${fullBleed ? '' : 'overflow-y-auto'}")
+    expect(app).toContain('flex min-h-0 min-w-0 flex-1 flex-col')
   })
 
   it('passes a definite height down the flex chain to the page', () => {
@@ -34,5 +29,15 @@ describe('app shell heights', () => {
 
   it('keeps /playground in the full-bleed set', () => {
     expect(app).toMatch(/FULL_BLEED_ROUTES = new Set\(\[[^\]]*'\/playground'[^\]]*\]\)/)
+  })
+})
+
+describe('sidebar alignment', () => {
+  it('keeps brand spacing consistent across navigation', () => {
+    const nav = readFileSync(path.join(here, 'components/app-nav.tsx'), 'utf8')
+    const sidebar = readFileSync(path.join(here, 'components/playground/conversation-sidebar.tsx'), 'utf8')
+    const spacing = 'flex shrink-0 items-center gap-1 px-3 pt-3 pb-1'
+    expect(nav).toContain(spacing)
+    expect(sidebar).toContain(spacing)
   })
 })

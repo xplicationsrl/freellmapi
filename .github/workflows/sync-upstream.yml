@@ -1,0 +1,105 @@
+name: Sync upstream
+
+# Providers are code, so new providers (and removals, fixes, releases) reach this
+# fork only by merging the upstream project. This runs daily: it merges
+# tashfeenahmed/freellmapi into main, runs the same gates as CI, pushes, and
+# triggers the deploy. Where upstream and the fork edited the same lines the
+# fork's version wins, so local edits are never overwritten. If the merge hits a
+# structural conflict or a gate fails, main is left untouched and an issue is
+# opened (or updated) instead.
+on:
+  schedule:
+    - cron: '17 3 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: write
+  actions: write
+
+concurrency:
+  group: sync-upstream
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    # Never run inside the upstream repo itself.
+    if: github.repository != 'tashfeenahmed/freellmapi'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Merge upstream
+        id: merge
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          echo "before=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          scripts/sync-upstream.sh
+
+      - name: Install dependencies
+        if: steps.merge.outputs.result == 'merged'
+        run: npm ci
+
+      - name: Gates (same as CI)
+        id: gates
+        if: steps.merge.outputs.result == 'merged'
+        run: |
+          npm run test:migrations
+          npm test
+          npm run lint
+          npm run build
+
+      - name: Summarise
+        if: steps.merge.outputs.result == 'merged'
+        run: |
+          {
+            echo "### Upstream sync: ${{ steps.merge.outputs.behind }} commits merged"
+            echo
+            echo "**Provider changes**"
+            git diff --name-status "${{ steps.merge.outputs.before }}" HEAD -- server/src/providers | sed 's/^/- /' || true
+            echo
+            echo "**New commits**"
+            git log --format='- %s' "${{ steps.merge.outputs.before }}..HEAD^2" | head -40
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Push and deploy
+        if: steps.merge.outputs.result == 'merged' && steps.gates.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git push origin HEAD:main
+          # Pushes made with GITHUB_TOKEN do not trigger other workflows; dispatch the deploy explicitly.
+          gh workflow run deploy-instances.yml --ref main
+
+      - name: Report a blocked sync
+        if: failure() || steps.merge.outputs.result == 'conflict'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RESULT: ${{ steps.merge.outputs.result }}
+          FILES: ${{ steps.merge.outputs.files }}
+          BEHIND: ${{ steps.merge.outputs.behind }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          title="Upstream sync blocked"
+          if [ "$RESULT" = "conflict" ]; then
+            reason="Merging upstream ($BEHIND new commits) conflicts in: ${FILES//,/, }. Merge by hand: \`scripts/sync-upstream.sh\` then resolve."
+          else
+            reason="The merged result failed the CI gates (tests, lint or build). Main was not changed."
+          fi
+          body="$reason"$'\n\n'"Run: $RUN_URL"
+          existing="$(gh issue list --state open --search "\"$title\" in:title" --json number --jq '.[0].number // empty')"
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --body "$body"
+          else
+            gh issue create --title "$title" --body "$body"
+          fi

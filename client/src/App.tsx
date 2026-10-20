@@ -137,19 +137,15 @@ function ShellBody({ children }: { children: ReactNode }) {
   )
 }
 
-// The shell column. Padded routes keep `min-h-screen` and scroll as a document;
-// a full-bleed route pins the shell to the dynamic viewport instead, because
-// min-height alone is a floor, not a ceiling: with an indefinite shell height
-// every flex-1 container below grows with its content and the document scrolls
-// rather than the one pane (the Playground transcript) that means to.
+// Every route keeps the shell within the viewport. Padded pages scroll in
+// ShellBody's content pane so long pages cannot push the sidebar footer away.
+// Playground keeps scrolling inside its own transcript pane.
 function AppShell({ children }: { children: ReactNode }) {
-  const location = useLocation()
-  const fullBleed = FULL_BLEED_ROUTES.has(location.pathname)
   const [settingsOpen, setSettingsOpen] = useState(false)
 
   return (
     <SettingsUiProvider openSettings={() => setSettingsOpen(true)}>
-      <div className={`flex flex-col ${fullBleed ? 'h-dvh overflow-hidden' : 'min-h-screen'} ${isMacDesktop ? 'desktop-backdrop' : 'bg-background'}`}>
+      <div className={`flex flex-col h-dvh overflow-hidden ${isMacDesktop ? 'desktop-backdrop' : 'bg-background'}`}>
         <DesktopDragBar />
         <ShellBody>{children}</ShellBody>
         <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />

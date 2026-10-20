@@ -1,6 +1,7 @@
-import { memo, isValidElement, useContext, type ReactNode } from 'react'
+import { memo, isValidElement, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import ReactMarkdown, { type Components } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import type { PluggableList } from 'unified'
 import { AppWindow, Image as ImageIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { CopyButton } from './copy-button'
@@ -8,6 +9,7 @@ import { CodeBlock } from './code-block'
 import { artifactKindOf, type ArtifactKind } from '@/lib/artifacts'
 import { ArtifactHostContext } from '@/lib/artifact-host'
 import { useI18n } from '@/i18n'
+import { hasMath, normalizeMath } from '@/lib/math-normalize'
 
 
 function fenceLanguage(children: ReactNode): string {
@@ -169,11 +171,53 @@ interface MarkdownProps {
   className?: string
 }
 
+// KaTeX (about 270 kB plus its stylesheet) is fetched the first time a reply
+// actually contains a formula, then kept; replies without math never pay for it.
+interface MathPlugins {
+  remarkMath: (typeof import('remark-math'))['default']
+  rehypeKatex: (typeof import('rehype-katex'))['default']
+}
+let mathPlugins: MathPlugins | null = null
+let mathLoading: Promise<MathPlugins> | null = null
+
+function loadMath(): Promise<MathPlugins> {
+  mathLoading ??= Promise.all([
+    import('remark-math'),
+    import('rehype-katex'),
+    import('katex/dist/katex.min.css'),
+  ]).then(([remarkMath, rehypeKatex]) => {
+    mathPlugins = { remarkMath: remarkMath.default, rehypeKatex: rehypeKatex.default }
+    return mathPlugins
+  })
+  return mathLoading
+}
+
 function MarkdownInner({ children, className }: MarkdownProps) {
+  const text = useMemo(() => normalizeMath(children), [children])
+  const needsMath = hasMath(text)
+  const [plugins, setPlugins] = useState(mathPlugins)
+
+  useEffect(() => {
+    if (!needsMath || plugins) return
+    let live = true
+    loadMath().then(loaded => { if (live) setPlugins(loaded) }, () => { /* offline: the formula stays as text */ })
+    return () => { live = false }
+  }, [needsMath, plugins])
+
+  const withMath = needsMath && plugins !== null
+  // Single `$` pairs were already rewritten to `$$` by normalizeMath (so prices
+  // are not mistaken for formulas); remark-math must not look for them again.
+  const remarkPlugins: PluggableList = withMath
+    ? [remarkGfm, [plugins.remarkMath, { singleDollarTextMath: false }]]
+    : [remarkGfm]
+  const rehypePlugins: PluggableList = withMath
+    ? [[plugins.rehypeKatex, { throwOnError: false, strict: 'ignore' }]]
+    : []
+
   return (
     <div className={cn('text-sm leading-relaxed', className)}>
-      <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
-        {children}
+      <ReactMarkdown remarkPlugins={remarkPlugins} rehypePlugins={rehypePlugins} components={components}>
+        {text}
       </ReactMarkdown>
     </div>
   )

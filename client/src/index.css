@@ -191,3 +191,11 @@
 .dark .code-highlight .hljs-template-tag, .dark .code-highlight .hljs-symbol, .dark .code-highlight .hljs-bullet { color: oklch(0.78 0.12 150); }
 .dark .code-highlight .hljs-number, .dark .code-highlight .hljs-link { color: oklch(0.78 0.12 30); }
 .dark .code-highlight .hljs-deletion { color: oklch(0.7 0.16 25); }
+
+/* KaTeX display math: a wide formula scrolls inside its own row instead of
+   stretching the reply. */
+.katex-display {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0.25rem 0;
+}

@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useMemo, useCallback, type ReactNode } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { ChevronRight, CircleAlert, FileText, Globe, X } from 'lucide-react'
+import { ChevronRight, CircleAlert, FileText, Globe, Pencil, RefreshCw, X } from 'lucide-react'
 import { apiFetch, API_BASE } from '@/lib/api'
 import { buildModelOptions } from '@/lib/model-groups'
 import type { Chain } from '@/components/chain-manager'
@@ -29,6 +29,8 @@ import {
   toMessageContent,
   type Attachment,
 } from '@/lib/attachments'
+import { MessageActionButton, MessageEditor } from '@/components/playground/message-actions'
+import { canRegenerate, editedTranscript, lookupText, regenerationBase } from '@/lib/playground-retry'
 import { MAX_DOCUMENT_BYTES, extractDocxText, extractPdfText } from '@/lib/document-extract'
 import { readChatStream } from '@/lib/playground-stream'
 import { ConversationSidebar } from '@/components/playground/conversation-sidebar'
@@ -293,6 +295,8 @@ export default function PlaygroundPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
+  // The sent message being edited in place, if any.
+  const [editing, setEditing] = useState<{ index: number; text: string } | null>(null)
   // Files staged for the NEXT message: images already downscaled to a data URI,
   // text-like files already decoded. Cleared on send. (#325)
   const [attachments, setAttachments] = useState<Attachment[]>([])
@@ -642,6 +646,7 @@ export default function PlaygroundPage() {
     setConversationId(null)
     writeActiveConversationId(null)
     setMessages([])
+    setEditing(null)
     setAttachments([])
     followRef.current = true
   }
@@ -661,6 +666,7 @@ export default function PlaygroundPage() {
     const conversation = await getConversation(id)
     createRef.current = null
     setMessages(conversation.messages)
+    setEditing(null)
     setAttachments([])
     setSelectedModel(conversation.model ?? 'auto')
     setSystemPrompt(conversation.systemPrompt ?? '')
@@ -954,24 +960,16 @@ export default function PlaygroundPage() {
 
   const removeAttachment = (id: string) => setAttachments(prev => prev.filter(a => a.id !== id))
 
-  const handleSend = async () => {
-    const text = input.trim()
-    if ((!text && attachments.length === 0) || loading) return
-
-    // Text-like files are inlined into the prompt; images ride along as data
-    // URIs and become `image_url` parts in the request envelope below.
-    const userMsg: ChatMessage = {
-      role: 'user',
-      content: composeText(text, attachments),
-      ...(pendingImages.length > 0 ? { images: pendingImages } : {}),
-    }
-    const newMessages = [...messages, userMsg]
+  // Produce the assistant reply for `newMessages`, which ends with a user
+  // message. Shared by sending, regenerating and edit-and-resend: the callers
+  // differ only in how they arrive at that transcript. `text` is what web
+  // search and recall look up.
+  const runReply = async (newMessages: ChatMessage[], text: string) => {
     // Your own message always brings the transcript back down, however far up
     // you had scrolled to read.
     followRef.current = true
     setMessages(newMessages)
-    setInput('')
-    setAttachments([])
+    setEditing(null)
     stoppedRef.current = false
     setLoading(true)
     inputRef.current?.focus()
@@ -1155,6 +1153,38 @@ export default function PlaygroundPage() {
     }
   }
 
+  const handleSend = async () => {
+    const text = input.trim()
+    if ((!text && attachments.length === 0) || loading) return
+
+    // Text-like files are inlined into the prompt; images ride along as data
+    // URIs and become `image_url` parts in the request envelope.
+    const userMsg: ChatMessage = {
+      role: 'user',
+      content: composeText(text, attachments),
+      ...(pendingImages.length > 0 ? { images: pendingImages } : {}),
+    }
+    setInput('')
+    setAttachments([])
+    await runReply([...messages, userMsg], text)
+  }
+
+  // Replace the last reply (or error) with a fresh one for the same question.
+  const regenerate = () => {
+    if (loading) return
+    const base = regenerationBase(messages)
+    if (!base) return
+    void runReply(base, lookupText(base[base.length - 1]))
+  }
+
+  // Edit a sent message and answer it again; everything after it is dropped.
+  const submitEdit = (index: number, text: string) => {
+    if (loading) return
+    const edited = editedTranscript(messages, index, text)
+    if (!edited) return
+    void runReply(edited, lookupText(edited[edited.length - 1]))
+  }
+
   const handleStop = () => {
     stoppedRef.current = true
     abortRef.current?.abort()
@@ -1235,13 +1265,21 @@ export default function PlaygroundPage() {
                 // Reasoning that arrives before the first answer token counts:
                 // that IS the bubble's content for the moment.
                 const showBubble = msg.role === 'user' || msg.content.length > 0 || !!msg.reasoning
+                const isEditing = editing?.index === i && msg.role === 'user'
                 return (
                   <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                     {/* The user speaks in a bubble; the assistant answers as plain
                         text across the whole column — no box, no padding, no fill.
                         Errors keep their tinted box so they read as errors. */}
-                    <div className={`flex flex-col gap-1 ${msg.role === 'user' ? 'max-w-[80%] items-end' : 'w-full items-start'}`}>
-                      {showBubble && (
+                    <div className={`group/row flex flex-col gap-1 ${msg.role === 'user' ? 'max-w-[80%] items-end' : 'w-full items-start'}`}>
+                      {isEditing ? (
+                        <MessageEditor
+                          initial={editing.text}
+                          onSubmit={text => submitEdit(i, text)}
+                          onCancel={() => setEditing(null)}
+                          labels={{ send: t('playground.editSend'), cancel: t('common.cancel') }}
+                        />
+                      ) : showBubble && (
                         <div
                           className={`group relative text-sm leading-relaxed ${
                             msg.role === 'user'
@@ -1343,6 +1381,24 @@ export default function PlaygroundPage() {
                           streaming={msg.meta?.fusionStreaming}
                           answerStarted={msg.content.length > 0}
                         />
+                      )}
+                      {!loading && !isEditing && msg.role === 'user' && (
+                        <div className="flex gap-1">
+                          <MessageActionButton
+                            icon={Pencil}
+                            label={t('playground.editMessage')}
+                            onClick={() => setEditing({ index: i, text: msg.content })}
+                          />
+                        </div>
+                      )}
+                      {!loading && canRegenerate(messages, i) && (
+                        <div className="flex gap-1">
+                          <MessageActionButton
+                            icon={RefreshCw}
+                            label={msg.isError ? t('errors.tryAgain') : t('playground.regenerate')}
+                            onClick={regenerate}
+                          />
+                        </div>
                       )}
                     </div>
                   </div>

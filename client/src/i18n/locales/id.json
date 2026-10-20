@@ -891,6 +891,8 @@
     "attachTooLarge": "{name} terlalu besar. Batasnya adalah {max}.",
     "attachUnsupported": "{name} tidak didukung. Lampirkan gambar (PNG, JPEG, WebP, GIF) atau file teks (TXT, MD, CSV, JSON, LOG).",
     "attachFailed": "Tidak dapat membaca {name}.",
+    "attachNoText": "No readable text found in {name}. A scanned PDF has no text layer.",
+    "attachTruncated": "{name} is long, so only the first part was attached.",
     "noVisionBadge": "Tanpa gambar",
     "visionWarning": "{model} tidak menerima gambar. Pilih model visi atau Otomatis.",
     "dictate": "Dikte",

@@ -891,6 +891,8 @@
     "attachTooLarge": "{name} is te groot. De limiet is {max}.",
     "attachUnsupported": "{name} wordt niet ondersteund. Voeg afbeeldingen (PNG, JPEG, WebP, GIF) of tekstbestanden (TXT, MD, CSV, JSON, LOG) toe.",
     "attachFailed": "Kan {name} niet lezen.",
+    "attachNoText": "No readable text found in {name}. A scanned PDF has no text layer.",
+    "attachTruncated": "{name} is long, so only the first part was attached.",
     "noVisionBadge": "Geen afbeeldingen",
     "visionWarning": "{model} accepteert geen afbeeldingen. Kies een model met beeldinvoer of Auto.",
     "dictate": "Dicteren",

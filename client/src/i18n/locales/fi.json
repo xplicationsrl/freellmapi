@@ -891,6 +891,8 @@
     "attachTooLarge": "{name} on liian suuri. Raja on {max}.",
     "attachUnsupported": "{name} ei ole tuettu. Liitä kuvia (PNG, JPEG, WebP, GIF) tai tekstitiedostoja (TXT, MD, CSV, JSON, LOG).",
     "attachFailed": "Tiedostoa {name} ei voitu lukea.",
+    "attachNoText": "No readable text found in {name}. A scanned PDF has no text layer.",
+    "attachTruncated": "{name} is long, so only the first part was attached.",
     "noVisionBadge": "Ei kuvia",
     "visionWarning": "{model} ei hyväksy kuvia. Valitse kuvasyötteen hyväksyvä malli tai Auto.",
     "dictate": "Sanele",

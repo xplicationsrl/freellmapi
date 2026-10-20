@@ -22,12 +22,14 @@ import {
   classifyFile,
   composeText,
   dataUrlBytes,
+  fileExtension,
   formatBytes,
   readImageAttachment,
   readTextAttachment,
   toMessageContent,
   type Attachment,
 } from '@/lib/attachments'
+import { MAX_DOCUMENT_BYTES, extractDocxText, extractPdfText } from '@/lib/document-extract'
 import { readChatStream } from '@/lib/playground-stream'
 import { ConversationSidebar } from '@/components/playground/conversation-sidebar'
 import { LiquidComposer } from '@/components/playground/liquid-composer'
@@ -895,6 +897,16 @@ export default function PlaygroundPage() {
           }
           imageBytes += dataUrlBytes(dataUrl)
           accepted.push({ id: `${Date.now()}-${accepted.length}-${file.name}`, kind, name: file.name, dataUrl })
+        } else if (kind === 'document') {
+          const extracted = fileExtension(file.name) === 'docx' || file.type.includes('wordprocessingml')
+            ? await extractDocxText(file)
+            : await extractPdfText(file)
+          if (!extracted) {
+            toast.error(t('playground.attachNoText', { name: file.name }))
+            continue
+          }
+          if (extracted.truncated) toast.info(t('playground.attachTruncated', { name: file.name }))
+          accepted.push({ id: `${Date.now()}-${accepted.length}-${file.name}`, kind: 'text', name: file.name, text: extracted.text })
         } else {
           const text = await readTextAttachment(file)
           accepted.push({ id: `${Date.now()}-${accepted.length}-${file.name}`, kind, name: file.name, text })
@@ -904,7 +916,7 @@ export default function PlaygroundPage() {
         toast.error(reason === 'too-large'
           ? t('playground.attachTooLarge', {
               name: file.name,
-              max: formatBytes(kind === 'image' ? MAX_IMAGE_BYTES : MAX_TEXT_BYTES),
+              max: formatBytes(kind === 'image' ? MAX_IMAGE_BYTES : kind === 'document' ? MAX_DOCUMENT_BYTES : MAX_TEXT_BYTES),
             })
           : t('playground.attachFailed', { name: file.name }))
       }

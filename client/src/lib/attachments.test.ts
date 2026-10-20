@@ -20,6 +20,18 @@ const png = (name = 'shot.png'): Attachment => ({
   id: name, kind: 'image', name, dataUrl: 'data:image/png;base64,iVBORw0KGgo=',
 })
 
+describe('classifyFile documents', () => {
+  it('recognises PDF and Word files by extension or MIME type', () => {
+    expect(classifyFile({ name: 'paper.pdf', type: 'application/pdf' })).toBe('document')
+    expect(classifyFile({ name: 'PAPER.PDF', type: '' })).toBe('document')
+    expect(classifyFile({ name: 'report.docx', type: '' })).toBe('document')
+    expect(classifyFile({
+      name: 'report',
+      type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    })).toBe('document')
+  })
+})
+
 describe('classifyFile', () => {
   it('accepts the four image types the composer offers', () => {
     for (const type of ['image/png', 'image/jpeg', 'image/webp', 'image/gif']) {
@@ -35,7 +47,7 @@ describe('classifyFile', () => {
 
   it('rejects the document formats left for the follow-up', () => {
     expect(classifyFile({ name: 'book.xlsx', type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })).toBeNull()
-    expect(classifyFile({ name: 'paper.pdf', type: 'application/pdf' })).toBeNull()
+    expect(classifyFile({ name: 'legacy.doc', type: 'application/msword' })).toBeNull()
     expect(classifyFile({ name: 'archive.zip', type: 'application/zip' })).toBeNull()
     expect(classifyFile({ name: 'clip.mp4', type: 'video/mp4' })).toBeNull()
   })

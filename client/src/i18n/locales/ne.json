@@ -891,6 +891,8 @@
     "attachTooLarge": "{name} धेरै ठूलो छ। सीमा {max} हो।",
     "attachUnsupported": "{name} समर्थित छैन। छवि (PNG, JPEG, WebP, GIF) वा पाठ फाइलहरू (TXT, MD, CSV, JSON, LOG) संलग्न गर्नुहोस्।",
     "attachFailed": "{name} पढ्न सकिएन।",
+    "attachNoText": "No readable text found in {name}. A scanned PDF has no text layer.",
+    "attachTruncated": "{name} is long, so only the first part was attached.",
     "noVisionBadge": "छवि छैन",
     "visionWarning": "{model} ले छवि स्वीकार गर्दैन। छवि स्वीकार गर्ने मोडेल वा स्वत: छान्नुहोस्।",
     "dictate": "बोलेर लेख्नुहोस्",

@@ -891,6 +891,8 @@
     "attachTooLarge": "Masyadong malaki ang {name}. Ang limitasyon ay {max}.",
     "attachUnsupported": "Hindi suportado ang {name}. Maglakip ng mga larawan (PNG, JPEG, WebP, GIF) o mga text file (TXT, MD, CSV, JSON, LOG).",
     "attachFailed": "Hindi mabasa ang {name}.",
+    "attachNoText": "No readable text found in {name}. A scanned PDF has no text layer.",
+    "attachTruncated": "{name} is long, so only the first part was attached.",
     "noVisionBadge": "Walang larawan",
     "visionWarning": "Hindi tumatanggap ng larawan ang {model}. Pumili ng modelong tumatanggap ng larawan o Auto.",
     "dictate": "Idikta",

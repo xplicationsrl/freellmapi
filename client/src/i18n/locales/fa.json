@@ -891,6 +891,8 @@
     "attachTooLarge": "{name} خیلی بزرگ است. محدودیت {max} است.",
     "attachUnsupported": "{name} پشتیبانی نمی‌شود. تصویر (PNG، JPEG، WebP، GIF) یا فایل متنی (TXT، MD، CSV، JSON، LOG) پیوست کنید.",
     "attachFailed": "{name} خوانده نشد.",
+    "attachNoText": "No readable text found in {name}. A scanned PDF has no text layer.",
+    "attachTruncated": "{name} is long, so only the first part was attached.",
     "noVisionBadge": "بدون تصویر",
     "visionWarning": "{model} تصویر نمی‌پذیرد. یک مدل با ورودی تصویر یا خودکار را انتخاب کنید.",
     "dictate": "دیکته",

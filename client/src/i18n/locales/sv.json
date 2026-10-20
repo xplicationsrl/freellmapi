@@ -891,6 +891,8 @@
     "attachTooLarge": "{name} är för stor. Gränsen är {max}.",
     "attachUnsupported": "{name} stöds inte. Bifoga bilder (PNG, JPEG, WebP, GIF) eller textfiler (TXT, MD, CSV, JSON, LOG).",
     "attachFailed": "Kunde inte läsa {name}.",
+    "attachNoText": "No readable text found in {name}. A scanned PDF has no text layer.",
+    "attachTruncated": "{name} is long, so only the first part was attached.",
     "noVisionBadge": "Inga bilder",
     "visionWarning": "{model} accepterar inte bilder. Välj en modell med bildstöd eller Auto.",
     "dictate": "Diktera",

@@ -6,8 +6,10 @@
 //   - text-like files (txt/md/csv/tsv/json/log) → inlined into the message text
 //     as a fenced block labelled with the filename.
 //
-// Binary documents (pdf/xlsx/docx) are deliberately NOT handled here: extracting
-// their text needs a parser, and that is a separate piece of work.
+//   - documents (pdf/docx) → their text is extracted in the browser
+//     (lib/document-extract.ts) and then travels exactly like a text-like file.
+//
+// Other binary formats (xlsx, legacy .doc, ...) are not handled.
 //
 // The caps below exist because every request leaves through a FREE-TIER
 // provider: base64 images inflate the prompt ~33%, and free tiers have small
@@ -27,11 +29,19 @@ export const MAX_ATTACHMENTS = 5
 
 export const IMAGE_MIME_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif']
 export const TEXT_EXTENSIONS = ['txt', 'md', 'markdown', 'csv', 'tsv', 'json', 'log']
+export const DOCUMENT_EXTENSIONS = ['pdf', 'docx']
+const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
 
 /** `accept` for the file input — mirrors what classifyFile() lets through. */
-export const ACCEPT_ATTRIBUTE = [...IMAGE_MIME_TYPES, ...TEXT_EXTENSIONS.map(e => `.${e}`)].join(',')
+export const ACCEPT_ATTRIBUTE = [
+  ...IMAGE_MIME_TYPES,
+  ...TEXT_EXTENSIONS.map(e => `.${e}`),
+  ...DOCUMENT_EXTENSIONS.map(e => `.${e}`),
+].join(',')
 
 export type AttachmentKind = 'image' | 'text'
+/** What a picked file is, before it is read; a 'document' ends up as a 'text' attachment. */
+export type FileKind = AttachmentKind | 'document'
 
 export interface Attachment {
   id: string
@@ -57,11 +67,12 @@ export function fileExtension(name: string): string {
 // types for text-like files (empty string for .md, application/vnd.ms-excel for
 // .csv on Windows). Anything we don't recognize is rejected loudly rather than
 // guessed at.
-export function classifyFile(file: { name: string; type?: string }): AttachmentKind | null {
+export function classifyFile(file: { name: string; type?: string }): FileKind | null {
   const type = (file.type ?? '').toLowerCase()
   if (IMAGE_MIME_TYPES.includes(type)) return 'image'
   const ext = fileExtension(file.name)
   if (TEXT_EXTENSIONS.includes(ext)) return 'text'
+  if (DOCUMENT_EXTENSIONS.includes(ext) || type === 'application/pdf' || type === DOCX_MIME) return 'document'
   if (!type && ext === '') return null
   if (type.startsWith('text/')) return 'text'
   if (type === 'application/json') return 'text'

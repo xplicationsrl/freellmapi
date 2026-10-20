@@ -891,6 +891,8 @@
     "attachTooLarge": "{name} มีขนาดใหญ่เกินไป ขีดจำกัดคือ {max}",
     "attachUnsupported": "{name} ไม่รองรับ กรุณาแนบรูปภาพ (PNG, JPEG, WebP, GIF) หรือไฟล์ข้อความ (TXT, MD, CSV, JSON, LOG)",
     "attachFailed": "ไม่สามารถอ่าน {name} ได้",
+    "attachNoText": "No readable text found in {name}. A scanned PDF has no text layer.",
+    "attachTruncated": "{name} is long, so only the first part was attached.",
     "noVisionBadge": "ไม่รับรูปภาพ",
     "visionWarning": "{model} ไม่รองรับรูปภาพ เลือกโมเดลที่รองรับรูปภาพหรืออัตโนมัติ",
     "dictate": "พูดเพื่อพิมพ์",

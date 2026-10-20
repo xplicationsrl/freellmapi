@@ -891,6 +891,8 @@
     "attachTooLarge": "Plik {name} jest za duży. Limit to {max}.",
     "attachUnsupported": "{name} nie jest obsługiwany. Załącz obrazy (PNG, JPEG, WebP, GIF) lub pliki tekstowe (TXT, MD, CSV, JSON, LOG).",
     "attachFailed": "Nie udało się odczytać pliku {name}.",
+    "attachNoText": "No readable text found in {name}. A scanned PDF has no text layer.",
+    "attachTruncated": "{name} is long, so only the first part was attached.",
     "noVisionBadge": "Bez obrazów",
     "visionWarning": "{model} nie przyjmuje obrazów. Wybierz model obsługujący obrazy lub Auto.",
     "dictate": "Dyktuj",

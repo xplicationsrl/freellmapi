@@ -8,6 +8,7 @@ import {
   builtinDiscoveryEligibility,
   registerDiscoveredModels,
   resetBuiltinDiscoveryThrottle,
+  pruneLesserDiscoveredModels,
   runBuiltinModelDiscovery,
   triggerBuiltinModelDiscovery,
 } from '../../services/builtin-model-discovery.js';
@@ -165,14 +166,26 @@ describe('built-in model discovery (#1348)', () => {
       it('registers a widened platform on the automatic pass', async () => {
         process.env.BUILTIN_MODEL_DISCOVERY_PLATFORMS = 'all';
         addKey('simplellm');
-        stubModels(['free-gemma-4-E4B', 'free-Llama-3.1-8B-Instruct']);
+        stubModels(['free-gemma-4-E4B', 'free-Qwen3-8B', 'free-Llama-3.3-70B-Instruct', 'free-gpt-4o-mini']);
         const result = await runBuiltinModelDiscovery(getDb(), 'simplellm');
         expect(result.added).toBe(2);
         expect(rows('simplellm').map(r => [r.model_id, r.source])).toEqual([
-          ['free-Llama-3.1-8B-Instruct', 'discovered'],
-          ['free-gemma-4-E4B', 'discovered'],
+          ['free-Llama-3.3-70B-Instruct', 'discovered'],
+          ['free-gpt-4o-mini', 'discovered'],
         ]);
       });
+    });
+  });
+
+  describe('pruneLesserDiscoveredModels', () => {
+    it('removes lesser discovered rows only, keeping known small, large and user rows', () => {
+      const db = getDb();
+      registerDiscoveredModels(db, 'siliconflow', ['Qwen3-8B', 'x-mini', 'gpt-4o-mini', 'DeepSeek-V3'].map(modelId => ({ modelId })), { explicit: true });
+      db.prepare(`INSERT INTO models (platform, model_id, display_name, intelligence_rank, speed_rank, size_label, source)
+                  VALUES ('siliconflow', 'user-7b', 'Mine', 1, 1, 'Small', 'user')`).run();
+      expect(pruneLesserDiscoveredModels(db)).toBe(2);
+      expect(rows('siliconflow').map(r => r.model_id).sort()).toEqual(['DeepSeek-V3', 'gpt-4o-mini', 'user-7b']);
+      expect(pruneLesserDiscoveredModels(db)).toBe(0);
     });
   });
 
@@ -220,6 +233,26 @@ describe('built-in model discovery (#1348)', () => {
       expect(paid).toBe(1);
     });
 
+    it('skips lesser models by name or stated size, keeps unsized and large ones', () => {
+      const ids = ['x-mini', 'obscure-lite', 'Qwen/Qwen3-8B', 'gemma-4-E4B', 'Llama-3.3-70B', 'Qwen3-235B-A22B', 'DeepSeek-V3', 'LongCat-Flash-Chat'];
+      const { accepted, lesser } = autoRegistrable(ids.map(id => ({ id, ownedBy: null })));
+      expect(accepted.map(m => m.id)).toEqual(['Llama-3.3-70B', 'Qwen3-235B-A22B', 'DeepSeek-V3', 'LongCat-Flash-Chat']);
+      expect(lesser).toBe(4);
+    });
+
+    it('keeps widely known small models', () => {
+      const known = ['gpt-4o-mini', 'gemini-2.5-flash-lite', 'claude-haiku-4-5', 'Llama-3.1-8B-Instruct', 'gpt-oss-20b'];
+      expect(autoRegistrable(known.map(id => ({ id, ownedBy: null }))).accepted).toHaveLength(known.length);
+    });
+
+    it('BUILTIN_MODEL_DISCOVERY_MIN_PARAMS_B tunes the size cut, 0 keeps only the name check', () => {
+      process.env.BUILTIN_MODEL_DISCOVERY_MIN_PARAMS_B = '0';
+      expect(autoRegistrable([{ id: 'Qwen3-8B', ownedBy: null }, { id: 'x-mini', ownedBy: null }]).accepted.map(m => m.id)).toEqual(['Qwen3-8B']);
+      process.env.BUILTIN_MODEL_DISCOVERY_MIN_PARAMS_B = '100';
+      expect(autoRegistrable([{ id: 'Llama-3.3-70B', ownedBy: null }]).accepted).toEqual([]);
+      delete process.env.BUILTIN_MODEL_DISCOVERY_MIN_PARAMS_B;
+    });
+
     it('applies CUSTOM_MODEL_SYNC_FREE_PATTERNS when set', () => {
       process.env.CUSTOM_MODEL_SYNC_FREE_PATTERNS = '*:free';
       const { accepted } = autoRegistrable([{ id: 'a:free', ownedBy: null }, { id: 'b', ownedBy: null }]);
@@ -230,7 +263,7 @@ describe('built-in model discovery (#1348)', () => {
   describe('runBuiltinModelDiscovery', () => {
     it('fetches the registered base URL with the stored key and registers new chat models', async () => {
       addKey('siliconflow', 'sk-silicon');
-      const mock = stubModels(['deepseek-ai/DeepSeek-V3', 'BAAI/bge-m3-embedding', 'Qwen/Qwen3-8B']);
+      const mock = stubModels(['deepseek-ai/DeepSeek-V3', 'BAAI/bge-m3-embedding', 'Qwen/Qwen3-8B', 'Qwen/Qwen3-235B-A22B']);
 
       const result = await runBuiltinModelDiscovery(getDb());
 
@@ -239,7 +272,8 @@ describe('built-in model discovery (#1348)', () => {
       expect((init.headers as Record<string, string>).Authorization).toBe('Bearer sk-silicon');
       expect(result.added).toBe(2);
       expect(result.nonChatSkipped).toBe(1);
-      expect(rows('siliconflow').map(r => r.model_id)).toEqual(['Qwen/Qwen3-8B', 'deepseek-ai/DeepSeek-V3']);
+      expect(result.lesserSkipped).toBe(1);
+      expect(rows('siliconflow').map(r => r.model_id)).toEqual(['Qwen/Qwen3-235B-A22B', 'deepseek-ai/DeepSeek-V3']);
     });
 
     it('does nothing for a platform without a usable key, or in manual mode', async () => {

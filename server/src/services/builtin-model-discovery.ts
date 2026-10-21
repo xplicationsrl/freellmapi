@@ -244,6 +244,39 @@ export function registerDiscoveredModels(
   })();
 }
 
+/** Name markers of small / budget-tier models that only clog the chain. */
+const LESSER_MODEL_MARKER = /(?:^|[^a-z0-9])(?:mini|nano|lite|tiny|micro|small|flash-8b|instant)(?![a-z0-9])/i;
+
+/** `BUILTIN_MODEL_DISCOVERY_MIN_PARAMS_B`: smallest model (billions of
+ *  parameters, read from the id, e.g. `-8B`, `-235b-a22b`) an automatic pass
+ *  registers. Default 30; 0 turns the size check off. */
+export function discoveryMinParamsB(): number {
+  const raw = process.env.BUILTIN_MODEL_DISCOVERY_MIN_PARAMS_B?.trim();
+  if (raw === undefined || raw === '') return 30;
+  const n = Number(raw);
+  return Number.isFinite(n) && n >= 0 ? n : 30;
+}
+
+/** Small models people actually recognise and use. Never treated as lesser,
+ *  whatever their size or name says. Extend as needed. */
+const WIDELY_KNOWN_SMALL_MODEL = new RegExp([
+  'gpt-(?:4o|4\\.1|5[\\d.]*)-(?:mini|nano)', '(?:^|[^a-z0-9])o[134]-mini',
+  'gpt-oss-(?:20|120)b', 'gemini[\\w.-]*flash', 'haiku',
+  'llama-?3\\.[1-3]-8b', 'mistral-small', 'gemma-?3-?(?:12|27)b',
+].join('|'), 'i');
+
+/** True for a model that is discernibly a lesser one: a mini/nano/lite-style
+ *  name, or a stated parameter count under the minimum, unless it is a widely
+ *  known small model. Ids that state neither (DeepSeek-V3, LongCat-Flash-Chat)
+ *  pass. */
+export function isLesserModel(id: string, minParamsB = discoveryMinParamsB()): boolean {
+  if (WIDELY_KNOWN_SMALL_MODEL.test(id)) return false;
+  if (LESSER_MODEL_MARKER.test(id)) return true;
+  if (minParamsB <= 0) return false;
+  const size = /(?:^|[^a-z0-9.])e?(\d+(?:\.\d+)?)b(?![a-z])/i.exec(id);
+  return size !== null && Number(size[1]) < minParamsB;
+}
+
 /** Glob match where `*` matches any run of chars (incl. empty). */
 function patternMatches(pattern: string, id: string): boolean {
   const escaped = pattern.split('*').map(seg => seg.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
@@ -256,20 +289,47 @@ function patternMatches(pattern: string, id: string): boolean {
  *  - chat only: embedding, image, audio, transcription and video ids are
  *    skipped (#1051), as in the custom-model sync;
  *  - an upstream that prices a model and says it is not free is skipped;
+ *  - lesser models (mini / nano / lite names, or under
+ *    BUILTIN_MODEL_DISCOVERY_MIN_PARAMS_B billion parameters) are skipped, so
+ *    keys do not pile up behind models that add little to the chain;
  *  - CUSTOM_MODEL_SYNC_FREE_PATTERNS, when set, applies here too (#746).
  */
-export function autoRegistrable(models: DiscoveredModel[]): { accepted: DiscoveredModel[]; nonChat: number; paid: number } {
+export function autoRegistrable(models: DiscoveredModel[]): { accepted: DiscoveredModel[]; nonChat: number; paid: number; lesser: number } {
   const freePatterns = customModelSyncFreePatterns();
   const accepted: DiscoveredModel[] = [];
   let nonChat = 0;
   let paid = 0;
+  let lesser = 0;
+  const minParamsB = discoveryMinParamsB();
   for (const model of models) {
     if (model.kind !== undefined) { nonChat += 1; continue; }
+    if (isLesserModel(model.id, minParamsB)) { lesser += 1; continue; }
     if (model.priceNote !== undefined && model.isFree !== true) { paid += 1; continue; }
     if (freePatterns.length > 0 && !freePatterns.some(p => patternMatches(p, model.id))) { paid += 1; continue; }
     accepted.push(model);
   }
-  return { accepted, nonChat, paid };
+  return { accepted, nonChat, paid, lesser };
+}
+
+/** Remove discovered rows that are lesser models. Only source='discovered'
+ *  rows are considered: catalog and user rows are never touched. Returns how
+ *  many were removed. */
+export function pruneLesserDiscoveredModels(db: Db): number {
+  const rows = db
+    .prepare("SELECT id, model_id FROM models WHERE source = ? AND endpoint_scope = ''")
+    .all(DISCOVERED_MODEL_SOURCE) as { id: number; model_id: string }[];
+  const lesser = rows.filter(r => isLesserModel(r.model_id));
+  if (lesser.length === 0) return 0;
+  const deleteFb = db.prepare('DELETE FROM fallback_config WHERE model_db_id = ?');
+  const deleteModel = db.prepare('DELETE FROM models WHERE id = ?');
+  db.transaction(() => {
+    for (const r of lesser) {
+      deleteFb.run(r.id);
+      deleteModel.run(r.id);
+    }
+  })();
+  console.log(`[builtin-model-discovery] pruned ${lesser.length} lesser discovered model(s)`);
+  return lesser.length;
 }
 
 export interface BuiltinDiscoveryResult {
@@ -279,6 +339,7 @@ export interface BuiltinDiscoveryResult {
   tombstoned: number;
   nonChatSkipped: number;
   paidSkipped: number;
+  lesserSkipped: number;
   failures: Array<{ platform: string; error: string }>;
 }
 
@@ -298,9 +359,10 @@ function usableKeys(db: Db, platform: string): KeyRow[] {
  */
 export async function runBuiltinModelDiscovery(db: Db, only?: string): Promise<BuiltinDiscoveryResult> {
   const result: BuiltinDiscoveryResult = {
-    platforms: 0, added: 0, skipped: 0, tombstoned: 0, nonChatSkipped: 0, paidSkipped: 0, failures: [],
+    platforms: 0, added: 0, skipped: 0, tombstoned: 0, nonChatSkipped: 0, paidSkipped: 0, lesserSkipped: 0, failures: [],
   };
   if (builtinDiscoveryMode() !== 'auto') return result;
+  if (!only) pruneLesserDiscoveredModels(db);
 
   const platforms = only ? [only] : [...discoveryPlatforms()];
   for (const platform of platforms) {
@@ -314,9 +376,10 @@ export async function runBuiltinModelDiscovery(db: Db, only?: string): Promise<B
       // Re-check after the network round-trip: a catalog sync may have landed
       // in between, and the catalog always wins.
       if (!isBuiltinDiscoveryEligible(db, platform)) continue;
-      const { accepted, nonChat, paid } = autoRegistrable(discovered);
+      const { accepted, nonChat, paid, lesser } = autoRegistrable(discovered);
       result.nonChatSkipped += nonChat;
       result.paidSkipped += paid;
+      result.lesserSkipped += lesser;
       const registered = registerDiscoveredModels(
         db,
         platform,
@@ -366,7 +429,7 @@ export function triggerBuiltinModelDiscovery(
   const run = runBuiltinModelDiscovery(db, platform)
     .catch((err: unknown): BuiltinDiscoveryResult => {
       console.error(`[builtin-model-discovery] ${platform}: ${(err as Error)?.message ?? err}`);
-      return { platforms: 0, added: 0, skipped: 0, tombstoned: 0, nonChatSkipped: 0, paidSkipped: 0, failures: [] };
+      return { platforms: 0, added: 0, skipped: 0, tombstoned: 0, nonChatSkipped: 0, paidSkipped: 0, lesserSkipped: 0, failures: [] };
     })
     .finally(() => inFlight.delete(platform));
   inFlight.set(platform, run);

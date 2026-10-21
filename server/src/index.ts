@@ -22,6 +22,7 @@ import { installLogRedaction } from './lib/log-redaction.js';
 import { cleanupExpiredCooldowns } from './services/ratelimit.js';
 import { loadCacheFromDb } from './services/cache.js';
 import { installGracefulShutdown } from './lib/graceful-shutdown.js';
+import { startAgenticRuntime, stopAgenticRuntime } from './services/conversations/lifecycle.js';
 import { errorMessage } from './lib/error-props.js';
 
 // Before any other statement runs, so no provider key can reach stdout — users
@@ -47,6 +48,7 @@ async function main() {
   }
   initDb(config.dbPath ?? undefined);
   applyDeclarativeConfigFromEnv();
+  startAgenticRuntime();
   // After initDb: the unknown-model half of this check reads the catalog.
   warnOnRoutingOverrideDrift();
 
@@ -127,7 +129,7 @@ async function main() {
   const server = app.listen(Number(PORT), HOST, onReady(HOST));
   tuneKeepAlive(server);
   const servers = [server];
-  installGracefulShutdown({ servers: () => servers.filter(s => s.listening), closeDb: () => getDb().close?.() });
+  installGracefulShutdown({ servers: () => servers.filter(s => s.listening), closeDb: () => { stopAgenticRuntime(); getDb().close?.(); } });
   server.on('error', (err: NodeJS.ErrnoException) => {
     // The default '::' bind fails where IPv6 is disabled (kernel
     // ipv6.disable=1 and the like) — retry IPv4-only rather than dying.

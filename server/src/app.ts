@@ -9,6 +9,9 @@ import { clientProfilesRouter } from './routes/client-profiles.js';
 import { conversationsRouter } from './routes/conversations.js';
 import { projectsRouter } from './routes/projects.js';
 import { memoriesRouter } from './routes/memories.js';
+import { runsRouter } from './routes/runs.js';
+import { mcpServersRouter } from './routes/mcp-servers.js';
+import { knowledgeRouter } from './routes/knowledge.js';
 import { logsRouter } from './routes/logs.js';
 import { modelsRouter } from './routes/models.js';
 import { proxyRouter } from './routes/proxy.js';
@@ -257,6 +260,12 @@ export function createApp(config?: Config) {
   app.use('/api/projects', requireAuth, projectsRouter);
   // Cross-chat memories for the Playground (per dashboard account).
   app.use('/api/memories', requireAuth, memoriesRouter);
+  // Server-side conversation runs: streamed tool loop, cancel, approvals.
+  app.use('/api/runs', requireAuth, runsRouter);
+  // MCP client server configuration (Integrations page); 404 while the flag is off.
+  app.use('/api/mcp-servers', requireAuth, mcpServersRouter);
+  // Knowledge bases (document Q&A); 404 while the flag is off.
+  app.use('/api/knowledge', requireAuth, knowledgeRouter);
   // Server logs for the dashboard viewer. Dashboard-session gated like the rest
   // of /api — these lines name providers, models and key ids, so the unified
   // /v1 key must not open them.

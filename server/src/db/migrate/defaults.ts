@@ -49,6 +49,9 @@ import * as removeAurayProvider from '../migrations/20261019_000001_remove_auray
 import * as playgroundMemories from '../migrations/20261019_000002_playground_memories.js';
 import * as playgroundChatTurns from '../migrations/20261019_000003_playground_chat_turns.js';
 import * as keyLastHealthyAt from '../migrations/20261020_000001_key_last_healthy_at.js';
+import * as agenticRuntime from '../migrations/20261021_000001_agentic_runtime.js';
+import * as mcpServers from '../migrations/20261021_000002_mcp_servers.js';
+import * as knowledgeBase from '../migrations/20261021_000003_knowledge_base.js';
 
 export interface MigrationModule {
   up(db: Db): void;
@@ -110,6 +113,9 @@ export const REMOVE_AURAY_PROVIDER_FILENAME = '20261019_000001_remove_auray_prov
 export const PLAYGROUND_MEMORIES_FILENAME = '20261019_000002_playground_memories.ts';
 export const PLAYGROUND_CHAT_TURNS_FILENAME = '20261019_000003_playground_chat_turns.ts';
 export const KEY_LAST_HEALTHY_AT_FILENAME = '20261020_000001_key_last_healthy_at.ts';
+export const AGENTIC_RUNTIME_FILENAME = '20261021_000001_agentic_runtime.ts';
+export const MCP_SERVERS_FILENAME = '20261021_000002_mcp_servers.ts';
+export const KNOWLEDGE_BASE_FILENAME = '20261021_000003_knowledge_base.ts';
 
 export const DEFAULT_MIGRATIONS: readonly DefaultMigration[] = [
   { filename: LEGACY_BASELINE_FILENAME, module: legacyBaseline },
@@ -162,4 +168,7 @@ export const DEFAULT_MIGRATIONS: readonly DefaultMigration[] = [
   { filename: PLAYGROUND_MEMORIES_FILENAME, module: playgroundMemories },
   { filename: PLAYGROUND_CHAT_TURNS_FILENAME, module: playgroundChatTurns },
   { filename: KEY_LAST_HEALTHY_AT_FILENAME, module: keyLastHealthyAt },
+  { filename: AGENTIC_RUNTIME_FILENAME, module: agenticRuntime },
+  { filename: MCP_SERVERS_FILENAME, module: mcpServers },
+  { filename: KNOWLEDGE_BASE_FILENAME, module: knowledgeBase },
 ];

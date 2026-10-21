@@ -45,6 +45,8 @@ const metaSchema = z.object({
   model: z.string().optional(),
   latency: z.number().optional(),
   fallbackAttempts: z.number().optional(),
+  // Server-side run that produced this reply (tool calls, artifacts live there).
+  runId: z.string().max(64).optional(),
   fusionPanel: z.array(z.object({
     platform: z.string(),
     model: z.string(),

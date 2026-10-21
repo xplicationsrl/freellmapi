@@ -30,6 +30,9 @@ const AnalyticsPage = lazy(() => import('@/pages/AnalyticsPage'))
 const LogsPage = lazy(() => import('@/pages/LogsPage'))
 import NotFoundPage from '@/pages/NotFoundPage'
 const AgentsPage = lazy(() => import('@/pages/AgentsPage'))
+const AgentChatPage = lazy(() => import('@/features/agent/AgentChatPage'))
+const IntegrationsPage = lazy(() => import('@/pages/IntegrationsPage'))
+const KnowledgePage = lazy(() => import('@/pages/KnowledgePage'))
 
 // Every failed mutation surfaces as an error toast, so no action fails
 // silently. A page that already shows the failure inline can opt out with
@@ -187,6 +190,9 @@ function App() {
                           <Route path="/playground" element={<PlaygroundPage />} />
                           <Route path="/keys" element={<KeysPage />} />
                           <Route path="/agents" element={<AgentsPage />} />
+                          <Route path="/agent" element={<AgentChatPage />} />
+                          <Route path="/integrations" element={<IntegrationsPage />} />
+                          <Route path="/knowledge" element={<KnowledgePage />} />
                           <Route path="/fallback" element={<Navigate to="/models/chat" replace />} />
                           <Route path="/analytics" element={<AnalyticsPage />} />
                           <Route path="/logs" element={<LogsPage />} />

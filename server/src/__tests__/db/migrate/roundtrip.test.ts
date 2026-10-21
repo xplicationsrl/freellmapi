@@ -54,6 +54,9 @@ const REMOVE_AURAY_PROVIDER_FILENAME = '20261019_000001_remove_auray_provider.ts
 const PLAYGROUND_MEMORIES_FILENAME = '20261019_000002_playground_memories.ts';
 const PLAYGROUND_CHAT_TURNS_FILENAME = '20261019_000003_playground_chat_turns.ts';
 const KEY_LAST_HEALTHY_AT_FILENAME = '20261020_000001_key_last_healthy_at.ts';
+const AGENTIC_RUNTIME_FILENAME = '20261021_000001_agentic_runtime.ts';
+const MCP_SERVERS_FILENAME = '20261021_000002_mcp_servers.ts';
+const KNOWLEDGE_BASE_FILENAME = '20261021_000003_knowledge_base.ts';
 
 interface SchemaRow {
   type: string;
@@ -154,6 +157,9 @@ describe('migration round trip', () => {
         PLAYGROUND_MEMORIES_FILENAME,
         PLAYGROUND_CHAT_TURNS_FILENAME,
         KEY_LAST_HEALTHY_AT_FILENAME,
+        AGENTIC_RUNTIME_FILENAME,
+        MCP_SERVERS_FILENAME,
+        KNOWLEDGE_BASE_FILENAME,
       ]);
     } finally {
       db.close();

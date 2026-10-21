@@ -18,6 +18,10 @@ export const navItems = [
   { to: '/models', labelKey: 'nav.models' },
   { to: '/keys', labelKey: 'nav.keys' },
   { to: '/agents', labelKey: 'nav.agents' },
+  // New features are English-only for now: with no locale entry, `t` shows the key.
+  { to: '/agent', labelKey: 'Agent chat' },
+  { to: '/integrations', labelKey: 'Integrations' },
+  { to: '/knowledge', labelKey: 'Knowledge' },
   { to: '/analytics', labelKey: 'nav.analytics' },
 ] as const
 

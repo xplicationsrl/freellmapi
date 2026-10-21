@@ -2,6 +2,7 @@
 // answers with a link has the file downloaded and returned inline, under the
 // same SSRF and size rules as any server-side fetch of a provider-supplied URL.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import dns from 'node:dns';
 import { once } from 'node:events';
 import type { Server } from 'node:http';
 import { createApp } from '../../app.js';
@@ -16,6 +17,9 @@ let baseUrl: string;
 let token: string;
 
 beforeEach(async () => {
+  // The link's host is checked against the address policy; answer that lookup
+  // locally so the tests never wait on (or depend on) real DNS.
+  vi.spyOn(dns.promises, 'lookup').mockResolvedValue([{ address: '93.184.216.34', family: 4 }] as never);
   process.env.ENCRYPTION_KEY = '0'.repeat(64);
   initDb(':memory:');
   const s = encrypt('siliconflow-media-key');

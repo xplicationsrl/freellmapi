@@ -1,6 +1,6 @@
 import { useEffect, useState, type ClipboardEvent, type KeyboardEvent, type RefObject } from 'react'
 import { Liquid } from 'liquid-gooey'
-import { ArrowUp, Globe, Image as ImageIcon, Paperclip, Plus, Square, type LucideIcon } from 'lucide-react'
+import { ArrowUp, BookOpen, Globe, Image as ImageIcon, Paperclip, Plus, Square, type LucideIcon } from 'lucide-react'
 import { buttonVariants } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Switch } from '@/components/ui/switch'
@@ -54,6 +54,8 @@ export interface LiquidComposerProps {
   /** The Create image switch in the + menu: while it is on, sending draws an
    *  image from the text instead of asking a chat model. */
   imageGen?: MenuToggle
+  /** The Skills entry in the + menu: opens the skill picker; `count` is how many are on. */
+  skills?: { label: string; count: number; onOpen: () => void }
 }
 
 /** A switch row in the + menu. `available` false greys it out with `unavailableHint`. */
@@ -94,7 +96,7 @@ function ToggleItem({ icon: Icon, toggle }: { icon: LucideIcon; toggle: MenuTogg
 }
 
 export function LiquidComposer({
-  inputRef, value, onChange, onKeyDown, onPaste, placeholder, hasContent, loading, onSend, onStop, onAttach, labels, dictation, webSearch, imageGen,
+  inputRef, value, onChange, onKeyDown, onPaste, placeholder, hasContent, loading, onSend, onStop, onAttach, labels, dictation, webSearch, imageGen, skills,
 }: LiquidComposerProps) {
   // Set from input events; an empty value never counts as grown, so a
   // programmatic clear (send, new chat) drops back to one line by itself.
@@ -165,6 +167,18 @@ export function LiquidComposer({
                 <>
                   {!webSearch && <DropdownMenuSeparator />}
                   <ToggleItem icon={ImageIcon} toggle={imageGen} />
+                </>
+              )}
+              {skills && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={skills.onOpen}>
+                    <BookOpen />
+                    <span className="flex-1">{skills.label}</span>
+                    {skills.count > 0 && (
+                      <span className="rounded-full bg-muted px-1.5 text-[11px] tabular-nums text-muted-foreground">{skills.count}</span>
+                    )}
+                  </DropdownMenuItem>
                 </>
               )}
             </DropdownMenuContent>

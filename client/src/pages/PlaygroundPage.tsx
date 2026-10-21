@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useMemo, useCallback, type ReactNode } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { ChevronRight, CircleAlert, Code, Download, FileText, Globe, Image as ImageIcon, Lightbulb, Mail, Pencil, RefreshCw, Square, ThumbsDown, ThumbsUp, Volume2, X } from 'lucide-react'
+import { BookOpen, ChevronRight, CircleAlert, Code, Download, FileText, Globe, Image as ImageIcon, Lightbulb, Mail, Pencil, RefreshCw, Square, ThumbsDown, ThumbsUp, Volume2, X } from 'lucide-react'
 import { apiFetch, API_BASE } from '@/lib/api'
 import { buildModelOptions } from '@/lib/model-groups'
 import type { Chain } from '@/components/chain-manager'
@@ -33,6 +33,11 @@ import { MessageActionButton, MessageEditor } from '@/components/playground/mess
 import { StarterPrompts } from '@/components/playground/starter-prompts'
 import { createSpeaker, speechSupported, type Speaker } from '@/lib/speech'
 import { downloadDataUrl, requestImage, shrinkGeneratedImage } from '@/lib/chat-image'
+import { SkillsDialog } from '@/components/playground/skills-dialog'
+import {
+  MAX_ACTIVE_SKILLS, loadSkillBody, loadSkillIndex, readActiveSkills, sanitizeActive, skillsSystemMessage,
+  suggestSkills, toggleSkill, writeActiveSkills, type SkillIndex,
+} from '@/lib/skills'
 import { conversationToMarkdown, downloadTextFile, exportDate, exportFilename } from '@/lib/conversation-export'
 import { canRegenerate, editedTranscript, lookupText, regenerationBase } from '@/lib/playground-retry'
 import { MAX_DOCUMENT_BYTES, extractDocxText, extractPdfText } from '@/lib/document-extract'
@@ -302,6 +307,15 @@ export default function PlaygroundPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
+  // Agent Skills: the library, which of its skills are on (kept across visits),
+  // and the picker. At most MAX_ACTIVE_SKILLS are sent as system context.
+  const [skillsIndex, setSkillsIndex] = useState<SkillIndex | null>(null)
+  const [skillsFailed, setSkillsFailed] = useState(false)
+  const [activeSkills, setActiveSkills] = useState<string[]>([])
+  const [skillsOpen, setSkillsOpen] = useState(false)
+  // What the person is typing, a moment after they stop (suggestions only), and what they waved off.
+  const [suggestText, setSuggestText] = useState('')
+  const [dismissedSuggestions, setDismissedSuggestions] = useState<string[]>([])
   // "Create image" mode: the text is a prompt for an image provider, not a message for a chat model.
   const [imageMode, setImageMode] = useState(false)
   // The sent message being edited in place, if any.
@@ -457,6 +471,15 @@ export default function PlaygroundPage() {
   // An image model with at least one key behind it; without one the switch is greyed out.
   const imageAvailable = mediaModels.some(m => m.modality === 'image' && m.enabled && m.keyCount > 0)
   const imageOn = imageMode && imageAvailable
+  // Skills the typed text hints at (never when the limit is reached or in image mode).
+  const skillSuggestions = useMemo(() => {
+    if (!skillsIndex || imageOn || activeSkills.length >= MAX_ACTIVE_SKILLS) return []
+    return suggestSkills(suggestText, new Set(skillsIndex.skills.map(skill => skill.id)), {
+      exclude: [...activeSkills, ...dismissedSuggestions],
+      limit: 2,
+    })
+  }, [suggestText, skillsIndex, activeSkills, dismissedSuggestions, imageOn])
+  const skillName = (id: string) => skillsIndex?.skills.find(skill => skill.id === id)?.name ?? id
   const dictationModel = resolveDictationModel(dictationChoice, mediaModels)
 
   // Artifacts (#playground): runnable code in a reply (HTML, SVG) opens in a
@@ -594,6 +617,22 @@ export default function PlaygroundPage() {
   // A stream left running after the page goes away would keep calling
   // setMessages on an unmounted tree (and hold the socket open).
   useEffect(() => () => { abortRef.current?.abort(); speakerRef.current?.stop() }, [])
+
+  useEffect(() => {
+    let live = true
+    loadSkillIndex().then(loaded => {
+      if (!live) return
+      setSkillsIndex(loaded)
+      setActiveSkills(sanitizeActive(readActiveSkills(), new Set(loaded.skills.map(skill => skill.id))))
+    }, () => { if (live) setSkillsFailed(true) })
+    return () => { live = false }
+  }, [])
+
+  // Suggestions follow the text once typing pauses, so they do not flicker.
+  useEffect(() => {
+    const timer = setTimeout(() => setSuggestText(input), 400)
+    return () => clearTimeout(timer)
+  }, [input])
 
   // Adopt a conversation the server just handed back as the one this page is
   // writing to, and remember it for the next reload.
@@ -1041,6 +1080,22 @@ export default function PlaygroundPage() {
       const isFusion = selectedModel === 'fusion'
       const sysPrompt = systemPrompt.trim()
 
+      // Skills switched on for this conversation travel as one system message.
+      // One that cannot be loaded is reported and left out; it never blocks the answer.
+      let skillsContext = ''
+      if (activeSkills.length > 0) {
+        const loaded = await Promise.all(activeSkills.map(async id => {
+          try {
+            return { name: skillsIndex?.skills.find(skill => skill.id === id)?.name ?? id, body: await loadSkillBody(id) }
+          } catch {
+            toast.error(t('playground.skillsLoadFailed', { name: id }))
+            return null
+          }
+        }))
+        const usable = loaded.filter((skill): skill is { name: string; body: string } => skill !== null)
+        if (usable.length > 0) skillsContext = skillsSystemMessage(usable)
+      }
+
       // Cross-chat recall first (past discussions), then durable fact bullets.
       // Failures stay silent — recall is a side channel, like extraction.
       let recallContext = ''
@@ -1062,6 +1117,7 @@ export default function PlaygroundPage() {
       const body: Record<string, unknown> = {
         messages: [
           ...(sysPrompt ? [{ role: 'system', content: sysPrompt }] : []),
+          ...(skillsContext ? [{ role: 'system', content: skillsContext }] : []),
           ...(recallContext ? [{ role: 'system', content: recallContext }] : []),
           ...(memoryContext ? [{ role: 'system', content: memoryContext }] : []),
           ...(searchContext ? [{ role: 'system', content: searchContext }] : []),
@@ -1271,6 +1327,20 @@ export default function PlaygroundPage() {
     else void runReply(edited, question)
   }
 
+  const changeSkills = (next: string[]) => {
+    setActiveSkills(next)
+    writeActiveSkills(next)
+  }
+
+  const toggleActiveSkill = (id: string) => {
+    const next = toggleSkill(activeSkills, id)
+    if (next === null) {
+      toast.info(t('playground.skillsLimit', { max: MAX_ACTIVE_SKILLS }))
+      return
+    }
+    changeSkills(next)
+  }
+
   // A starter fills the composer and leaves the cursor at the end of it, ready
   // for the part only the person can add. It never sends by itself.
   const pickStarter = (prompt: string) => {
@@ -1374,6 +1444,15 @@ export default function PlaygroundPage() {
         onDeleteProject={handleDeleteProject}
         onMoveConversation={handleMoveConversation}
         onOpenSettings={openSettings}
+      />
+      <SkillsDialog
+        open={skillsOpen}
+        onOpenChange={setSkillsOpen}
+        index={skillsIndex}
+        failed={skillsFailed}
+        active={activeSkills}
+        onToggle={toggleActiveSkill}
+        onClear={() => changeSkills([])}
       />
 
       <div className="flex min-w-0 flex-1 flex-col">
@@ -1623,6 +1702,42 @@ export default function PlaygroundPage() {
             addFiles([...e.dataTransfer.files])
           }}
         >
+          {!imageOn && (activeSkills.length > 0 || skillSuggestions.length > 0) && (
+            <div className="mb-2 flex flex-wrap items-center gap-1.5">
+              {activeSkills.map(id => (
+                <span key={id} className="inline-flex items-center gap-1.5 rounded-full bg-muted px-2.5 py-1 text-xs text-foreground">
+                  <BookOpen className="size-3.5" />
+                  {skillName(id)}
+                  <button
+                    type="button"
+                    onClick={() => changeSkills(activeSkills.filter(active => active !== id))}
+                    aria-label={t('playground.skillsRemove', { name: skillName(id) })}
+                    title={t('playground.skillsRemove', { name: skillName(id) })}
+                    className="ms-0.5 flex size-4 items-center justify-center rounded-full text-muted-foreground hover:bg-foreground/10 hover:text-foreground"
+                  >
+                    <X className="size-3" />
+                  </button>
+                </span>
+              ))}
+              {skillSuggestions.map(({ id }) => (
+                <span key={id} className="inline-flex items-center gap-1 rounded-full border border-dashed px-2.5 py-1 text-xs text-muted-foreground">
+                  {t('playground.skillsSuggested')}:
+                  <button type="button" onClick={() => toggleActiveSkill(id)} className="font-medium text-foreground hover:underline">
+                    + {skillName(id)}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDismissedSuggestions(dismissed => [...dismissed, id])}
+                    aria-label={t('playground.skillsDismiss')}
+                    title={t('playground.skillsDismiss')}
+                    className="flex size-4 items-center justify-center rounded-full hover:bg-foreground/10 hover:text-foreground"
+                  >
+                    <X className="size-3" />
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
           {imageOn && (
             <div className="mb-2 flex">
               <span className="inline-flex items-center gap-1.5 rounded-full bg-muted px-2.5 py-1 text-xs text-foreground">
@@ -1707,6 +1822,7 @@ export default function PlaygroundPage() {
                 inputRef.current?.focus()
               },
             }}
+            skills={{ label: t('playground.skillsMenu'), count: activeSkills.length, onOpen: () => setSkillsOpen(true) }}
             imageGen={{
               enabled: imageOn,
               available: imageAvailable,

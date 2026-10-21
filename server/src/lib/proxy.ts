@@ -5,6 +5,7 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 import { getSetting } from '../db/index.js';
 import { decrypt, encrypt } from './crypto.js';
 import { assertProviderUrlAllowed, isLoopbackOrPrivateHostname } from './url-guard.js';
+import { getGuardedDispatcher, resetGuardedDispatcher } from './guarded-dispatcher.js';
 import type { ProxyMode } from '@freellmapi/shared/types.js';
 import { errorMessage } from './error-props.js';
 import { errorCause, errorProps } from './error-props.js';
@@ -826,20 +827,29 @@ function socksFetch(
  */
 const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
 
+export interface ProxyFetchOptions {
+  /** The URL came from outside our own config (a link inside a provider's
+   *  response, say), so it gets the treatment a custom provider's base_url
+   *  does: blocked-address check, no redirects, connect-time address pinning. */
+  untrustedTarget?: boolean;
+}
+
 export async function proxyFetch(
   url: string,
   init?: RequestInit,
   platform?: string,
   requestType: ProxyRequestType = 'unknown',
   timeoutMs?: number,
+  options: ProxyFetchOptions = {},
 ): Promise<Response> {
+  const guardTarget = platform === 'custom' || options.untrustedTarget === true;
   try {
     // SSRF guard (#440): 'custom' is the only platform whose target URL is
     // user-supplied (base_url on the api_keys row), so it is re-assessed on
     // every request — a URL saved before the guard existed, edited in the DB,
     // or whose DNS now points somewhere blocked still can't reach cloud
     // metadata / link-local addresses.
-    if (platform === 'custom') {
+    if (guardTarget) {
       await assertProviderUrlAllowed(url);
       // Redirects are never followed for custom providers: fetch()'s default
       // 'follow' would re-request the Location target WITHOUT re-running the
@@ -851,9 +861,9 @@ export async function proxyFetch(
       init = { ...init, redirect: 'manual' };
     }
 
-    const response = await dispatchFetch(url, init, platform, requestType, timeoutMs);
+    const response = await dispatchFetch(url, init, platform, requestType, timeoutMs, guardTarget);
 
-    if (platform === 'custom' && REDIRECT_STATUSES.has(response.status)) {
+    if (guardTarget && REDIRECT_STATUSES.has(response.status)) {
       const location = response.headers.get('location') ?? 'an unspecified location';
       throw new Error(
         `Custom provider URL blocked: upstream redirected (${response.status}) to ${location}; ` +
@@ -870,6 +880,22 @@ export async function proxyFetch(
   }
 }
 
+/**
+ * A request that goes straight to the destination. When the target is guarded
+ * (a custom provider, or an untrusted link) the socket resolves the host itself
+ * through the guarded lookup, so the address that was checked is the address
+ * connected to: DNS rebinding between assertProviderUrlAllowed above and the
+ * connection cannot swap it. Every other URL is ours, not the operator's or a
+ * provider response's, and keeps plain fetch.
+ */
+async function directFetch(url: string, init: RequestInit | undefined, guardTarget: boolean): Promise<Response> {
+  if (guardTarget) {
+    const dispatcher = await getGuardedDispatcher();
+    if (dispatcher) return fetch(url, { ...init, dispatcher } as unknown as RequestInit);
+  }
+  return fetch(url, init);
+}
+
 /** Route the request through the configured proxy (or straight to fetch). */
 async function dispatchFetch(
   url: string,
@@ -877,6 +903,7 @@ async function dispatchFetch(
   platform: string | undefined,
   requestType: ProxyRequestType,
   timeoutMs: number | undefined,
+  guardTarget: boolean,
 ): Promise<Response> {
   // #590: a per-key proxy override (set via withKeyProxy around the provider
   // call) takes precedence over the global proxy for THIS request. Empty
@@ -904,7 +931,7 @@ async function dispatchFetch(
   // host is listed in NO_PROXY, or it is a local/LAN destination no proxy can
   // reach (#951).
   if (shouldBypassProxy(url, platform)) {
-    return fetch(url, init);
+    return directFetch(url, init, guardTarget);
   }
 
   if (_proxyMode === 'fetch-relay' && _proxyUrl) {
@@ -915,7 +942,7 @@ async function dispatchFetch(
 
   // No dispatcher (no proxy URL configured, or it failed to build) → direct
   if (!resolved) {
-    return fetch(url, init);
+    return directFetch(url, init, guardTarget);
   }
 
   // SOCKS proxy → http/https fallback
@@ -1008,6 +1035,7 @@ export function isProxyActive(): boolean {
 export function flushProxyCache(): void {
   // Outbound-proxy dispatcher (only in play when a proxy URL is configured).
   cached = null;
+  resetGuardedDispatcher();
   // The default no-proxy path is bare fetch() on Node's GLOBAL undici
   // dispatcher — exactly the pool the headline laptop-lid scenario rides — so
   // nulling the proxy cache alone left the flush a no-op for most

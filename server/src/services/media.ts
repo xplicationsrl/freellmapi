@@ -895,8 +895,9 @@ const INLINE_IMAGE_TIMEOUT_MS = 20_000;
  *
  * The URL comes from the provider's response, so it is treated as untrusted:
  * cloud-metadata and link-local targets are refused, redirects are not
- * followed (one could hop past that check), the download is capped, and the
- * body must declare an image type. Any failure is a 502 rather than a silent
+ * followed (one could hop past that check) and the address is pinned at connect
+ * time (DNS rebinding), the download is capped, and the body must declare an
+ * image type. Any failure is a 502 rather than a silent
  * fallback to the link.
  */
 export async function inlineImageUrls(
@@ -914,7 +915,7 @@ export async function inlineImageUrls(
     const signal = clientSignal ? AbortSignal.any([timeoutSignal, clientSignal]) : timeoutSignal;
     let response: Response;
     try {
-      response = await proxyFetch(image.url, { signal, redirect: 'error' }, platform, 'image', INLINE_IMAGE_TIMEOUT_MS);
+      response = await proxyFetch(image.url, { signal }, platform, 'image', INLINE_IMAGE_TIMEOUT_MS, { untrustedTarget: true });
     } catch (err) {
       throw new MediaError(`could not download the generated image: ${errorMessage(err).slice(0, 120)}`, 502);
     }

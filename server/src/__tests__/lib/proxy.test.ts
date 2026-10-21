@@ -1,3 +1,4 @@
+import { getGuardedDispatcher } from '../../lib/guarded-dispatcher.js';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { EventEmitter } from 'events';
 import http from 'http';
@@ -558,8 +559,11 @@ describe('local and LAN destinations bypass the proxy (#951)', () => {
       return 'proxied';
     }
     expect(fetchSpy).toHaveBeenCalledTimes(1);
-    // Direct means no dispatcher was injected either.
-    expect((fetchSpy.mock.calls[0]?.[1] as any)?.dispatcher).toBeUndefined();
+    // Direct means no PROXY dispatcher was injected. A custom provider's direct
+    // request carries the guarded dispatcher (connect-time address check), and
+    // nothing else.
+    const dispatcher = (fetchSpy.mock.calls[0]?.[1] as any)?.dispatcher;
+    if (dispatcher !== undefined) expect(dispatcher).toBe(await getGuardedDispatcher());
     return 'direct';
   };
 
@@ -609,7 +613,8 @@ describe('local and LAN destinations bypass the proxy (#951)', () => {
     expect(httpsSpy).not.toHaveBeenCalled();
     expect(httpSpy).not.toHaveBeenCalled();
     expect(fetchSpy).toHaveBeenCalledTimes(1);
-    expect((fetchSpy.mock.calls[0]?.[1] as any)?.dispatcher).toBeUndefined();
+    // Direct: no proxy dispatcher, only the guarded one a custom provider always gets.
+    expect((fetchSpy.mock.calls[0]?.[1] as any)?.dispatcher).toBe(await getGuardedDispatcher());
   });
 
   // The `ssh -D` case: the tunnel's far end is where 127.0.0.1:11434 is meant

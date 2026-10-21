@@ -235,22 +235,84 @@ export async function assessProviderUrl(rawUrl: string, opts: AssessOptions = {}
 
   const blockPrivate = opts.blockPrivate ?? blockPrivateEnabled();
   for (const address of addresses) {
-    const cls = classifyIp(address);
-    if (cls === 'metadata') {
-      return { allowed: false, reason: `resolves to a cloud metadata address (${address})` };
-    }
-    if (cls === 'link-local') {
-      return { allowed: false, reason: `resolves to a link-local address (${address})` };
-    }
-    if (blockPrivate && (cls === 'loopback' || cls === 'private')) {
-      return {
-        allowed: false,
-        reason: `resolves to a private address (${address}) and FREEAPI_BLOCK_PRIVATE_PROVIDER_URLS is set`,
-      };
-    }
+    const verdict = assessAddress(address, blockPrivate);
+    if (!verdict.allowed) return verdict;
   }
   return { allowed: true };
 }
+
+/**
+ * Verdict for ONE resolved address: cloud metadata and link-local are always
+ * refused; loopback and private ranges only when `blockPrivate` is set. Shared
+ * by the URL assessment above and by the connect-time lookup below, so both
+ * apply the same policy.
+ */
+export function assessAddress(address: string, blockPrivate: boolean = blockPrivateEnabled()): UrlAssessment {
+  const cls = classifyIp(address);
+  if (cls === 'metadata') {
+    return { allowed: false, reason: `resolves to a cloud metadata address (${address})` };
+  }
+  if (cls === 'link-local') {
+    return { allowed: false, reason: `resolves to a link-local address (${address})` };
+  }
+  if (blockPrivate && (cls === 'loopback' || cls === 'private')) {
+    return {
+      allowed: false,
+      reason: `resolves to a private address (${address}) and FREEAPI_BLOCK_PRIVATE_PROVIDER_URLS is set`,
+    };
+  }
+  return { allowed: true };
+}
+
+export interface GuardedLookupOptions {
+  // Injectable for tests; defaults to dns.promises.lookup.
+  resolve?: (hostname: string, options: dns.LookupOptions) => Promise<dns.LookupAddress[]>;
+  // Overrides the env flag.
+  blockPrivate?: () => boolean;
+}
+
+type LookupCallback = (
+  err: NodeJS.ErrnoException | null,
+  address: string | dns.LookupAddress[],
+  family?: number,
+) => void;
+
+/**
+ * A `lookup` for a socket's `connect` options that resolves the name AND
+ * checks every address it got, so the address that is validated is the very
+ * one the socket then connects to. Validating a URL first and letting fetch
+ * resolve it again leaves a gap in which a hostile DNS server can answer the
+ * check with a public address and the connection with 169.254.169.254
+ * (DNS rebinding); resolving once, inside the connection, closes it.
+ *
+ * If ANY address a name resolves to is refused the whole lookup fails: an
+ * attacker's answer typically mixes a public record with an internal one, and
+ * "connect to whichever is allowed" would still be a coin flip they can win.
+ */
+export function createGuardedLookup(opts: GuardedLookupOptions = {}) {
+  const resolve = opts.resolve
+    ?? ((hostname: string, options: dns.LookupOptions) => dns.promises.lookup(hostname, options) as Promise<dns.LookupAddress[]>);
+  return (hostname: string, options: dns.LookupOptions | number, callback: LookupCallback): void => {
+    const lookupOptions: dns.LookupOptions = typeof options === 'number' ? { family: options } : { ...options };
+    resolve(hostname, { ...lookupOptions, all: true, verbatim: true }).then(addresses => {
+      const blockPrivate = opts.blockPrivate ? opts.blockPrivate() : blockPrivateEnabled();
+      for (const { address } of addresses) {
+        const verdict = assessAddress(address, blockPrivate);
+        if (!verdict.allowed) {
+          const err: NodeJS.ErrnoException = new Error(`Custom provider URL blocked: ${verdict.reason}`);
+          err.code = 'ERR_BLOCKED_ADDRESS';
+          callback(err, '', 0);
+          return;
+        }
+      }
+      if (lookupOptions.all) callback(null, addresses);
+      else callback(null, addresses[0].address, addresses[0].family);
+    }, (err: NodeJS.ErrnoException) => callback(err, '', 0));
+  };
+}
+
+/** The connect-time guard with the real resolver and the env policy. */
+export const guardedLookup = createGuardedLookup();
 
 /**
  * Request-time enforcement: throws when the URL is blocked. Used by

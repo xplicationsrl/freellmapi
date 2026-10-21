@@ -20,6 +20,7 @@ export const SKILL_TRIGGERS: Record<string, string[]> = {
   'doubt-driven-development': ['sunt sigur', 'am dreptate', 'stress-test', 'verifica-mi', 'critic', 'devil', 'ce poate merge prost', 'second opinion', 'pareri'],
   'frontend-ui-engineering': ['frontend', 'interfata de utilizator', '=ui', '=ux', 'react', 'css', 'componenta', 'component', 'responsive', 'accesibilit', 'design system'],
   'git-workflow-and-versioning': ['=git', 'commit', 'branch', 'rebase', 'versionare', 'semver', 'tag de versiune', 'merge conflict'],
+  'humanizer': ['humaniz', 'sounds like ai', 'suna a ai', 'suna ca ai', 'ai-generated', 'generat de ai', 'scris de ai', 'text ai', 'chatgpt text', 'mai natural', 'more natural', 'robotic', 'rescrie', 'rewrite', 'ton uman', 'human-sounding', 'ai tells'],
   'idea-refine': ['idee', 'idea', 'brainstorm', 'concept', 'am o idee', 'ce zici de', 'variante'],
   'incremental-implementation': ['incremental', 'pas cu pas', 'step by step', 'implementeaza', 'implement', 'feature nou', 'o functionalitate'],
   'interview-me': ['vreau sa construiesc', 'vreau sa fac', 'build me', 'i want to build', 'nu stiu de unde', 'ajuta-ma sa decid', 'intreaba-ma', 'interview me', 'grill me', 'nu sunt sigur ce'],

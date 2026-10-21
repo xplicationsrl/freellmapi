@@ -954,7 +954,7 @@
     "skillsLarge": "This is a lot of context. A small free model may refuse the request or cut it short; turn one off if answers fail.",
     "skillsUnavailable": "The skills could not be loaded.",
     "skillsNone": "No skill matches.",
-    "skillsAttribution": "Agent Skills by {author} ({license}).",
+    "skillsAttribution": "{name} by {author} ({license}).",
     "skillsLimit": "You can use up to {max} skills at once.",
     "skillsSuggested": "Suggested",
     "skillsDismiss": "Dismiss suggestion",

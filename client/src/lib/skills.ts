@@ -1,5 +1,6 @@
-// The Agent Skills library offered in the Playground
-// (https://github.com/addyosmani/agent-skills, MIT, by Addy Osmani).
+// The skills offered in the Playground: Agent Skills (addyosmani/agent-skills)
+// and Humanizer (blader/humanizer), both MIT. Each source is credited in the
+// picker and its licence ships beside the skills.
 //
 // A skill is a Markdown document of working guidelines. Turning one on adds it
 // to the conversation as system context, so the model follows it. The copies
@@ -18,15 +19,27 @@ export const LARGE_SKILL_CONTEXT_TOKENS = 9_000
 /** A suggestion needs at least this much typed to be worth computing. */
 export const MIN_SUGGEST_CHARS = 8
 
+/** A library the skills come from (credited in the picker, with its licence file shipped beside the skills). */
+export interface SkillSource {
+  id: string
+  name: string
+  author: string
+  repo: string
+  commit: string
+  license: string
+}
+
 export interface SkillMeta {
   id: string
   name: string
   description: string
+  /** Id of the SkillSource it belongs to. */
+  source: string
   tokens: number
 }
 
 export interface SkillIndex {
-  source: { repo: string; commit: string; license: string; author: string }
+  sources: SkillSource[]
   skills: SkillMeta[]
 }
 
@@ -110,7 +123,7 @@ export function formatTokens(tokens: number): string {
 // ── What the model is told ─────────────────────────────────────────────────
 
 const PREAMBLE =
-  'The user switched on the working guidelines below for this conversation ("Agent Skills" by Addy Osmani, MIT). ' +
+  'The user switched on the working guidelines below for this conversation. ' +
   'Follow them. You are in a chat: you cannot run commands, read the user\'s files or call tools, so wherever a ' +
   'guideline says to run, open or edit something, tell the user what to do or ask them for the output instead. ' +
   'Say which skill you are applying when it shapes your answer.'

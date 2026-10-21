@@ -6,10 +6,10 @@ import {
 import { SKILL_TRIGGERS } from '@/lib/skill-triggers'
 
 const index: SkillIndex = {
-  source: { repo: 'r', commit: 'c', license: 'MIT', author: 'A' },
+  sources: [{ id: 'agent-skills', name: 'Agent Skills', author: 'A', repo: 'r', commit: 'c', license: 'MIT' }],
   skills: [
-    { id: 'security-and-hardening', name: 'security-and-hardening', description: 'd', tokens: 4000 },
-    { id: 'interview-me', name: 'interview-me', description: 'd', tokens: 3000 },
+    { id: 'security-and-hardening', name: 'security-and-hardening', description: 'd', tokens: 4000, source: 'agent-skills' },
+    { id: 'interview-me', name: 'interview-me', description: 'd', tokens: 3000, source: 'agent-skills' },
   ],
 }
 const known = new Set(Object.keys(SKILL_TRIGGERS))
@@ -85,6 +85,12 @@ describe('suggestSkills', () => {
     expect(result[0].id).toBe('security-and-hardening')
     expect(result).toHaveLength(2)
     expect(suggestSkills(text, known, { exclude: ['security-and-hardening'] }).map(s => s.id)).not.toContain('security-and-hardening')
+  })
+
+  it('suggests the humanizer for text that should stop sounding like AI', () => {
+    expect(suggestSkills('Rescrie textul ăsta, sună a AI și vreau să fie mai natural', known)[0].id).toBe('humanizer')
+    expect(suggestSkills('this draft sounds like ai, please make it more natural', known)[0].id).toBe('humanizer')
+    expect(suggestSkills('how do I humanize this paragraph', known).map(s => s.id)).toContain('humanizer')
   })
 
   it('says nothing for short text, small talk, or ids that are not offered', () => {

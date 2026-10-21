@@ -18,11 +18,14 @@ beforeEach(() => {
 afterEach(() => { act(() => root.unmount()); container.remove(); document.body.innerHTML = '' })
 
 const index: SkillIndex = {
-  source: { repo: 'https://github.com/addyosmani/agent-skills', commit: 'c', license: 'MIT', author: 'Addy Osmani' },
+  sources: [
+    { id: 'agent-skills', name: 'Agent Skills', author: 'Addy Osmani', repo: 'https://github.com/addyosmani/agent-skills', commit: 'c', license: 'MIT' },
+    { id: 'humanizer', name: 'Humanizer', author: 'Siqi Chen', repo: 'https://github.com/blader/humanizer', commit: 'd', license: 'MIT' },
+  ],
   skills: [
-    { id: 'interview-me', name: 'interview-me', description: 'Asks one question at a time', tokens: 3770 },
-    { id: 'security-and-hardening', name: 'security-and-hardening', description: 'Threat modelling and secure defaults', tokens: 4389 },
-    { id: 'code-review-and-quality', name: 'code-review-and-quality', description: 'Five-axis review before merge', tokens: 5244 },
+    { id: 'interview-me', name: 'interview-me', description: 'Asks one question at a time', tokens: 3770, source: 'agent-skills' },
+    { id: 'security-and-hardening', name: 'security-and-hardening', description: 'Threat modelling and secure defaults', tokens: 4389, source: 'agent-skills' },
+    { id: 'code-review-and-quality', name: 'code-review-and-quality', description: 'Five-axis review before merge', tokens: 5244, source: 'agent-skills' },
   ],
 }
 
@@ -38,8 +41,10 @@ it('lists every skill with its cost and the attribution', () => {
     expect.stringContaining('interview-me'), expect.stringContaining('security-and-hardening'), expect.stringContaining('code-review-and-quality'),
   ])
   expect(options()[0].textContent).toContain('~3.8k')
-  expect(document.body.textContent).toContain('Addy Osmani')
+  expect(document.body.textContent).toContain('Agent Skills by Addy Osmani (MIT)')
+  expect(document.body.textContent).toContain('Humanizer by Siqi Chen (MIT)')
   expect(document.querySelector('a[href="https://github.com/addyosmani/agent-skills"]')).not.toBeNull()
+  expect(document.querySelector('a[href="https://github.com/blader/humanizer"]')).not.toBeNull()
 })
 
 it('reports a toggle for the clicked skill and marks the active ones', () => {

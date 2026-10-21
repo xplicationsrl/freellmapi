@@ -1,20 +1,26 @@
-// Refresh the bundled copy of the Agent Skills library the Playground offers
-// (https://github.com/addyosmani/agent-skills, MIT).
+// Refresh the bundled copies of the skill libraries the Playground offers.
 //
-//   node scripts/sync-skills.mjs            # re-fetch the pinned commit
-//   node scripts/sync-skills.mjs <sha|main> # move the pin, then review the diff
+//   node scripts/sync-skills.mjs                       # re-fetch every pinned commit
+//   node scripts/sync-skills.mjs humanizer=main        # move one pin, then review the diff
 //
-// The skills are written to public/skills/ as plain Markdown plus an index, so
-// they ship with the client build, work offline and show up in git when they
-// change. Nothing here runs at build time or at runtime.
+// Each skill is written to public/skills/ as plain Markdown, with one index and
+// one licence file per source, so skills ship with the client build, work
+// offline and show up in git when they change. Nothing here runs at build time
+// or at runtime.
 
 import { mkdir, readdir, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { parseSkill } from './skill-front-matter.mjs'
 
-const REPO = 'addyosmani/agent-skills'
-const PINNED_COMMIT = 'aeac41d4d005999432bb7312f7ff06383a91d59d'
-const ref = process.argv[2] ?? PINNED_COMMIT
+// kind 'dir':    skills/<id>/SKILL.md, one skill per directory.
+// kind 'single': one SKILL.md at the repository root.
+const SOURCES = [
+  { id: 'agent-skills', name: 'Agent Skills', author: 'Addy Osmani', repo: 'addyosmani/agent-skills', commit: 'aeac41d4d005999432bb7312f7ff06383a91d59d', kind: 'dir', path: 'skills' },
+  { id: 'humanizer', name: 'Humanizer', author: 'Siqi Chen', repo: 'blader/humanizer', commit: '8c307f367c91bd974002f10f2be2965d642c13df', kind: 'single', path: 'SKILL.md' },
+]
+
+const overrides = Object.fromEntries(process.argv.slice(2).map(arg => arg.split('=')))
 const out = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../public/skills')
 
 const api = async (url, accept = 'application/vnd.github+json') => {
@@ -23,39 +29,47 @@ const api = async (url, accept = 'application/vnd.github+json') => {
   return res
 }
 
-const commit = (await (await api(`https://api.github.com/repos/${REPO}/commits/${ref}`)).json()).sha
-const raw = (file) => `https://raw.githubusercontent.com/${REPO}/${commit}/${file}`
-const listing = await (await api(`https://api.github.com/repos/${REPO}/contents/skills?ref=${commit}`)).json()
-const ids = listing.filter(e => e.type === 'dir').map(e => e.name).sort()
+async function fetchSource(source) {
+  const ref = overrides[source.id] ?? source.commit
+  const commit = (await (await api(`https://api.github.com/repos/${source.repo}/commits/${ref}`)).json()).sha
+  const raw = (file) => `https://raw.githubusercontent.com/${source.repo}/${commit}/${file}`
+  const entries = source.kind === 'dir'
+    ? (await (await api(`https://api.github.com/repos/${source.repo}/contents/${source.path}?ref=${commit}`)).json())
+        .filter(e => e.type === 'dir').map(e => ({ id: e.name, file: `${source.path}/${e.name}/SKILL.md` })).sort((a, b) => a.id.localeCompare(b.id))
+    : [{ id: null, file: source.path }]
 
-// "---\nname: x\ndescription: y\n---\nbody" -> { name, description, body }
-function parseSkill(id, text) {
-  const match = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/.exec(text)
-  if (!match) throw new Error(`${id}: no front matter`)
-  const field = (key) => new RegExp(`^${key}:\\s*(.+)$`, 'm').exec(match[1])?.[1].trim().replace(/^["']|["']$/g, '')
-  const name = field('name')
-  const description = field('description')
-  if (!name || !description) throw new Error(`${id}: front matter lacks name or description`)
-  return { name, description, body: match[2].replace(/^\s+/, '') }
+  const skills = []
+  for (const entry of entries) {
+    const text = await (await api(raw(entry.file), 'text/plain')).text()
+    const parsed = parseSkill(entry.id ?? source.id, text)
+    skills.push({ id: entry.id ?? parsed.name, ...parsed })
+  }
+  const license = await (await api(raw('LICENSE'), 'text/plain')).text()
+  return { source, commit, skills, license }
 }
 
 await rm(out, { recursive: true, force: true })
 await mkdir(out, { recursive: true })
 
-const skills = []
-for (const id of ids) {
-  const text = await (await api(raw(`skills/${id}/SKILL.md`), 'text/plain')).text()
-  const { name, description, body } = parseSkill(id, text)
-  await writeFile(path.join(out, `${id}.md`), body.endsWith('\n') ? body : `${body}\n`)
-  // Same rough estimate the Playground uses everywhere: about 4 characters a token.
-  skills.push({ id, name, description, tokens: Math.ceil(body.length / 4) })
+const index = { sources: [], skills: [] }
+const seen = new Set()
+for (const source of SOURCES) {
+  const fetched = await fetchSource(source)
+  await writeFile(path.join(out, `LICENSE-${source.id}`), fetched.license)
+  index.sources.push({
+    id: source.id, name: source.name, author: source.author, repo: `https://github.com/${source.repo}`,
+    commit: fetched.commit, license: 'MIT',
+  })
+  for (const skill of fetched.skills) {
+    if (seen.has(skill.id)) throw new Error(`duplicate skill id "${skill.id}" (from ${source.id})`)
+    seen.add(skill.id)
+    await writeFile(path.join(out, `${skill.id}.md`), skill.body.endsWith('\n') ? skill.body : `${skill.body}\n`)
+    // The rough estimate the Playground uses everywhere: about 4 characters a token.
+    index.skills.push({ id: skill.id, name: skill.name, description: skill.description, source: source.id, tokens: Math.ceil(skill.body.length / 4) })
+  }
+  console.log(`${fetched.skills.length} from ${source.repo}@${fetched.commit.slice(0, 8)}`)
 }
 
-await writeFile(path.join(out, 'LICENSE'), await (await api(raw('LICENSE'), 'text/plain')).text())
-await writeFile(path.join(out, 'index.json'), JSON.stringify({
-  source: { repo: `https://github.com/${REPO}`, commit, license: 'MIT', author: 'Addy Osmani' },
-  skills,
-}, null, 2) + '\n')
-
-console.log(`${skills.length} skills from ${REPO}@${commit.slice(0, 8)} -> ${path.relative(process.cwd(), out)}`)
-console.log((await readdir(out)).length, 'files')
+index.skills.sort((a, b) => a.id.localeCompare(b.id))
+await writeFile(path.join(out, 'index.json'), JSON.stringify(index, null, 2) + '\n')
+console.log(index.skills.length, 'skills,', (await readdir(out)).length, 'files in', path.relative(process.cwd(), out))

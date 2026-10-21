@@ -90,12 +90,16 @@ export function SkillsDialog({ open, onOpenChange, index, failed, active, onTogg
         </ul>
 
         {index && (
-          <p className="mt-4 text-[11px] text-muted-foreground">
-            {t('playground.skillsAttribution', { author: index.source.author, license: index.source.license })}{' '}
-            <a href={index.source.repo} target="_blank" rel="noreferrer noopener" className="underline underline-offset-2">
-              {index.source.repo.replace('https://github.com/', '')}
-            </a>
-          </p>
+          <ul className="mt-4 space-y-0.5 text-[11px] text-muted-foreground">
+            {index.sources.map(source => (
+              <li key={source.id}>
+                {t('playground.skillsAttribution', { name: source.name, author: source.author, license: source.license })}{' '}
+                <a href={source.repo} target="_blank" rel="noreferrer noopener" className="underline underline-offset-2">
+                  {source.repo.replace('https://github.com/', '')}
+                </a>
+              </li>
+            ))}
+          </ul>
         )}
       </DialogPopup>
     </Dialog>

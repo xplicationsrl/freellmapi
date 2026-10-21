@@ -8,16 +8,18 @@
 // offline and show up in git when they change. Nothing here runs at build time
 // or at runtime.
 
-import { mkdir, readdir, rm, writeFile } from 'node:fs/promises'
+import { mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { parseSkill } from './skill-front-matter.mjs'
 
 // kind 'dir':    skills/<id>/SKILL.md, one skill per directory.
 // kind 'single': one SKILL.md at the repository root.
+// kind 'local':  our own skills, skills-src/<id>.md in this package (nothing is fetched).
 const SOURCES = [
   { id: 'agent-skills', name: 'Agent Skills', author: 'Addy Osmani', repo: 'addyosmani/agent-skills', commit: 'aeac41d4d005999432bb7312f7ff06383a91d59d', kind: 'dir', path: 'skills' },
   { id: 'humanizer', name: 'Humanizer', author: 'Siqi Chen', repo: 'blader/humanizer', commit: '8c307f367c91bd974002f10f2be2965d642c13df', kind: 'single', path: 'SKILL.md' },
+  { id: 'freellm', name: 'FreeLLM', author: 'FreeLLM contributors', repo: 'xplicationsrl/freellmapi', kind: 'local', path: 'skills-src' },
 ]
 
 const overrides = Object.fromEntries(process.argv.slice(2).map(arg => arg.split('=')))
@@ -29,7 +31,20 @@ const api = async (url, accept = 'application/vnd.github+json') => {
   return res
 }
 
+async function readLocalSource(source) {
+  const dir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', source.path)
+  const files = (await readdir(dir)).filter(f => f.endsWith('.md')).sort()
+  const skills = []
+  for (const file of files) {
+    const id = file.slice(0, -3)
+    skills.push({ id, ...parseSkill(id, await readFile(path.join(dir, file), 'utf8')) })
+  }
+  const license = await readFile(path.resolve(dir, '..', '..', 'LICENSE'), 'utf8')
+  return { source, commit: 'local', skills, license }
+}
+
 async function fetchSource(source) {
+  if (source.kind === 'local') return readLocalSource(source)
   const ref = overrides[source.id] ?? source.commit
   const commit = (await (await api(`https://api.github.com/repos/${source.repo}/commits/${ref}`)).json()).sha
   const raw = (file) => `https://raw.githubusercontent.com/${source.repo}/${commit}/${file}`

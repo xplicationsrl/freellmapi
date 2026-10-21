@@ -15,9 +15,24 @@
       "repo": "https://github.com/blader/humanizer",
       "commit": "8c307f367c91bd974002f10f2be2965d642c13df",
       "license": "MIT"
+    },
+    {
+      "id": "freellm",
+      "name": "FreeLLM",
+      "author": "FreeLLM contributors",
+      "repo": "https://github.com/xplicationsrl/freellmapi",
+      "commit": "local",
+      "license": "MIT"
     }
   ],
   "skills": [
+    {
+      "id": "answer-quality",
+      "name": "answer-quality",
+      "description": "Gives direct, honest, well-formatted answers. Use for any question; it is the baseline for every reply.",
+      "source": "freellm",
+      "tokens": 270
+    },
     {
       "id": "api-and-interface-design",
       "name": "api-and-interface-design",
@@ -38,6 +53,13 @@
       "description": "Automates CI/CD pipeline setup. Use when setting up or modifying build and deployment pipelines. Use when you need to automate quality gates, configure test runners in CI, or establish deployment strategies.",
       "source": "agent-skills",
       "tokens": 2688
+    },
+    {
+      "id": "clear-writing-and-editing",
+      "name": "clear-writing-and-editing",
+      "description": "Writes and edits text so it is clear, concise and fits its reader. Use for emails, essays, posts, reports, cover letters, and for proofreading or rewriting.",
+      "source": "freellm",
+      "tokens": 228
     },
     {
       "id": "code-review-and-quality",
@@ -68,6 +90,13 @@
       "tokens": 3673
     },
     {
+      "id": "data-analysis",
+      "name": "data-analysis",
+      "description": "Analyzes data, tables and numbers soundly. Use for spreadsheets, statistics, CSV or pasted tables, trends, charts, formulas, SQL and interpreting results.",
+      "source": "freellm",
+      "tokens": 267
+    },
+    {
       "id": "debugging-and-error-recovery",
       "name": "debugging-and-error-recovery",
       "description": "Guides systematic root-cause debugging. Use when tests fail, builds break, something that worked yesterday broke, behavior doesn't match expectations, or you encounter any unexpected error. Use when you need to figure out what broke and why — a systematic approach to finding and fixing the root cause rather than guessing.",
@@ -94,6 +123,13 @@
       "description": "Subjects every non-trivial decision to a fresh-context adversarial review before it stands. Use when you want every assumption cross-examined before proceeding, when stress-testing a plan for hidden failure modes, when correctness matters more than speed, when working in unfamiliar code, when stakes are high (production auth, security-sensitive logic, a high-stakes migration, irreversible operations), or any time a confident output would be cheaper to verify now than to debug later.",
       "source": "agent-skills",
       "tokens": 4004
+    },
+    {
+      "id": "explain-and-teach",
+      "name": "explain-and-teach",
+      "description": "Explains concepts at the learner's level with examples. Use for \"explain\", \"teach me\", \"how does X work\", study help, ELI5 and homework guidance.",
+      "source": "freellm",
+      "tokens": 196
     },
     {
       "id": "frontend-ui-engineering",
@@ -159,6 +195,13 @@
       "tokens": 2547
     },
     {
+      "id": "research-and-fact-checking",
+      "name": "research-and-fact-checking",
+      "description": "Answers factual questions carefully and flags what is uncertain. Use for research questions, comparisons, claims to verify, history, science, health, law or finance facts.",
+      "source": "freellm",
+      "tokens": 249
+    },
+    {
       "id": "security-and-hardening",
       "name": "security-and-hardening",
       "description": "Hardens code against vulnerabilities. Use when auditing an input handler for vulnerabilities, when handling user input, authentication, data storage, or external integrations, or when checking a login flow is safe against the OWASP Top Ten. Use when building any feature that accepts untrusted data, manages user sessions, or interacts with third-party services. Use when auditing dependencies for known vulnerabilities, triaging package-manager audit findings, or assessing supply-chain risk in a new package. Use when personal data or privacy compliance (GDPR, CCPA) is involved.",
@@ -187,11 +230,32 @@
       "tokens": 3128
     },
     {
+      "id": "step-by-step-reasoning",
+      "name": "step-by-step-reasoning",
+      "description": "Works through problems in checked steps. Use for math, logic, puzzles, estimates, comparisons and any question where the first instinct may be wrong.",
+      "source": "freellm",
+      "tokens": 234
+    },
+    {
+      "id": "summarize-and-distill",
+      "name": "summarize-and-distill",
+      "description": "Summarizes long text faithfully at the requested length. Use for summaries, TL;DRs, meeting notes, key points, and condensing articles, documents or threads.",
+      "source": "freellm",
+      "tokens": 241
+    },
+    {
       "id": "test-driven-development",
       "name": "test-driven-development",
       "description": "Drives development with tests using the red-green-refactor loop. Use when implementing any logic, fixing any bug, or changing any behavior. Use when you need to prove that code works, when a bug report arrives, or when you're about to modify existing functionality. Use when asked to add tests to a function, fix a bug in it or change its behavior, even when the code is pasted inline and the request does not mention tests.",
       "source": "agent-skills",
       "tokens": 3993
+    },
+    {
+      "id": "translation-and-localization",
+      "name": "translation-and-localization",
+      "description": "Translates and adapts text between languages keeping meaning and tone. Use for translation, bilingual text, language learning and rewriting for another locale.",
+      "source": "freellm",
+      "tokens": 225
     },
     {
       "id": "using-agent-skills",

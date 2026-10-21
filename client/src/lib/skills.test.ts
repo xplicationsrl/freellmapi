@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
-  LARGE_SKILL_CONTEXT_TOKENS, MAX_ACTIVE_SKILLS, activeTokens, formatTokens, loadSkillBody, loadSkillIndex, matchedTriggers,
-  normalizeForMatch, sanitizeActive, skillsSystemMessage, suggestSkills, toggleSkill, type SkillIndex,
+  DEFAULT_ACTIVE_SKILLS, LARGE_SKILL_CONTEXT_TOKENS, MAX_ACTIVE_SKILLS, activeTokens, formatTokens, loadSkillBody, loadSkillIndex, matchedTriggers,
+  normalizeForMatch, readActiveSkills, sanitizeActive, skillsSystemMessage, suggestSkills, toggleSkill, type SkillIndex,
 } from '@/lib/skills'
 import { SKILL_TRIGGERS } from '@/lib/skill-triggers'
 
@@ -122,5 +122,28 @@ describe('loading', () => {
     vi.stubGlobal('fetch', fetchMock)
     expect((await loadSkillIndex()).skills).toHaveLength(2)
     expect(String((fetchMock.mock.calls[0] as unknown[])[0])).toMatch(/skills\/index\.json$/)
+  })
+})
+
+describe('default skills', () => {
+  afterEach(() => vi.unstubAllGlobals())
+
+  const store = (value: string | null) => vi.stubGlobal('localStorage', { getItem: () => value })
+
+  it('are on until a selection was saved, and stay within the limit', async () => {
+    store(null)
+    expect(readActiveSkills()).toEqual(DEFAULT_ACTIVE_SKILLS)
+    expect(DEFAULT_ACTIVE_SKILLS.length).toBeLessThanOrEqual(MAX_ACTIVE_SKILLS)
+    const shipped = (await import('../../public/skills/index.json')).default.skills as Array<{ id: string; tokens: number }>
+    for (const id of DEFAULT_ACTIVE_SKILLS) expect(shipped.map(s => s.id), id).toContain(id)
+    const total = shipped.filter(s => DEFAULT_ACTIVE_SKILLS.includes(s.id)).reduce((n, s) => n + s.tokens, 0)
+    expect(total).toBeLessThan(LARGE_SKILL_CONTEXT_TOKENS / 4)
+  })
+
+  it('stay off once the person emptied the selection', () => {
+    store('[]')
+    expect(readActiveSkills()).toEqual([])
+    store('["humanizer"]')
+    expect(readActiveSkills()).toEqual(['humanizer'])
   })
 })

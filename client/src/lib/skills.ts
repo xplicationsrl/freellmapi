@@ -1,5 +1,6 @@
-// The skills offered in the Playground: Agent Skills (addyosmani/agent-skills)
-// and Humanizer (blader/humanizer), both MIT. Each source is credited in the
+// The skills offered in the Playground: Agent Skills (addyosmani/agent-skills),
+// Humanizer (blader/humanizer), both MIT, and our own general-assistant ones
+// (skills-src/). Each source is credited in the
 // picker and its licence ships beside the skills.
 //
 // A skill is a Markdown document of working guidelines. Turning one on adds it
@@ -44,6 +45,9 @@ export interface SkillIndex {
 }
 
 const STORAGE_KEY = 'playground.skills'
+
+/** On until the person changes the selection: short baseline guidelines (about 500 tokens in all). */
+export const DEFAULT_ACTIVE_SKILLS = ['answer-quality', 'step-by-step-reasoning']
 
 // ── Loading ────────────────────────────────────────────────────────────────
 
@@ -95,11 +99,13 @@ export function sanitizeActive(ids: unknown, known: Set<string>, max = MAX_ACTIV
   return out
 }
 
+/** The saved selection, or the defaults when none was ever saved (an explicitly emptied one stays empty). */
 export function readActiveSkills(): unknown {
   try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '[]')
+    const stored = localStorage.getItem(STORAGE_KEY)
+    return stored === null ? DEFAULT_ACTIVE_SKILLS : JSON.parse(stored)
   } catch {
-    return []
+    return DEFAULT_ACTIVE_SKILLS
   }
 }
 

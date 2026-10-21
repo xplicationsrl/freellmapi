@@ -7,6 +7,14 @@
 // These only ever SUGGEST: nothing is switched on without a click.
 
 export const SKILL_TRIGGERS: Record<string, string[]> = {
+  'answer-quality': [],
+  'clear-writing-and-editing': ['scrie un email', 'write an email', 'email', 'eseu', 'essay', 'cover letter', 'scrisoare de intentie', 'proofread', 'corecteaza', 'editeaza', 'improve my writing', 'imbunatateste textul', 'draft', 'postare', 'blog post'],
+  'data-analysis': ['datele', 'dataset', 'data analysis', 'analiza datelor', 'csv', 'excel', 'spreadsheet', 'tabel', 'statistic', 'medie', 'average', 'median', 'grafic', 'chart', 'sql', 'trend', 'formula'],
+  'explain-and-teach': ['explica', 'explain', 'invata-ma', 'teach me', 'cum functioneaza', 'how does', 'eli5', 'ce inseamna', 'what is', 'ce este', 'tema', 'homework', 'inteleg'],
+  'research-and-fact-checking': ['adevarat', 'is it true', 'fact check', 'verifica', 'sursa', 'source', 'studiu', 'study', 'cercetare', 'research', 'compara', 'compare', 'istoric', 'history', 'statistica'],
+  'step-by-step-reasoning': ['calculeaza', 'calculate', 'problema', 'puzzle', 'ghicitoare', 'logic', 'rezolva', 'solve', 'demonstreaza', 'prove', 'cate ', 'how many', 'estimeaza', 'estimate', 'probabilit'],
+  'summarize-and-distill': ['rezuma', 'rezumat', 'summar', 'tl;dr', 'tldr', 'pe scurt', 'in short', 'puncte cheie', 'key points', 'notite de', 'meeting notes', 'condenseaza'],
+  'translation-and-localization': ['traduce', 'translate', 'traducere', 'translation', 'in engleza', 'in romana', 'to english', 'to romanian', 'in franceza', 'in spaniola', 'localiz'],
   'api-and-interface-design': ['api', 'endpoint', 'rest', 'graphql', 'interfata', 'contract', 'schema', 'versionare', 'backward'],
   'browser-testing-with-devtools': ['devtools', 'e2e', 'playwright', 'cypress', 'in browser', 'consola browser', 'network tab'],
   'ci-cd-and-automation': ['=ci', 'cicd', 'pipeline', 'github actions', 'workflow', 'deploy', 'docker', 'automatiz', 'build fail'],

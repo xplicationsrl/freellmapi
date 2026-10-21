@@ -109,7 +109,7 @@ async function checkTarget(
   allowPrivate: boolean,
 ): Promise<string | null> {
   if (transport === 'stdio') {
-    if (!isStdioAllowed()) return 'stdio servers are disabled on this install (MCP_ALLOW_STDIO=1 enables them)';
+    if (!isStdioAllowed()) return 'stdio servers are disabled on this install (enable them in Settings > Agent)';
     if (!command) return 'A command is required for a stdio server';
     return null;
   }

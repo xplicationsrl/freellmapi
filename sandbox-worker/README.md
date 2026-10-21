@@ -8,10 +8,9 @@ Runs the Playground's `sandbox__run_python` tool. Separate from the main server 
    `docker build -f sandbox-worker/Dockerfile.runtime -t freellmapi-sandbox:1 sandbox-worker`
 2. Start the worker **on the host** (Node 20+, `docker` CLI on PATH):
    `SANDBOX_WORKER_TOKEN=<random 32+ chars> node sandbox-worker/server.mjs`
-3. Point the main server at it and turn the feature on:
-   `FEATURE_SANDBOX=1 SANDBOX_WORKER_URL=http://127.0.0.1:8787 SANDBOX_WORKER_TOKEN=<same token>`
+3. In the app, open **Settings > Agent**, enter the worker URL (for example `http://127.0.0.1:8787`) and the same token, then **Save** and **Test connection**. (`SANDBOX_WORKER_URL` and `SANDBOX_WORKER_TOKEN` environment variables also work as a fallback.)
 
-Without `SANDBOX_WORKER_URL` + `SANDBOX_WORKER_TOKEN` the tool is not offered.
+Until both are set the tool is not offered.
 
 ## What each job gets
 
@@ -21,7 +20,7 @@ Output: stdout/stderr (1 MB cap), up to 10 files of 5 MB (10 MB total). Symlinks
 
 ## Approval
 
-The tool asks for approval before each run. `SANDBOX_AUTO_APPROVE=1` on the main server turns that off.
+The tool asks for approval before each run. **Settings > Agent > Run code without asking** turns that off.
 
 ## Not covered
 

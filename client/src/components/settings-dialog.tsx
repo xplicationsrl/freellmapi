@@ -4,6 +4,7 @@ import {
   ChevronsUpDown,
   FlaskConical,
   Gauge,
+  Bot,
   Info,
   Loader2,
   Monitor,
@@ -15,6 +16,7 @@ import {
   Wrench,
   X,
 } from 'lucide-react'
+import { AgentSettingsSection } from '@/components/agent-settings-section'
 import { PlaygroundSettingsPanel } from '@/components/playground/playground-settings-panel'
 import {
   Dialog,
@@ -281,15 +283,16 @@ const ENGINES = [
   { id: 'hard-budget', tKey: 'engineHardBudget', lossless: false },
 ] as const
 
-type SectionId = 'general' | 'playground' | 'compression' | 'advanced' | 'preview'
+type SectionId = 'general' | 'playground' | 'agent' | 'compression' | 'advanced' | 'preview'
 
 const SECTIONS = [
   { id: 'general', tKey: 'sectionGeneral', icon: SlidersHorizontal },
   { id: 'playground', tKey: 'sectionPlayground', icon: SquareTerminal },
+  { id: 'agent', tKey: 'sectionAgent', icon: Bot, label: 'Agent' },
   { id: 'compression', tKey: 'sectionCompression', icon: Gauge },
   { id: 'advanced', tKey: 'sectionAdvanced', icon: Wrench },
   { id: 'preview', tKey: 'sectionPreview', icon: FlaskConical },
-] as const satisfies ReadonlyArray<{ id: SectionId; tKey: string; icon: typeof Gauge }>
+] as const satisfies ReadonlyArray<{ id: SectionId; tKey: string; icon: typeof Gauge; label?: string }>
 
 type CompressionState = ReturnType<typeof useCompressionSettings>
 
@@ -629,7 +632,7 @@ export function SettingsDialog({
                   }`}
                 >
                   <Icon className="size-4 shrink-0" />
-                  <span className="truncate">{t(`settings.${item.tKey}`)}</span>
+                  <span className="truncate">{('label' in item && item.label) || t(`settings.${item.tKey}`)}</span>
                 </button>
               )
             })}
@@ -638,6 +641,7 @@ export function SettingsDialog({
           {/* min-height keeps the popup from resizing as sections are switched. */}
           <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:min-h-[27rem] sm:px-6 sm:py-6">
             {section === 'general' && <GeneralSection />}
+            {section === 'agent' && <AgentSettingsSection />}
             {section === 'playground' && (
               <>
                 <SectionHeader

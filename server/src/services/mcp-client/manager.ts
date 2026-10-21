@@ -7,6 +7,7 @@
 // straight away (allow) or waits for approval in the chat (ask).
 
 import { getDb } from '../../db/index.js';
+import { isStdioAllowed } from '../agentic-config.js';
 import { decrypt, encrypt } from '../../lib/crypto.js';
 import { getToolRegistry, ToolOutcomeUncertainError, sanitizeToolSegment, type ToolDefinition } from '../tools/registry.js';
 import {
@@ -58,10 +59,8 @@ const CALL_TIMEOUT_MS = 60_000;
 const MAX_TOOLS_PER_SERVER = 100;
 const MAX_RESULT_CHARS = 100_000;
 
-/** Running a stdio server runs software on the host: opt-in only. */
-export function isStdioAllowed(): boolean {
-  return /^(1|true|yes|on)$/i.test(process.env.MCP_ALLOW_STDIO ?? '');
-}
+/** Running a stdio server runs software on the host: opt-in (Settings > Agent). */
+export { isStdioAllowed };
 
 export function toolPrefix(serverId: number): string {
   return `m${serverId}__`;
@@ -106,7 +105,7 @@ function buildTransport(row: McpServerRow): McpTransport {
     });
   }
   if (!isStdioAllowed()) {
-    throw new McpError('stdio servers are disabled (set MCP_ALLOW_STDIO=1 to allow them)');
+    throw new McpError('stdio servers are disabled (allow them in Settings > Agent)');
   }
   if (!row.command) throw new McpError('Server has no command');
   let args: string[] = [];

@@ -1,21 +1,22 @@
 # Agent chat: MCP tools, code sandbox, knowledge base, voice
 
-The **Agent** page (`/agent`) runs a chat on the server. The model can call tools in a loop, with approvals, cancellation and limits. Four optional features plug into it. All four are off by default, and `/v1` behaviour is unchanged when they are off.
+The **Agent** page (`/agent`) runs a chat on the server. The model can call tools in a loop, with approvals, cancellation and limits. Four optional features plug into it. `/v1` behaviour is unchanged.
 
 For the audit and design decisions behind this, see [07-agentic-phase0-audit.md](07-agentic-phase0-audit.md).
 
-## Turning features on
+## Availability and settings
 
-| Feature | Turn on | Also needs |
-| --- | --- | --- |
-| MCP client | `FEATURE_MCP_CLIENT=1` | `MCP_ALLOW_STDIO=1` only if you want local (stdio) servers |
-| Code sandbox | `FEATURE_SANDBOX=1` | a running [sandbox worker](../../../sandbox-worker/README.md), `SANDBOX_WORKER_URL`, `SANDBOX_WORKER_TOKEN` |
-| Knowledge base | `FEATURE_KNOWLEDGE=1` | at least one embedding provider with a key |
-| Voice mode | `FEATURE_VOICE=1` | a transcription model and a speech model with keys |
+All four features are on by default; there is nothing to enable. Pages: **Agent chat** (`/agent`), **Integrations** (`/integrations`), **Knowledge** (`/knowledge`). A feature that needs setup offers nothing until it is set up: the sandbox tool appears once a worker is configured, and Voice mode needs a transcription and a speech model with keys.
 
-Each flag can also be set at runtime in the settings table as `feature_mcp_client`, `feature_sandbox`, `feature_knowledge`, `feature_voice` (`1`/`0`); the settings value wins over the environment. Servers already saved in the Integrations page reconnect at start-up when the MCP flag is on; after switching a flag at runtime, use **Test connection** (MCP) or restart.
+Operator options live in the app under **Settings > Agent**:
 
-Other settings: `SANDBOX_AUTO_APPROVE=1` skips the approval prompt before each code run.
+| Option | What it does |
+| --- | --- |
+| Code sandbox worker (URL and token) | Points the app at your [sandbox worker](../../../sandbox-worker/README.md). The token is stored encrypted and never shown again. **Test connection** checks the worker and its image. |
+| Run code without asking | Skips the approval prompt before each Python run. |
+| Allow local MCP servers | Lets Integrations add stdio servers, which run a program on the host. |
+
+The environment variables `SANDBOX_WORKER_URL`, `SANDBOX_WORKER_TOKEN`, `SANDBOX_AUTO_APPROVE` and `MCP_ALLOW_STDIO` still work as a fallback when the setting is empty. An operator can switch a whole feature off with `FEATURE_MCP_CLIENT=0`, `FEATURE_SANDBOX=0`, `FEATURE_KNOWLEDGE=0` or `FEATURE_VOICE=0` (or the settings keys `feature_<name>`); there is no toggle in the UI.
 
 ## How a run works
 
@@ -33,7 +34,7 @@ Generated files are stored under `artifacts/` next to the database and expire af
 
 ## MCP client
 
-Add servers on the **Integrations** page. Remote servers use Streamable HTTP; local servers use stdio and run a program on the host, so they are disabled unless `MCP_ALLOW_STDIO=1`.
+Add servers on the **Integrations** page. Remote servers use Streamable HTTP; local servers use stdio and run a program on the host, so they stay disabled until you allow them in Settings > Agent.
 
 - Credentials (HTTP headers, stdio environment) are stored AES-256-GCM encrypted, shown only as names, and are separate from provider keys. A stdio server does not inherit the application's environment.
 - Remote URLs go through the same address checks as custom providers: cloud-metadata and link-local targets are blocked, loopback and private addresses need "allow a local or private network address" on that server, redirects are not followed, and the address is checked at connect time.

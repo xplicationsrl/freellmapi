@@ -10,6 +10,7 @@
 // files a run explicitly attached are copied into a job.
 
 import crypto from 'node:crypto';
+import { sandboxRequiresApproval, sandboxWorkerToken, sandboxWorkerUrl } from '../agentic-config.js';
 import { getToolRegistry, type ToolDefinition } from '../tools/registry.js';
 
 export type SandboxStatus = 'completed' | 'failed' | 'timeout' | 'cancelled';
@@ -47,11 +48,6 @@ export interface SandboxResult {
 export interface SandboxExecutor {
   run(request: SandboxRequest, signal: AbortSignal): Promise<SandboxResult>;
   health(): Promise<{ ok: boolean; image?: string; error?: string }>;
-}
-
-export function sandboxWorkerUrl(): string | null {
-  const url = process.env.SANDBOX_WORKER_URL?.trim();
-  return url ? url.replace(/\/+$/, '') : null;
 }
 
 export class HttpSandboxExecutor implements SandboxExecutor {
@@ -104,7 +100,7 @@ export class HttpSandboxExecutor implements SandboxExecutor {
 
 export function getSandboxExecutor(): SandboxExecutor | null {
   const url = sandboxWorkerUrl();
-  const token = process.env.SANDBOX_WORKER_TOKEN?.trim();
+  const token = sandboxWorkerToken();
   if (!url || !token) return null;
   return new HttpSandboxExecutor(url, token);
 }
@@ -116,10 +112,6 @@ const MAX_TIMEOUT_MS = 120_000;
 
 function clip(text: string): string {
   return text.length <= MAX_OUTPUT_CHARS ? text : `${text.slice(0, MAX_OUTPUT_CHARS)}\n[output truncated]`;
-}
-
-export function sandboxRequiresApproval(): boolean {
-  return !/^(1|true|yes|on)$/i.test(process.env.SANDBOX_AUTO_APPROVE ?? '');
 }
 
 /** Build the run_python tool around an executor (injectable for tests). */
@@ -191,14 +183,23 @@ export function buildPythonTool(executor: SandboxExecutor): ToolDefinition {
   };
 }
 
-let registered = false;
+let registeredSignature: string | null = null;
 
-/** Register the sandbox tool when a worker is configured. Idempotent. */
+/**
+ * Offer the sandbox tool when a worker is configured, and re-register it when
+ * the worker or the approval policy changes in Settings. Cheap to call on every
+ * request: it does nothing while the configuration is unchanged.
+ */
 export function registerSandboxTool(): boolean {
-  if (registered) return true;
+  const url = sandboxWorkerUrl();
+  const token = sandboxWorkerToken();
+  const signature = url && token ? `${url}|${token}|${sandboxRequiresApproval()}` : '';
+  if (signature === (registeredSignature ?? '')) return signature !== '';
+  const registry = getToolRegistry();
+  registry.unregisterPrefix('sandbox__');
+  registeredSignature = signature || null;
   const executor = getSandboxExecutor();
   if (!executor) return false;
-  getToolRegistry().register(buildPythonTool(executor));
-  registered = true;
+  registry.register(buildPythonTool(executor));
   return true;
 }

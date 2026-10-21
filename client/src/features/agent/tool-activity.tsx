@@ -98,16 +98,22 @@ export function ArtifactList({ artifacts }: { artifacts: RunArtifact[] }) {
   )
 }
 
-export function CitationList({ citations }: { citations: RunCitation[] }) {
+export function CitationList({ citations, onOpen }: { citations: RunCitation[]; onOpen?: (id: string) => void }) {
   if (citations.length === 0) return null
   return (
     <div className="my-2 flex flex-wrap gap-2">
       {citations.map(c => (
-        <span key={c.id} className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs">
+        <button
+          type="button"
+          key={c.id}
+          onClick={() => onOpen?.(c.id)}
+          title="Open the source passage"
+          className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs hover:bg-muted"
+        >
           <FileText className="size-3" />
           <span className="font-mono">{c.id}</span>
           <span className="text-muted-foreground">{c.title}{c.location ? ` · ${c.location}` : ''}</span>
-        </span>
+        </button>
       ))}
     </div>
   )

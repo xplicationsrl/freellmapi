@@ -29,6 +29,7 @@ interface KnowledgeBase { id: number; name: string; ready: number; documents: nu
 const MAX_ATTACH_BYTES = 5 * 1024 * 1024
 
 const SAVED_KEY = 'agent.conversationId'
+const VOICE_KEY = 'agent.voice'
 
 function readSavedConversation(): number | null {
   try {
@@ -61,6 +62,12 @@ export default function AgentChatPage() {
   const [bases, setBases] = useState<Set<number>>(new Set())
   const [files, setFiles] = useState<File[]>([])
   const [error, setError] = useState<string | null>(null)
+  const [voiceName, setVoiceName] = useState(() => {
+    try { return localStorage.getItem(VOICE_KEY) ?? 'alloy' } catch { return 'alloy' }
+  })
+  useEffect(() => {
+    try { localStorage.setItem(VOICE_KEY, voiceName) } catch { /* private mode */ }
+  }, [voiceName])
 
   const busyRef = useRef(false)
   const abortRef = useRef<AbortController | null>(null)
@@ -73,47 +80,68 @@ export default function AgentChatPage() {
   useEffect(() => { convoRef.current = conversationId }, [conversationId])
   useEffect(() => { bottomRef.current?.scrollIntoView({ block: 'end' }) }, [messages])
 
-  // Reload: pick the conversation back up and rebuild tool activity from the
-  // stored runs.
+  // Load a stored conversation, rebuilding tool status from its runs.
+  const loadConversation = useCallback(async (id: number): Promise<boolean> => {
+    try {
+      const convo = await apiFetch<{ id: number; messages: { role: 'user' | 'assistant'; content: string; meta?: { runId?: string } }[] }>(
+        `/api/conversations/${id}`,
+      )
+      const restored: AgentMessage[] = await Promise.all(convo.messages.map(async m => {
+        const runId = m.meta?.runId
+        if (m.role !== 'assistant' || !runId) return { role: m.role, content: m.content }
+        try {
+          const run = await runApi.get(runId)
+          const view: RunView = {
+            ...EMPTY_RUN,
+            runId,
+            text: m.content,
+            status: run.status === 'failed' ? 'failed' : run.status === 'cancelled' ? 'cancelled' : 'completed',
+            error: run.error?.message,
+            tools: run.toolCalls.map(t => ({
+              callId: t.callId, name: t.name, source: t.source, arguments: undefined,
+              status: t.status === 'pending' ? 'running' : t.status, outcome: t.outcome,
+            })),
+          }
+          return { role: m.role, content: m.content, runId, view }
+        } catch {
+          return { role: m.role, content: m.content, runId }
+        }
+      }))
+      convoRef.current = convo.id
+      setConversationId(convo.id)
+      saveConversation(convo.id)
+      setMessages(restored)
+      setError(null)
+      return true
+    } catch {
+      return false
+    }
+  }, [])
+
+  // Reload: pick the last conversation back up.
   useEffect(() => {
-    let live = true
     const saved = readSavedConversation()
     if (saved === null) return
-    void (async () => {
-      try {
-        const convo = await apiFetch<{ id: number; messages: { role: 'user' | 'assistant'; content: string; meta?: { runId?: string } }[] }>(
-          `/api/conversations/${saved}`,
-        )
-        const restored: AgentMessage[] = await Promise.all(convo.messages.map(async m => {
-          const runId = m.meta?.runId
-          if (m.role !== 'assistant' || !runId) return { role: m.role, content: m.content }
-          try {
-            const run = await runApi.get(runId)
-            const view: RunView = {
-              ...EMPTY_RUN,
-              runId,
-              text: m.content,
-              status: run.status === 'failed' ? 'failed' : run.status === 'cancelled' ? 'cancelled' : 'completed',
-              error: run.error?.message,
-              tools: run.toolCalls.map(t => ({
-                callId: t.callId, name: t.name, source: t.source, arguments: undefined,
-                status: t.status === 'pending' ? 'running' : t.status, outcome: t.outcome,
-              })),
-            }
-            return { role: m.role, content: m.content, runId, view }
-          } catch {
-            return { role: m.role, content: m.content, runId }
-          }
-        }))
-        if (!live) return
-        convoRef.current = convo.id
-        setConversationId(convo.id)
-        setMessages(restored)
-      } catch {
-        clearSavedConversation()
-      }
-    })()
-    return () => { live = false }
+    void loadConversation(saved).then(ok => { if (!ok) clearSavedConversation() })
+  }, [loadConversation])
+
+  const { data: history = [], refetch: refetchHistory } = useQuery<{ id: number; title: string; updatedAt: number }[]>({
+    queryKey: ['agent-history'],
+    queryFn: () => apiFetch('/api/conversations'),
+  })
+
+  const [sourcePreview, setSourcePreview] = useState<{ name: string; focus: number; chunks: { ordinal: number; text: string; page: number | null }[] } | null>(null)
+  const openCitation = useCallback(async (id: string) => {
+    const m = /^kb:(\d+)#(\d+)$/.exec(id)
+    if (!m) return
+    try {
+      const out = await apiFetch<{ document: { name: string }; focus: number; chunks: { ordinal: number; text: string; page: number | null }[] }>(
+        `/api/knowledge/documents/${m[1]}/chunks/${m[2]}`,
+      )
+      setSourcePreview({ name: out.document.name, focus: out.focus, chunks: out.chunks })
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not open the source')
+    }
   }, [])
 
   const { data: features } = useQuery({ queryKey: ['run-features'], queryFn: runApi.features })
@@ -151,10 +179,11 @@ export default function AgentChatPage() {
       convoRef.current = created.id
       setConversationId(created.id)
       saveConversation(created.id)
+      void refetchHistory()
     } else {
       await apiFetch(`/api/conversations/${id}`, { method: 'PUT', body: JSON.stringify(body) })
     }
-  }, [])
+  }, [refetchHistory])
 
   const patchLast = useCallback((fn: (m: AgentMessage) => AgentMessage) => {
     setMessages(prev => prev.length ? [...prev.slice(0, -1), fn(prev[prev.length - 1])] : prev)
@@ -231,7 +260,7 @@ export default function AgentChatPage() {
     apiKey: keyData?.apiKey,
     transcriptionModel: 'auto',
     speechModel: 'auto',
-    voice: 'alloy',
+    voice: voiceName.trim() || 'alloy',
     send,
     cancelRun: stop,
     // Keep only what the user heard, so the stored history is not misleading.
@@ -275,6 +304,18 @@ export default function AgentChatPage() {
         description="Chat with tools: connected MCP servers, a Python sandbox and your documents."
         actions={(
           <div className="flex gap-2">
+            {history.length > 0 && (
+              <select
+                aria-label="Conversation history"
+                className="h-8 max-w-48 rounded-lg border bg-background px-2 text-sm"
+                value={conversationId ?? ''}
+                disabled={busy}
+                onChange={e => { const id = Number(e.target.value); if (id) void loadConversation(id) }}
+              >
+                <option value="" disabled>History</option>
+                {history.map(h => <option key={h.id} value={h.id}>{h.title || `Chat ${h.id}`}</option>)}
+              </select>
+            )}
             <Button
               variant="outline"
               disabled={busy}
@@ -334,6 +375,15 @@ export default function AgentChatPage() {
             <div className="h-1.5 w-24 overflow-hidden rounded bg-muted">
               <div className="h-full bg-primary" style={{ width: `${Math.min(100, voice.level * 600)}%` }} />
             </div>
+            <label className="flex items-center gap-1 text-xs text-muted-foreground">
+              Voice
+              <input
+                className="w-20 rounded border bg-background px-1.5 py-0.5 text-foreground"
+                value={voiceName}
+                onChange={e => setVoiceName(e.target.value)}
+                aria-label="Voice name"
+              />
+            </label>
             {voice.transcript && <span className="truncate text-muted-foreground">“{voice.transcript}”</span>}
           </div>
           {Object.keys(voice.metrics).length > 0 && (
@@ -350,7 +400,7 @@ export default function AgentChatPage() {
         </div>
       )}
 
-      <div className="min-h-0 flex-1 overflow-y-auto rounded-md border p-4">
+      <div className="min-h-[45vh] flex-1 overflow-y-auto rounded-md border p-4">
         {messages.length === 0 && (
           <p className="text-sm text-muted-foreground">
             Ask something. Enabled tools run on the server and ask before doing anything that needs approval.
@@ -366,7 +416,7 @@ export default function AgentChatPage() {
                 ? (m.role === 'assistant' ? <Markdown>{m.content}</Markdown> : <p className="whitespace-pre-wrap text-sm">{m.content}</p>)
                 : m.view?.status === 'running' && <span className="text-sm text-muted-foreground">Working…</span>}
               {m.view && <ArtifactList artifacts={m.view.artifacts} />}
-              {m.view && <CitationList citations={m.view.citations} />}
+              {m.view && <CitationList citations={m.view.citations} onOpen={id => void openCitation(id)} />}
               {m.view?.status === 'failed' && <p className="mt-1 text-sm text-destructive">{m.view.error}</p>}
               {m.view?.status === 'cancelled' && <p className="mt-1 text-xs text-muted-foreground">Stopped.</p>}
             </div>
@@ -374,6 +424,20 @@ export default function AgentChatPage() {
         ))}
         <div ref={bottomRef} />
       </div>
+
+      {sourcePreview && (
+        <div className="mt-2 max-h-60 overflow-y-auto rounded border bg-muted/30 p-3">
+          <div className="mb-2 flex items-center justify-between">
+            <span className="text-sm font-medium">{sourcePreview.name}</span>
+            <Button size="xs" variant="ghost" onClick={() => setSourcePreview(null)}>Close</Button>
+          </div>
+          {sourcePreview.chunks.map(c => (
+            <p key={c.ordinal} className={`mb-2 whitespace-pre-wrap text-xs ${c.ordinal === sourcePreview.focus ? 'bg-amber-200/40 dark:bg-amber-500/20' : 'text-muted-foreground'}`}>
+              {c.page ? `[p.${c.page}] ` : ''}{c.text}
+            </p>
+          ))}
+        </div>
+      )}
 
       {error && <p className="pt-2 text-sm text-destructive">{error}</p>}
 

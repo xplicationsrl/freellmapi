@@ -232,7 +232,7 @@ export default function KnowledgePage() {
         description="Upload documents and pick them in the Agent chat. Answers cite the passages they used."
       />
       {bases.error && (
-        <p className="text-sm text-muted-foreground">Knowledge is off. Set FEATURE_KNOWLEDGE=1 on the server to turn it on.</p>
+        <p className="text-sm text-muted-foreground">Could not load knowledge bases. Check that the server is up to date.</p>
       )}
       {bases.data && (
         <>

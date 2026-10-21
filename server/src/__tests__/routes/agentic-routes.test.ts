@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
+import { describe, it, expect, beforeAll, vi } from 'vitest';
 import http from 'node:http';
 import type { AddressInfo } from 'node:net';
 import type { Express } from 'express';
@@ -25,7 +25,7 @@ vi.mock('../../services/embeddings.js', () => {
 });
 
 import { createApp } from '../../app.js';
-import { initDb, getDb, setSetting } from '../../db/index.js';
+import { initDb, getDb } from '../../db/index.js';
 import { mintDashboardToken } from '../helpers/auth.js';
 
 async function call(app: Express, method: string, path: string, opts: { body?: unknown; token?: string } = {}) {
@@ -80,9 +80,6 @@ describe('agentic routes', () => {
     const c = await call(app, 'POST', '/api/conversations', { token: tokenA, body: { title: 'x' } });
     convoA = c.body.id;
   });
-  afterAll(() => {
-    for (const k of ['mcp_client', 'knowledge', 'sandbox', 'voice']) setSetting(`feature_${k}`, '0');
-  });
 
   it('requires a dashboard session', async () => {
     expect((await call(app, 'GET', '/api/runs/features')).status).toBe(401);
@@ -90,21 +87,51 @@ describe('agentic routes', () => {
     expect((await call(app, 'GET', '/api/mcp-servers')).status).toBe(401);
   });
 
-  it('reports features off by default and hides gated routes', async () => {
+  it('has every feature on by default', async () => {
     const f = await call(app, 'GET', '/api/runs/features', { token: tokenA });
-    expect(f.body).toEqual({ mcp_client: false, sandbox: false, knowledge: false, voice: false });
-    expect((await call(app, 'GET', '/api/mcp-servers', { token: tokenA })).status).toBe(404);
-    expect((await call(app, 'GET', '/api/knowledge/bases', { token: tokenA })).status).toBe(404);
+    expect(f.body).toEqual({ mcp_client: true, sandbox: true, knowledge: true, voice: true });
+    expect((await call(app, 'GET', '/api/mcp-servers', { token: tokenA })).status).toBe(200);
+    expect((await call(app, 'GET', '/api/knowledge/bases', { token: tokenA })).status).toBe(200);
   });
 
-  it('lists built-in tools, and hides feature tools until enabled', async () => {
+  it('lists built-in and knowledge tools, but no sandbox tool until a worker is set', async () => {
     const t = await call(app, 'GET', '/api/runs/tools', { token: tokenA });
     expect(t.status).toBe(200);
-    expect(t.body.map((x: any) => x.name)).toEqual(expect.arrayContaining(['builtin__echo', 'builtin__current_time']));
-    expect(t.body.some((x: any) => x.name === 'knowledge__search')).toBe(false);
-    setSetting('feature_knowledge', '1');
-    const t2 = await call(app, 'GET', '/api/runs/tools', { token: tokenA });
-    expect(t2.body.some((x: any) => x.name === 'knowledge__search')).toBe(true);
+    const names = t.body.map((x: any) => x.name);
+    expect(names).toEqual(expect.arrayContaining(['builtin__echo', 'builtin__current_time', 'knowledge__search']));
+    expect(names).not.toContain('sandbox__run_python');
+  });
+
+  it('settings: save sandbox config, mask the token, register the tool, validate the URL', async () => {
+    const initial = await call(app, 'GET', '/api/agentic-settings', { token: tokenA });
+    expect(initial.body).toEqual({ sandboxUrl: '', hasSandboxToken: false, allowStdio: false, sandboxAutoApprove: false });
+    expect((await call(app, 'GET', '/api/agentic-settings')).status).toBe(401);
+
+    expect((await call(app, 'PUT', '/api/agentic-settings', { token: tokenA, body: { sandboxUrl: 'ftp://x' } })).status).toBe(400);
+    expect((await call(app, 'PUT', '/api/agentic-settings', { token: tokenA, body: { nope: 1 } })).status).toBe(400);
+    expect((await call(app, 'POST', '/api/agentic-settings/sandbox/test', { token: tokenA })).body.ok).toBe(false);
+
+    const saved = await call(app, 'PUT', '/api/agentic-settings', {
+      token: tokenA, body: { sandboxUrl: 'http://127.0.0.1:9/', sandboxToken: 'super-secret-token' },
+    });
+    expect(saved.body).toMatchObject({ sandboxUrl: 'http://127.0.0.1:9', hasSandboxToken: true });
+    expect(JSON.stringify(saved.body)).not.toContain('super-secret-token');
+    const raw = getDb().prepare("SELECT value FROM settings WHERE key = 'agentic_sandbox_token'").get() as any;
+    expect(raw.value).not.toContain('super-secret-token');
+
+    const tools = await call(app, 'GET', '/api/runs/tools', { token: tokenA });
+    const sandbox = tools.body.find((x: any) => x.name === 'sandbox__run_python');
+    expect(sandbox).toMatchObject({ approval: 'always' });
+
+    await call(app, 'PUT', '/api/agentic-settings', { token: tokenA, body: { sandboxAutoApprove: true, allowStdio: true } });
+    const after = await call(app, 'GET', '/api/runs/tools', { token: tokenA });
+    expect(after.body.find((x: any) => x.name === 'sandbox__run_python')).toMatchObject({ approval: 'never' });
+    expect((await call(app, 'GET', '/api/agentic-settings', { token: tokenA })).body).toMatchObject({ allowStdio: true });
+
+    // Clearing the token removes the tool again.
+    await call(app, 'PUT', '/api/agentic-settings', { token: tokenA, body: { sandboxToken: '', allowStdio: false } });
+    const cleared = await call(app, 'GET', '/api/runs/tools', { token: tokenA });
+    expect(cleared.body.some((x: any) => x.name === 'sandbox__run_python')).toBe(false);
   });
 
   it('validates run requests and conversation ownership', async () => {
@@ -120,7 +147,6 @@ describe('agentic routes', () => {
   });
 
   it('knowledge: create, upload, index, search, isolate, delete', async () => {
-    setSetting('feature_knowledge', '1');
     const base = await call(app, 'POST', '/api/knowledge/bases', { token: tokenA, body: { name: 'kb1' } });
     expect(base.status).toBe(201);
     const dup = await call(app, 'POST', '/api/knowledge/bases', { token: tokenA, body: { name: 'kb1' } });
@@ -160,7 +186,6 @@ describe('agentic routes', () => {
   });
 
   it('mcp servers: validate, create, hide secrets, isolate, delete', async () => {
-    setSetting('feature_mcp_client', '1');
     const mcp = await fakeMcp();
     try {
       const blocked = await call(app, 'POST', '/api/mcp-servers', {
@@ -171,7 +196,7 @@ describe('agentic routes', () => {
       const stdio = await call(app, 'POST', '/api/mcp-servers', {
         token: tokenA, body: { name: 'proc', transport: 'stdio', command: 'ls' },
       });
-      expect(stdio.status).toBe(400); // MCP_ALLOW_STDIO not set
+      expect(stdio.status).toBe(400); // stdio not allowed in settings
 
       const created = await call(app, 'POST', '/api/mcp-servers', {
         token: tokenA,

@@ -85,7 +85,7 @@ function AddServerForm({ stdioAllowed, onDone }: { stdioAllowed: boolean; onDone
         <select className={field} value={transport} onChange={e => setTransport(e.target.value as 'http' | 'stdio')}>
           <option value="http">Remote (Streamable HTTP)</option>
           <option value="stdio" disabled={!stdioAllowed}>
-            Local process (stdio){stdioAllowed ? '' : ' - disabled on this install'}
+            Local process (stdio){stdioAllowed ? '' : ' - turn on in Settings > Agent'}
           </option>
         </select>
         {transport === 'http' ? (
@@ -133,6 +133,78 @@ function AddServerForm({ stdioAllowed, onDone }: { stdioAllowed: boolean; onDone
   )
 }
 
+function EditServerForm({ server, onSave, onCancel, saving, error }: {
+  server: McpServer
+  onSave: (body: Record<string, unknown>) => void
+  onCancel: () => void
+  saving: boolean
+  error: string | null
+}) {
+  const [name, setName] = useState(server.name)
+  const [url, setUrl] = useState(server.url ?? '')
+  const [command, setCommand] = useState(server.command ?? '')
+  const [args, setArgs] = useState(server.args.join('\n'))
+  const [secrets, setSecrets] = useState('')
+  const [allowPrivate, setAllowPrivate] = useState(server.allowPrivate)
+  const [policy, setPolicy] = useState<Policy>(server.defaultPolicy)
+  const field = 'w-full rounded-md border bg-background px-3 py-1.5 text-sm'
+  const http = server.transport === 'http'
+
+  const submit = () => {
+    const body: Record<string, unknown> = { name, defaultPolicy: policy }
+    if (http) {
+      body.url = url
+      body.allowPrivate = allowPrivate
+      if (secrets.trim()) body.headers = parsePairs(secrets, ':')
+    } else {
+      body.command = command
+      body.args = args.split('\n').map(a => a.trim()).filter(Boolean)
+      if (secrets.trim()) body.env = parsePairs(secrets, '=')
+    }
+    onSave(body)
+  }
+
+  return (
+    <div className="grid gap-3 rounded-md border bg-muted/20 p-3 sm:grid-cols-2">
+      <input className={field} value={name} onChange={e => setName(e.target.value)} aria-label="Name" />
+      {http ? (
+        <input className={field} value={url} onChange={e => setUrl(e.target.value)} aria-label="URL" />
+      ) : (
+        <>
+          <input className={field} value={command} onChange={e => setCommand(e.target.value)} aria-label="Command" />
+          <textarea className={`${field} sm:col-span-2`} rows={3} value={args} onChange={e => setArgs(e.target.value)} aria-label="Arguments, one per line" />
+        </>
+      )}
+      <textarea
+        className={`${field} sm:col-span-2`}
+        rows={3}
+        placeholder={`Replace stored ${http ? 'headers' : 'environment'} (one per line, ${http ? 'Name: value' : 'NAME=value'}). Leave empty to keep what is stored.`}
+        value={secrets}
+        onChange={e => setSecrets(e.target.value)}
+      />
+      <label className="flex items-center gap-2 text-sm">
+        New tools:
+        <select className="rounded-md border bg-background px-2 py-1" value={policy} onChange={e => setPolicy(e.target.value as Policy)}>
+          <option value="ask">Ask before each call</option>
+          <option value="allow">Allow</option>
+          <option value="deny">Hide</option>
+        </select>
+      </label>
+      {http && (
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" checked={allowPrivate} onChange={e => setAllowPrivate(e.target.checked)} />
+          Allow a local or private network address
+        </label>
+      )}
+      {error && <p className="text-sm text-destructive sm:col-span-2">{error}</p>}
+      <div className="flex gap-2 sm:col-span-2">
+        <Button size="sm" disabled={!name.trim() || saving} onClick={submit}>{saving ? 'Saving…' : 'Save and reconnect'}</Button>
+        <Button size="sm" variant="outline" onClick={onCancel}>Cancel</Button>
+      </div>
+    </div>
+  )
+}
+
 function ServerCard({ server, onChange }: { server: McpServer; onChange: () => void }) {
   const qc = useQueryClient()
   const tools = useQuery<{ connected: boolean; tools: ServerTool[] }>({
@@ -143,10 +215,11 @@ function ServerCard({ server, onChange }: { server: McpServer; onChange: () => v
     queryKey: ['mcp-calls', server.id],
     queryFn: () => apiFetch(`/api/mcp-servers/${server.id}/calls`),
   })
+  const [editing, setEditing] = useState(false)
   const update = useMutation({
     mutationFn: (body: Record<string, unknown>) =>
       apiFetch(`/api/mcp-servers/${server.id}`, { method: 'PUT', body: JSON.stringify(body) }),
-    onSuccess: () => { onChange(); void qc.invalidateQueries({ queryKey: ['mcp-tools', server.id] }) },
+    onSuccess: () => { setEditing(false); onChange(); void qc.invalidateQueries({ queryKey: ['mcp-tools', server.id] }) },
   })
   const test = useMutation({
     mutationFn: () => apiFetch<{ ok: boolean; tools: number; error: string | null }>(`/api/mcp-servers/${server.id}/test`, { method: 'POST' }),
@@ -181,6 +254,7 @@ function ServerCard({ server, onChange }: { server: McpServer; onChange: () => v
           <Button size="sm" variant="outline" onClick={() => test.mutate()} disabled={test.isPending}>
             <RefreshCw className="size-3.5" /> Test connection
           </Button>
+          <Button size="sm" variant="outline" onClick={() => setEditing(e => !e)}>Edit</Button>
           <Button size="sm" variant="outline" onClick={() => update.mutate({ enabled: !server.enabled })}>
             {server.enabled ? 'Disable' : 'Enable'}
           </Button>
@@ -192,6 +266,15 @@ function ServerCard({ server, onChange }: { server: McpServer; onChange: () => v
             <Trash2 className="size-3.5" /> Remove
           </Button>
         </div>
+        {editing && (
+          <EditServerForm
+            server={server}
+            saving={update.isPending}
+            error={update.error ? (update.error as Error).message : null}
+            onCancel={() => setEditing(false)}
+            onSave={body => update.mutate(body)}
+          />
+        )}
         {(server.headerNames.length > 0 || server.envNames.length > 0) && (
           <p className="text-xs text-muted-foreground">
             Stored secrets: {[...server.headerNames, ...server.envNames].join(', ')}
@@ -257,7 +340,7 @@ export default function IntegrationsPage() {
       {isLoading && <p className="text-sm text-muted-foreground">Loading…</p>}
       {error && (
         <p className="text-sm text-muted-foreground">
-          The MCP client is off. Set FEATURE_MCP_CLIENT=1 on the server to turn it on.
+          Could not load integrations. Check that the server is up to date.
         </p>
       )}
       {data && (

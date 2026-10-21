@@ -1,8 +1,8 @@
-// Feature flags for the agentic features: MCP client, code sandbox, knowledge
-// base and voice. All default OFF so an unconfigured install behaves exactly as
-// before. Precedence mirrors the response cache and guardrails: the
-// settings-table value wins when present (runtime-tunable, no restart), then
-// the env var, then the default.
+// Availability of the agentic features: MCP client, code sandbox, knowledge
+// base and voice. All are ON by default; a feature that still needs setup (the
+// sandbox needs a worker) simply offers nothing until it is configured. An
+// operator can still switch one off through the settings table or an env var
+// (precedence: settings value, then env var, then on).
 
 import { getSetting } from '../db/index.js';
 
@@ -36,7 +36,7 @@ export function isFeatureEnabled(name: FeatureName): boolean {
   }
   const fromSetting = parseFlag(stored);
   if (fromSetting !== undefined) return fromSetting;
-  return parseFlag(process.env[ENV_NAMES[name]]) ?? false;
+  return parseFlag(process.env[ENV_NAMES[name]]) ?? true;
 }
 
 export function featureStates(): Record<FeatureName, boolean> {

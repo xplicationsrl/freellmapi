@@ -118,6 +118,9 @@ export function CommandPalette() {
       { id: 'p-playground', group: 'pages', label: t('nav.playground'), keywords: 'playground test chat try', icon: SquareTerminal, run: go('/playground') },
       { id: 'p-keys', group: 'pages', label: t('nav.keys'), keywords: 'keys providers api tokens', icon: KeyRound, run: go('/keys') },
       { id: 'p-agents', group: 'pages', label: t('nav.agents'), keywords: 'agents claude codex cline ollama gemini', icon: Bot, run: go('/agents') },
+      { id: 'p-agent-chat', group: 'pages', label: 'Agent chat', keywords: 'agent chat tools mcp sandbox python documents voice', icon: Bot, run: go('/agent') },
+      { id: 'p-integrations', group: 'pages', label: 'Integrations', keywords: 'integrations mcp servers tools connect', icon: Layers, run: go('/integrations') },
+      { id: 'p-knowledge', group: 'pages', label: 'Knowledge', keywords: 'knowledge documents rag pdf upload citations', icon: Layers, run: go('/knowledge') },
       { id: 'p-analytics', group: 'pages', label: t('nav.analytics'), keywords: 'analytics usage stats savings latency', icon: ChartColumn, run: go('/analytics') },
     ]
     const actions: Command[] = [

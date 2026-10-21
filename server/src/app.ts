@@ -12,6 +12,7 @@ import { memoriesRouter } from './routes/memories.js';
 import { runsRouter } from './routes/runs.js';
 import { mcpServersRouter } from './routes/mcp-servers.js';
 import { knowledgeRouter } from './routes/knowledge.js';
+import { agenticSettingsRouter } from './routes/agentic-settings.js';
 import { logsRouter } from './routes/logs.js';
 import { modelsRouter } from './routes/models.js';
 import { proxyRouter } from './routes/proxy.js';
@@ -266,6 +267,8 @@ export function createApp(config?: Config) {
   app.use('/api/mcp-servers', requireAuth, mcpServersRouter);
   // Knowledge bases (document Q&A); 404 while the flag is off.
   app.use('/api/knowledge', requireAuth, knowledgeRouter);
+  // Settings > Agent: sandbox worker, local MCP servers, approvals.
+  app.use('/api/agentic-settings', requireAuth, agenticSettingsRouter);
   // Server logs for the dashboard viewer. Dashboard-session gated like the rest
   // of /api — these lines name providers, models and key ids, so the unified
   // /v1 key must not open them.

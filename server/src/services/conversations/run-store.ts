@@ -170,6 +170,19 @@ export function conversationBelongsTo(conversationId: number, userId: number): b
   return !!row;
 }
 
+/** Knowledge bases linked to the conversation's project folder (owner's only). */
+export function projectKnowledgeBaseIds(conversationId: number, userId: number): number[] {
+  const rows = getDb().prepare(`
+    SELECT pk.base_id
+      FROM playground_conversations c
+      JOIN playground_project_knowledge pk ON pk.project_id = c.project_id
+      JOIN kb_bases b ON b.id = pk.base_id AND b.user_id = c.user_id
+     WHERE c.id = ? AND c.user_id = ?
+     ORDER BY pk.base_id
+  `).all(conversationId, userId) as { base_id: number }[];
+  return rows.map(r => r.base_id);
+}
+
 export function insertArtifact(row: {
   id: string;
   runId: string;

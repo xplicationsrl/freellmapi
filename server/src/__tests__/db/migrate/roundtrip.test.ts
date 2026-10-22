@@ -57,6 +57,8 @@ const KEY_LAST_HEALTHY_AT_FILENAME = '20261020_000001_key_last_healthy_at.ts';
 const AGENTIC_RUNTIME_FILENAME = '20261021_000001_agentic_runtime.ts';
 const MCP_SERVERS_FILENAME = '20261021_000002_mcp_servers.ts';
 const KNOWLEDGE_BASE_FILENAME = '20261021_000003_knowledge_base.ts';
+const PROJECT_KNOWLEDGE_FILENAME = '20261022_000001_project_knowledge.ts';
+const PROJECT_MEMORY_FILENAME = '20261022_000002_project_memory.ts';
 
 interface SchemaRow {
   type: string;
@@ -160,6 +162,8 @@ describe('migration round trip', () => {
         AGENTIC_RUNTIME_FILENAME,
         MCP_SERVERS_FILENAME,
         KNOWLEDGE_BASE_FILENAME,
+        PROJECT_KNOWLEDGE_FILENAME,
+        PROJECT_MEMORY_FILENAME,
       ]);
     } finally {
       db.close();

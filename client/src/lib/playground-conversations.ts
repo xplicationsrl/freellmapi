@@ -98,6 +98,8 @@ export interface ConversationPatch {
 export interface Project {
   id: number
   name: string
+  /** Knowledge bases every chat in this folder searches. */
+  knowledgeBaseIds: number[]
   createdAt: number
   updatedAt: number
 }
@@ -235,6 +237,13 @@ export function renameProject(id: number, name: string): Promise<Project> {
   return apiFetch<Project>(`/api/projects/${id}`, {
     method: 'PUT',
     body: JSON.stringify({ name }),
+  })
+}
+
+export function setProjectKnowledge(id: number, baseIds: number[]): Promise<Project> {
+  return apiFetch<Project>(`/api/projects/${id}/knowledge`, {
+    method: 'PUT',
+    body: JSON.stringify({ baseIds }),
   })
 }
 

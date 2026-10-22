@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import {
+  BookOpen,
+  Brain,
   ChevronDown,
   ChevronRight,
   Download,
@@ -13,6 +16,7 @@ import {
   PanelLeft,
   PanelLeftClose,
   Pencil,
+  MessageSquarePlus,
   Search,
   Settings,
   SquarePen,
@@ -21,6 +25,7 @@ import {
 import { buttonVariants } from '@/components/ui/button'
 import {
   DropdownMenu,
+  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSub,
@@ -30,12 +35,14 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { AppNavFooter, APP_NAME, isDesktopApp, navItems, navMenus } from '@/components/app-nav'
 import { Tooltip } from '@/components/tooltip'
+import { ProjectMemoryDialog } from '@/components/playground/project-memory-dialog'
 import type { ConversationSummary, Project } from '@/lib/playground-conversations'
 import {
   readCollapsedProjectIds,
+  setProjectKnowledge,
   writeCollapsedProjectIds,
 } from '@/lib/playground-conversations'
-import { logout } from '@/lib/api'
+import { apiFetch, logout } from '@/lib/api'
 import { useI18n } from '@/i18n'
 
 // The Playground's saved-conversation rail, laid out like a Gemini-style
@@ -69,6 +76,7 @@ export function ConversationSidebar({
   onRenameProject,
   onDeleteProject,
   onMoveConversation,
+  onNewProjectConversation,
   onOpenSettings,
 }: {
   conversations: ConversationSummary[]
@@ -86,9 +94,27 @@ export function ConversationSidebar({
   onRenameProject: (id: number, name: string) => void
   onDeleteProject: (id: number) => void
   onMoveConversation: (id: number, projectId: number | null) => void
+  onNewProjectConversation: (projectId: number) => void
   onOpenSettings: () => void
 }) {
   const { t } = useI18n()
+  const queryClient = useQueryClient()
+  // Empty (and the submenu hidden) while the knowledge feature is off.
+  const { data: knowledgeBases = [] } = useQuery<{ id: number; name: string }[]>({
+    queryKey: ['kb-bases'],
+    queryFn: () => apiFetch('/api/knowledge/bases'),
+    retry: false,
+  })
+  const toggleProjectBase = async (project: Project, baseId: number) => {
+    const next = project.knowledgeBaseIds.includes(baseId)
+      ? project.knowledgeBaseIds.filter(id => id !== baseId)
+      : [...project.knowledgeBaseIds, baseId]
+    try {
+      await setProjectKnowledge(project.id, next)
+    } finally {
+      queryClient.invalidateQueries({ queryKey: ['playground-projects'] })
+    }
+  }
   const navigate = useNavigate()
   const location = useLocation()
   const [renamingId, setRenamingId] = useState<number | null>(null)
@@ -96,6 +122,7 @@ export function ConversationSidebar({
   const [creatingProject, setCreatingProject] = useState(false)
   const [armedDeleteId, setArmedDeleteId] = useState<number | null>(null)
   const [armedProjectDeleteId, setArmedProjectDeleteId] = useState<number | null>(null)
+  const [memoryProjectId, setMemoryProjectId] = useState<number | null>(null)
   const [draft, setDraft] = useState('')
   const [projectDraft, setProjectDraft] = useState('')
   const [searching, setSearching] = useState(false)
@@ -612,10 +639,37 @@ export function ConversationSidebar({
                             <MoreHorizontal className="size-3.5" />
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end" className="w-44">
+                            <DropdownMenuItem onClick={() => onNewProjectConversation(project.id)}>
+                              <MessageSquarePlus />
+                              {t('projectMemory.newChat')}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setMemoryProjectId(project.id)}>
+                              <Brain />
+                              {t('projectMemory.open')}
+                            </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => startRenameProject(project)}>
                               <Pencil />
                               {t('playgroundSessions.rename')}
                             </DropdownMenuItem>
+                            {knowledgeBases.length > 0 && (
+                              <DropdownMenuSub>
+                                <DropdownMenuSubTrigger>
+                                  <BookOpen />
+                                  {t('playgroundSessions.projectKnowledge')}
+                                </DropdownMenuSubTrigger>
+                                <DropdownMenuSubContent className="w-48">
+                                  {knowledgeBases.map(base => (
+                                    <DropdownMenuCheckboxItem
+                                      key={base.id}
+                                      checked={project.knowledgeBaseIds.includes(base.id)}
+                                      onCheckedChange={() => { void toggleProjectBase(project, base.id) }}
+                                    >
+                                      {base.name}
+                                    </DropdownMenuCheckboxItem>
+                                  ))}
+                                </DropdownMenuSubContent>
+                              </DropdownMenuSub>
+                            )}
                             <DropdownMenuItem
                               variant="destructive"
                               closeOnClick={armedProject}
@@ -678,6 +732,10 @@ export function ConversationSidebar({
 
         <AppNavFooter onOpenSettings={onOpenSettings} />
       </div>
+      <ProjectMemoryDialog
+        project={projects.find(p => p.id === memoryProjectId) ?? null}
+        onClose={() => setMemoryProjectId(null)}
+      />
     </div>
   )
 }

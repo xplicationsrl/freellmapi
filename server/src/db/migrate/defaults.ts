@@ -52,6 +52,8 @@ import * as keyLastHealthyAt from '../migrations/20261020_000001_key_last_health
 import * as agenticRuntime from '../migrations/20261021_000001_agentic_runtime.js';
 import * as mcpServers from '../migrations/20261021_000002_mcp_servers.js';
 import * as knowledgeBase from '../migrations/20261021_000003_knowledge_base.js';
+import * as projectKnowledge from '../migrations/20261022_000001_project_knowledge.js';
+import * as projectMemory from '../migrations/20261022_000002_project_memory.js';
 
 export interface MigrationModule {
   up(db: Db): void;
@@ -116,6 +118,8 @@ export const KEY_LAST_HEALTHY_AT_FILENAME = '20261020_000001_key_last_healthy_at
 export const AGENTIC_RUNTIME_FILENAME = '20261021_000001_agentic_runtime.ts';
 export const MCP_SERVERS_FILENAME = '20261021_000002_mcp_servers.ts';
 export const KNOWLEDGE_BASE_FILENAME = '20261021_000003_knowledge_base.ts';
+export const PROJECT_KNOWLEDGE_FILENAME = '20261022_000001_project_knowledge.ts';
+export const PROJECT_MEMORY_FILENAME = '20261022_000002_project_memory.ts';
 
 export const DEFAULT_MIGRATIONS: readonly DefaultMigration[] = [
   { filename: LEGACY_BASELINE_FILENAME, module: legacyBaseline },
@@ -171,4 +175,6 @@ export const DEFAULT_MIGRATIONS: readonly DefaultMigration[] = [
   { filename: AGENTIC_RUNTIME_FILENAME, module: agenticRuntime },
   { filename: MCP_SERVERS_FILENAME, module: mcpServers },
   { filename: KNOWLEDGE_BASE_FILENAME, module: knowledgeBase },
+  { filename: PROJECT_KNOWLEDGE_FILENAME, module: projectKnowledge },
+  { filename: PROJECT_MEMORY_FILENAME, module: projectMemory },
 ];

@@ -1,7 +1,9 @@
 import { useState, useRef, useEffect, useMemo, useCallback, type ReactNode } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { BookOpen, ChevronRight, CircleAlert, Code, Download, FileText, Globe, Image as ImageIcon, Lightbulb, Mail, Pencil, RefreshCw, Square, ThumbsDown, ThumbsUp, Volume2, X } from 'lucide-react'
+import { BookOpen, ChevronRight, CircleAlert, Code, Download, FileText, Globe, Image as ImageIcon, Lightbulb, Mail, Mic, MicOff, Pencil, RefreshCw, Square, ThumbsDown, ThumbsUp, Volume2, X } from 'lucide-react'
 import { apiFetch, API_BASE } from '@/lib/api'
+import { useVoiceMode, type VoiceSendHooks } from '@/features/agent/use-voice'
+import { Button } from '@/components/ui/button'
 import { buildModelOptions } from '@/lib/model-groups'
 import type { Chain } from '@/components/chain-manager'
 import { Markdown } from '@/components/markdown'
@@ -88,10 +90,22 @@ import {
   type Memory,
 } from '@/lib/playground-memories'
 import {
+  addProjectMemory,
+  getProjectMemory,
+  projectContextMessage,
+  projectMemoryExtractPrompt,
+  type ProjectMemoryState,
+} from '@/lib/project-memory'
+import {
   conversationRecallMessage,
   recallConversations,
 } from '@/lib/playground-recall'
 import { useI18n } from '@/i18n'
+
+const VOICE_NAME_KEY = 'playground.voiceName'
+const VOICE_STYLE_HINT =
+  'This is a spoken voice conversation: your reply is read aloud. Answer in short, natural sentences. '
+  + 'No Markdown, lists, tables, emoji or code blocks unless the user asks for them; spell out symbols and numbers as you would say them.'
 
 function isAbortError(err: unknown): boolean {
   return err instanceof Error && err.name === 'AbortError'
@@ -340,6 +354,9 @@ export default function PlaygroundPage() {
   // page) discards the reply; an abort with it ends the reply where it is and
   // keeps what had already arrived.
   const stoppedRef = useRef(false)
+  // Set while a voice-chat turn is running: the reply's text deltas are tapped
+  // off to be spoken sentence by sentence.
+  const voiceHooksRef = useRef<VoiceSendHooks | null>(null)
   // Read-aloud: which reply is being spoken (by index), and the speaker that
   // owns the browser's one speech queue.
   const [speakingIndex, setSpeakingIndex] = useState<number | null>(null)
@@ -376,6 +393,23 @@ export default function PlaygroundPage() {
     queryKey: ['playground-memories'],
     queryFn: listMemories,
   })
+  // A blank chat started from a folder's "New chat" button: it has no row yet,
+  // so the folder is remembered here until the first save creates it inside.
+  const [pendingProjectId, setPendingProjectId] = useState<number | null>(null)
+  // A just-created chat is missing from the list until it refetches, so the
+  // pending folder bridges that gap.
+  const activeProjectId = conversationId !== null
+    ? (conversations.find(c => c.id === conversationId)?.projectId ?? pendingProjectId)
+    : pendingProjectId
+  const activeProject = projects.find(p => p.id === activeProjectId) ?? null
+  const { data: projectMemory } = useQuery<ProjectMemoryState>({
+    queryKey: ['project-memory', activeProjectId],
+    queryFn: () => getProjectMemory(activeProjectId!),
+    enabled: activeProjectId !== null,
+  })
+  const refreshProjectMemory = (projectId: number) => {
+    queryClient.invalidateQueries({ queryKey: ['project-memory', projectId] })
+  }
   const refreshConversations = () => {
     queryClient.invalidateQueries({ queryKey: ['playground-conversations'] })
   }
@@ -389,9 +423,15 @@ export default function PlaygroundPage() {
   // looking at the latest toggle and list without restarting the request.
   const memoryEnabledRef = useRef(memoryEnabled)
   const memoriesRef = useRef(memories)
+  const activeProjectIdRef = useRef(activeProjectId)
+  const activeProjectRef = useRef(activeProject)
+  const projectMemoryRef = useRef(projectMemory)
   const apiKeyRef = useRef<string | undefined>(undefined)
   useEffect(() => { memoryEnabledRef.current = memoryEnabled }, [memoryEnabled])
   useEffect(() => { memoriesRef.current = memories }, [memories])
+  useEffect(() => { activeProjectIdRef.current = activeProjectId }, [activeProjectId])
+  useEffect(() => { activeProjectRef.current = activeProject }, [activeProject])
+  useEffect(() => { projectMemoryRef.current = projectMemory }, [projectMemory])
 
   const { data: keyData } = useQuery<{ apiKey: string }>({
     queryKey: ['unified-key'],
@@ -406,6 +446,7 @@ export default function PlaygroundPage() {
     if (!memoryEnabledRef.current) return
     const apiKey = apiKeyRef.current
     if (!apiKey) return
+    void extractProjectMemoriesFromExchange(msgs, apiKey)
 
     const lastAssistant = [...msgs].reverse().find(m => m.role === 'assistant' && !m.isError)
     const lastUser = [...msgs].reverse().find(m => m.role === 'user')
@@ -445,6 +486,58 @@ export default function PlaygroundPage() {
       refreshMemories()
     } catch {
       // Extraction is best-effort; a failed side call must not surface as a chat error.
+    }
+  }
+
+  // Same idea scoped to the open project: facts about the project's work go to
+  // that folder's memory, where every chat in it will see them.
+  const extractProjectMemoriesFromExchange = async (msgs: ChatMessage[], apiKey: string) => {
+    const projectId = activeProjectIdRef.current
+    const project = activeProjectRef.current
+    if (projectId === null || !project) return
+
+    const lastAssistant = [...msgs].reverse().find(m => m.role === 'assistant' && !m.isError)
+    const lastUser = [...msgs].reverse().find(m => m.role === 'user')
+    if (!lastAssistant?.content.trim() || !lastUser?.content.trim()) return
+
+    const existing = projectMemoryRef.current?.memories ?? []
+    try {
+      const res = await fetch(`${API_BASE}/v1/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model: 'auto',
+          stream: false,
+          temperature: 0,
+          max_tokens: 400,
+          messages: [{
+            role: 'user',
+            content: projectMemoryExtractPrompt(project.name, existing, {
+              user: lastUser.content,
+              assistant: lastAssistant.content,
+            }),
+          }],
+        }),
+      })
+      if (!res.ok) return
+      const data = await res.json()
+      const raw = data.choices?.[0]?.message?.content
+      if (typeof raw !== 'string') return
+      const fresh = filterNewMemories(parseExtractedMemories(raw), existing)
+      if (fresh.length === 0) return
+      for (const content of fresh) {
+        await addProjectMemory(projectId, {
+          content,
+          source: 'auto',
+          conversationId: conversationIdRef.current,
+        })
+      }
+      refreshProjectMemory(projectId)
+    } catch {
+      // Best-effort, like user-level extraction.
     }
   }
 
@@ -654,6 +747,7 @@ export default function PlaygroundPage() {
         messages: toStoredMessages(msgs),
         model: selectedModel,
         systemPrompt: systemPrompt.trim() || null,
+        projectId: activeProjectIdRef.current,
       })
         .then(created => {
           adoptConversation(created.id, created.title)
@@ -704,6 +798,7 @@ export default function PlaygroundPage() {
     titleRef.current = ''
     createRef.current = null
     setConversationId(null)
+    setPendingProjectId(null)
     writeActiveConversationId(null)
     setMessages([])
     setEditing(null)
@@ -726,6 +821,7 @@ export default function PlaygroundPage() {
     abortRef.current = null
     const conversation = await getConversation(id)
     createRef.current = null
+    setPendingProjectId(null)
     setMessages(conversation.messages)
     setEditing(null)
     setAttachments([])
@@ -751,6 +847,14 @@ export default function PlaygroundPage() {
   const handleNewConversation = () => {
     flushCurrentConversation()
     resetConversationState()
+    inputRef.current?.focus()
+  }
+
+  const handleNewProjectConversation = (projectId: number) => {
+    flushCurrentConversation()
+    resetConversationState()
+    setPendingProjectId(projectId)
+    activeProjectIdRef.current = projectId
     inputRef.current?.focus()
   }
 
@@ -892,7 +996,7 @@ export default function PlaygroundPage() {
           flush(true)
         } else if (obj.choices) {
           const delta = obj.choices[0]?.delta?.content
-          if (delta) { finalContent += delta; flush(true) }
+          if (delta) { finalContent += delta; voiceHooksRef.current?.onDelta(delta); flush(true) }
         }
       }
     }
@@ -950,7 +1054,7 @@ export default function PlaygroundPage() {
 
     try {
       await readChatStream(stream, {
-        onDelta: text => { content += text; flush(true) },
+        onDelta: text => { content += text; voiceHooksRef.current?.onDelta(text); flush(true) },
         onReasoning: text => { reasoning += text; flush(true) },
         onError: message => { failure = message; flush(true) },
       })
@@ -1114,9 +1218,16 @@ export default function PlaygroundPage() {
       const memoryContext = memoryEnabled
         ? memoryContextMessage(memories)
         : ''
+      // Project brief + saved facts apply whether or not personal memory is on:
+      // they were written for this folder on purpose.
+      const projectContext = activeProject
+        ? projectContextMessage(activeProject.name, projectMemory)
+        : ''
       const body: Record<string, unknown> = {
         messages: [
           ...(sysPrompt ? [{ role: 'system', content: sysPrompt }] : []),
+          ...(voiceHooksRef.current ? [{ role: 'system', content: VOICE_STYLE_HINT }] : []),
+          ...(projectContext ? [{ role: 'system', content: projectContext }] : []),
           ...(skillsContext ? [{ role: 'system', content: skillsContext }] : []),
           ...(recallContext ? [{ role: 'system', content: recallContext }] : []),
           ...(memoryContext ? [{ role: 'system', content: memoryContext }] : []),
@@ -1192,6 +1303,8 @@ export default function PlaygroundPage() {
         | { panel: { platform: string; model: string }[]; judge: { platform: string; model: string } | null }
         | undefined
 
+      // A buffered reply has no deltas; speak it whole.
+      voiceHooksRef.current?.onDelta(content)
       const answered: ChatMessage[] = [...newMessages, {
         role: 'assistant',
         content,
@@ -1393,6 +1506,38 @@ export default function PlaygroundPage() {
     abortRef.current?.abort()
   }
 
+  // ---- Voice chat -----------------------------------------------------------
+  // Hands-free: the mic is watched for speech, each utterance is transcribed,
+  // answered like a typed message, and the reply is spoken as it streams.
+  // Speaking over the assistant stops it (the part already generated is kept).
+  const [voiceName, setVoiceName] = useState(() => {
+    try { return localStorage.getItem(VOICE_NAME_KEY) ?? 'alloy' } catch { return 'alloy' }
+  })
+  useEffect(() => {
+    try { localStorage.setItem(VOICE_NAME_KEY, voiceName) } catch { /* private mode */ }
+  }, [voiceName])
+  const speechAvailable = mediaModels.some(m => m.modality === 'audio' && m.enabled && m.keyCount > 0)
+  const voiceChatAvailable = transcriptionAvailable && speechAvailable
+
+  const voice = useVoiceMode({
+    apiKey: keyData?.apiKey,
+    transcriptionModel: dictationModel,
+    speechModel: 'auto',
+    voice: voiceName.trim() || 'alloy',
+    send: async (text, hooks) => {
+      voiceHooksRef.current = hooks
+      try {
+        await runReply([...messages, { role: 'user', content: text }], text)
+        hooks.onGenerated()
+      } finally {
+        if (voiceHooksRef.current === hooks) voiceHooksRef.current = null
+      }
+    },
+    // Same as Stop: end the reply where it is and keep what had arrived.
+    cancelRun: handleStop,
+    onInterrupted: () => {},
+  })
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Escape' && loading) {
       e.preventDefault()
@@ -1443,6 +1588,7 @@ export default function PlaygroundPage() {
         onRenameProject={handleRenameProject}
         onDeleteProject={handleDeleteProject}
         onMoveConversation={handleMoveConversation}
+        onNewProjectConversation={handleNewProjectConversation}
         onOpenSettings={openSettings}
       />
       <SkillsDialog
@@ -1793,6 +1939,44 @@ export default function PlaygroundPage() {
               e.target.value = ''
             }}
           />
+          {voiceChatAvailable && (
+            <div className="mb-2 flex flex-wrap items-center gap-3 text-sm">
+              <Button
+                size="sm"
+                variant={voice.active ? 'default' : 'outline'}
+                onClick={() => (voice.active ? voice.stop() : void voice.start())}
+              >
+                {voice.active ? <MicOff className="size-4" /> : <Mic className="size-4" />}
+                {voice.active ? t('voiceChat.end') : t('voiceChat.start')}
+              </Button>
+              {voice.active && (
+                <>
+                  <span className="font-medium">{t(`voiceChat.state.${voice.state}`)}</span>
+                  <div className="h-1.5 w-24 overflow-hidden rounded bg-muted">
+                    <div className="h-full bg-primary" style={{ width: `${Math.min(100, voice.level * 600)}%` }} />
+                  </div>
+                  <label className="flex items-center gap-1 text-xs text-muted-foreground">
+                    {t('voiceChat.voice')}
+                    <input
+                      className="w-20 rounded border bg-background px-1.5 py-0.5 text-foreground"
+                      value={voiceName}
+                      onChange={e => setVoiceName(e.target.value)}
+                      aria-label={t('voiceChat.voice')}
+                    />
+                  </label>
+                  {voice.transcript && (
+                    <span className="min-w-0 max-w-full truncate text-xs text-muted-foreground">“{voice.transcript}”</span>
+                  )}
+                </>
+              )}
+              {voice.error && (
+                <span className="text-xs text-destructive">
+                  {voice.error}{' '}
+                  <button className="underline" onClick={voice.recover}>{t('voiceChat.continue')}</button>
+                </span>
+              )}
+            </div>
+          )}
           <LiquidComposer
             inputRef={inputRef}
             value={input}

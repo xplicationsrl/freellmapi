@@ -1025,6 +1025,35 @@
     "memorySaveFailed": "Couldn't save that memory.",
     "memoryDeleteFailed": "Couldn't delete that memory."
   },
+  "voiceChat": {
+    "start": "Voice chat",
+    "end": "End voice",
+    "voice": "Voice",
+    "continue": "Continue",
+    "state": {
+      "idle": "Idle",
+      "listening": "Listening",
+      "transcribing": "Transcribing",
+      "thinking": "Thinking",
+      "speaking": "Speaking",
+      "error": "Error"
+    }
+  },
+  "projectMemory": {
+    "title": "{name} · project memory",
+    "help": "What the models remember about this project. Instructions and facts are sent with every chat in this folder.",
+    "instructions": "Project instructions",
+    "instructionsPlaceholder": "Goals, conventions, tone, tech stack, anything the model should always know here…",
+    "facts": "Remembered facts",
+    "empty": "Nothing remembered yet. Facts are learned from chats in this folder, or add your own.",
+    "addPlaceholder": "Add a fact to remember about this project…",
+    "learned": "Learned from a chat",
+    "pin": "Pin (always sent first)",
+    "unpin": "Unpin",
+    "failed": "Could not update project memory.",
+    "open": "Project memory",
+    "newChat": "New chat in project"
+  },
   "playgroundSessions": {
     "heading": "Conversations",
     "newConversation": "New conversation",
@@ -1052,6 +1081,7 @@
     "newProject": "New project",
     "projectNamePlaceholder": "Project name",
     "renameProject": "Rename project",
+    "projectKnowledge": "Project knowledge",
     "deleteProject": "Delete project",
     "deleteProjectConfirm": "Delete project?",
     "moveToProject": "Move to project",

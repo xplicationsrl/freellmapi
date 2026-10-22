@@ -11,9 +11,11 @@ import { registerKnowledgeTool } from '../services/knowledge/tool.js';
 import { registerBuiltinTools } from '../services/tools/builtin.js';
 import { getToolRegistry } from '../services/tools/registry.js';
 import { artifactRoot, safeArtifactName } from '../services/conversations/artifact-store.js';
+import { buildProjectContext, projectIdForConversation } from '../services/project-memory.js';
 import { cancelRun, resolveApproval, startRun } from '../services/conversations/orchestrator.js';
 import {
   conversationBelongsTo,
+  projectKnowledgeBaseIds,
   getArtifactForUser,
   getRunForUser,
 } from '../services/conversations/run-store.js';
@@ -148,16 +150,26 @@ runsRouter.post('/', async (req: Request, res: Response) => {
     res.write(`data: ${JSON.stringify(event)}\n\n`);
   };
 
+  // The chat's project folder contributes its brief and saved facts.
+  const projectId = projectIdForConversation(input.conversationId, uid);
+  const projectContext = projectId === null ? null : buildProjectContext(projectId, uid);
   const messages = [
     ...(input.systemPrompt ? [{ role: 'system' as const, content: input.systemPrompt }] : []),
+    ...(projectContext ? [{ role: 'system' as const, content: projectContext }] : []),
     ...input.messages,
   ];
 
   // Only tools this account can see are honoured; anything else is dropped.
   const visible = new Set(visibleTools(uid).map(t => t.name));
   const toolNames = (input.tools ?? []).filter(n => visible.has(n));
+  // Bases linked to the chat's project folder always apply, on top of any
+  // picked in the chat itself.
+  const knowledgeBaseIds = [...new Set([
+    ...(input.knowledgeBases ?? []),
+    ...projectKnowledgeBaseIds(input.conversationId, uid),
+  ])];
   // Picking a knowledge base in the chat is what turns document search on.
-  if ((input.knowledgeBases?.length ?? 0) > 0 && visible.has('knowledge__search')
+  if (knowledgeBaseIds.length > 0 && visible.has('knowledge__search')
       && !toolNames.includes('knowledge__search')) {
     toolNames.push('knowledge__search');
   }
@@ -177,7 +189,7 @@ runsRouter.post('/', async (req: Request, res: Response) => {
   try {
     await startRun({
       attachments,
-      knowledgeBaseIds: input.knowledgeBases,
+      knowledgeBaseIds,
       conversationId: input.conversationId,
       userId: uid,
       chatUrl,

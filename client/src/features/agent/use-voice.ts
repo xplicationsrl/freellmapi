@@ -23,6 +23,12 @@ const LISTEN_THRESHOLD = 0.04
 // While the assistant talks, its own audio leaks into the mic; a higher bar
 // keeps that from being mistaken for the user.
 const SPEAKING_THRESHOLD = 0.12
+// Grace periods in which sound from the microphone cannot interrupt the reply,
+// so a cough, a keyboard or the first echo of the assistant's own voice does
+// not kill an answer that is still being worked out. Tapping the orb (bargeIn)
+// ignores them.
+const THINKING_GRACE_MS = 2500
+const PLAYBACK_GRACE_MS = 1000
 
 export interface VoiceSendHooks {
   signal: AbortSignal
@@ -63,6 +69,7 @@ export function useVoiceMode(options: UseVoiceOptions) {
   const chunksRef = useRef<Blob[]>([])
   const queueRef = useRef(new SpeechQueue())
   const turnRef = useRef(0)
+  const graceUntilRef = useRef(0)
   const turnAbortRef = useRef<AbortController | null>(null)
   const timingRef = useRef<{ speechEnd: number; transcribed: number; sent: number; metrics: VoiceTurnMetrics }>(
     { speechEnd: 0, transcribed: 0, sent: 0, metrics: {} },
@@ -129,6 +136,7 @@ export function useVoiceMode(options: UseVoiceOptions) {
     queue.reset()
     const timing = timingRef.current
     timing.sent = performance.now()
+    graceUntilRef.current = timing.sent + THINKING_GRACE_MS
     let sawFirstToken = false
     let buffer = ''
     let chain: Promise<void> = Promise.resolve()
@@ -158,6 +166,7 @@ export function useVoiceMode(options: UseVoiceOptions) {
         timing.metrics.playbackStartMs = Math.round(performance.now() - timing.speechEnd)
         setMetrics({ ...timing.metrics })
       }
+      graceUntilRef.current = Math.max(graceUntilRef.current, performance.now() + PLAYBACK_GRACE_MS)
       dispatch('playback-started')
       vadRef.current?.setThreshold(SPEAKING_THRESHOLD)
     }
@@ -269,6 +278,7 @@ export function useVoiceMode(options: UseVoiceOptions) {
         onSpeechStart: () => {
           const s = stateRef.current
           if (s === 'speaking' || s === 'thinking') {
+            if (performance.now() < graceUntilRef.current) return
             interrupt()
             dispatch('barge-in')
             vadRef.current?.setThreshold(LISTEN_THRESHOLD)

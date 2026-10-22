@@ -54,6 +54,7 @@ export function useVoiceMode(options: UseVoiceOptions) {
   const [error, setError] = useState<string | null>(null)
   const [transcript, setTranscript] = useState('')
   const [metrics, setMetrics] = useState<VoiceTurnMetrics>({})
+  const [muted, setMutedState] = useState(false)
 
   const stateRef = useRef<VoiceState>('idle')
   const streamRef = useRef<MediaStream | null>(null)
@@ -199,6 +200,21 @@ export function useVoiceMode(options: UseVoiceOptions) {
     }
   }, [dispatch, fail, fetchSpeech])
 
+  /** Cut the assistant off now (tap-to-interrupt) and go back to listening. */
+  const bargeIn = useCallback(() => {
+    const s = stateRef.current
+    if (s !== 'speaking' && s !== 'thinking') return
+    interrupt()
+    dispatch('barge-in')
+    vadRef.current?.setThreshold(LISTEN_THRESHOLD)
+  }, [dispatch, interrupt])
+
+  /** Mute silences the microphone track, so the detector hears nothing. */
+  const setMuted = useCallback((value: boolean) => {
+    setMutedState(value)
+    streamRef.current?.getAudioTracks().forEach(track => { track.enabled = !value })
+  }, [])
+
   const handleUtterance = useCallback(async (blob: Blob) => {
     dispatch('speech-end')
     const timing = timingRef.current
@@ -287,6 +303,7 @@ export function useVoiceMode(options: UseVoiceOptions) {
     stateRef.current = 'idle'
     setState('idle')
     setLevel(0)
+    setMutedState(false)
   }, [])
 
   useEffect(() => stop, [stop])
@@ -298,5 +315,5 @@ export function useVoiceMode(options: UseVoiceOptions) {
     setState(stateRef.current)
   }, [])
 
-  return { state, level, error, transcript, metrics, start, stop, recover, active: state !== 'idle' }
+  return { state, level, error, transcript, metrics, muted, setMuted, bargeIn, start, stop, recover, active: state !== 'idle' }
 }

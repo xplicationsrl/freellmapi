@@ -1025,6 +1025,15 @@
     "memorySaveFailed": "Couldn't save that memory.",
     "memoryDeleteFailed": "Couldn't delete that memory."
   },
+  "voiceCall": {
+    "start": "Voice call",
+    "title": "Voice call",
+    "mute": "Mute microphone",
+    "unmute": "Unmute microphone",
+    "muted": "Muted",
+    "end": "End call",
+    "interrupt": "Tap to interrupt"
+  },
   "voiceChat": {
     "start": "Voice chat",
     "end": "End voice",

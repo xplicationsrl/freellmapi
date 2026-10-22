@@ -1,9 +1,10 @@
 import { useState, useRef, useEffect, useMemo, useCallback, type ReactNode } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { BookOpen, ChevronRight, CircleAlert, Code, Download, FileText, Globe, Image as ImageIcon, Lightbulb, Mail, Mic, MicOff, Pencil, RefreshCw, Square, ThumbsDown, ThumbsUp, Volume2, X } from 'lucide-react'
+import { BookOpen, ChevronRight, CircleAlert, Code, Download, FileText, Globe, Image as ImageIcon, Lightbulb, Mail, Pencil, Phone, RefreshCw, Square, ThumbsDown, ThumbsUp, Volume2, X } from 'lucide-react'
 import { apiFetch, API_BASE } from '@/lib/api'
 import { useVoiceMode, type VoiceSendHooks } from '@/features/agent/use-voice'
 import { Button } from '@/components/ui/button'
+import { VoiceCallOverlay } from '@/components/playground/voice-call-overlay'
 import { buildModelOptions } from '@/lib/model-groups'
 import type { Chain } from '@/components/chain-manager'
 import { Markdown } from '@/components/markdown'
@@ -1537,6 +1538,17 @@ export default function PlaygroundPage() {
     cancelRun: handleStop,
     onInterrupted: () => {},
   })
+  const [callOpen, setCallOpen] = useState(false)
+  const startCall = async () => {
+    setCallOpen(true)
+    await voice.start()
+  }
+  const endCall = () => {
+    voice.stop()
+    setCallOpen(false)
+  }
+  const lastMessage = messages[messages.length - 1]
+  const callReply = lastMessage?.role === 'assistant' && !lastMessage.isError ? lastMessage.content : ''
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Escape' && loading) {
@@ -1940,41 +1952,11 @@ export default function PlaygroundPage() {
             }}
           />
           {voiceChatAvailable && (
-            <div className="mb-2 flex flex-wrap items-center gap-3 text-sm">
-              <Button
-                size="sm"
-                variant={voice.active ? 'default' : 'outline'}
-                onClick={() => (voice.active ? voice.stop() : void voice.start())}
-              >
-                {voice.active ? <MicOff className="size-4" /> : <Mic className="size-4" />}
-                {voice.active ? t('voiceChat.end') : t('voiceChat.start')}
+            <div className="mb-2">
+              <Button size="sm" variant="outline" onClick={() => void startCall()}>
+                <Phone className="size-4" />
+                {t('voiceCall.start')}
               </Button>
-              {voice.active && (
-                <>
-                  <span className="font-medium">{t(`voiceChat.state.${voice.state}`)}</span>
-                  <div className="h-1.5 w-24 overflow-hidden rounded bg-muted">
-                    <div className="h-full bg-primary" style={{ width: `${Math.min(100, voice.level * 600)}%` }} />
-                  </div>
-                  <label className="flex items-center gap-1 text-xs text-muted-foreground">
-                    {t('voiceChat.voice')}
-                    <input
-                      className="w-20 rounded border bg-background px-1.5 py-0.5 text-foreground"
-                      value={voiceName}
-                      onChange={e => setVoiceName(e.target.value)}
-                      aria-label={t('voiceChat.voice')}
-                    />
-                  </label>
-                  {voice.transcript && (
-                    <span className="min-w-0 max-w-full truncate text-xs text-muted-foreground">“{voice.transcript}”</span>
-                  )}
-                </>
-              )}
-              {voice.error && (
-                <span className="text-xs text-destructive">
-                  {voice.error}{' '}
-                  <button className="underline" onClick={voice.recover}>{t('voiceChat.continue')}</button>
-                </span>
-              )}
             </div>
           )}
           <LiquidComposer
@@ -2024,6 +2006,23 @@ export default function PlaygroundPage() {
           />
         </div>
       </div>
+
+      {callOpen && (
+        <VoiceCallOverlay
+          state={voice.state}
+          level={voice.level}
+          muted={voice.muted}
+          transcript={voice.transcript}
+          reply={callReply}
+          error={voice.error}
+          voiceName={voiceName}
+          onVoiceNameChange={setVoiceName}
+          onToggleMute={() => voice.setMuted(!voice.muted)}
+          onInterrupt={voice.bargeIn}
+          onRecover={voice.recover}
+          onEnd={endCall}
+        />
+      )}
 
       {artifact && (
         <ArtifactPanel

@@ -389,6 +389,9 @@ mediaProxyRouter.post('/audio/speech', async (req: Request, res: Response) => {
     });
     res.setHeader('Content-Type', result.contentType);
     res.setHeader('X-Provider', safeHeaderValue(result.platform));
+    // Which model spoke, so a caller reading a reply sentence by sentence can
+    // pin it and keep one voice instead of re-routing every clip.
+    res.setHeader('X-Model', safeHeaderValue(result.modelId));
     res.send(result.audio);
   } catch (err) {
     const status = err instanceof MediaError ? err.status : 502;

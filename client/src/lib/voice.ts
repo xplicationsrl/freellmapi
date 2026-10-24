@@ -27,7 +27,18 @@ export function nextVoiceState(state: VoiceState, action: VoiceAction): VoiceSta
   }
 }
 
-const TERMINATORS = /([.!?。！？]+["')\]]*)(\s+|$)/
+/**
+ * System instruction for a reply that will be read aloud. Long answers are
+ * slow to speak and hard to follow by ear, so it asks for a few sentences and
+ * lets the user ask for more.
+ */
+export const VOICE_REPLY_STYLE =
+  'This is a spoken voice call: your reply is read aloud. Keep it short: one to three sentences, '
+  + 'under about 60 words, like a person talking. Give the key point first; if there is more to say, '
+  + 'offer to go on instead of saying it all. Go longer only when the user explicitly asks for detail. '
+  + 'No Markdown, lists, tables, emoji or code blocks; spell out symbols and numbers as you would say them.'
+
+const TERMINATORS =/([.!?。！？]+["')\]]*)(\s+|$)/
 
 /**
  * Cut complete sentences off the front of a streaming buffer. The tail without

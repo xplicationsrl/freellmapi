@@ -70,6 +70,10 @@ export function useVoiceMode(options: UseVoiceOptions) {
   const queueRef = useRef(new SpeechQueue())
   const turnRef = useRef(0)
   const graceUntilRef = useRef(0)
+  // Speech routed as 'auto' may land on a different provider for every
+  // sentence, and each provider has its own idea of what a voice name sounds
+  // like. The model that spoke first is kept for the rest of the call.
+  const pinnedSpeechRef = useRef<{ key: string; model: string } | null>(null)
   const turnAbortRef = useRef<AbortController | null>(null)
   const timingRef = useRef<{ speechEnd: number; transcribed: number; sent: number; metrics: VoiceTurnMetrics }>(
     { speechEnd: 0, transcribed: 0, sent: 0, metrics: {} },
@@ -86,20 +90,35 @@ export function useVoiceMode(options: UseVoiceOptions) {
     dispatch('fail')
   }, [dispatch])
 
+  /** The pinned model, if it was pinned for the current model and voice settings. */
+  const pinnedSpeechModel = useCallback((): string | undefined => {
+    const { speechModel, voice } = optsRef.current
+    const pin = pinnedSpeechRef.current
+    return pin && pin.key === `${speechModel}\n${voice}` ? pin.model : undefined
+  }, [])
+
   const fetchSpeech = useCallback(async (text: string, signal: AbortSignal): Promise<Blob> => {
     const { apiKey, speechModel, voice } = optsRef.current
-    const res = await fetch(`${API_BASE}/v1/audio/speech`, {
+    const request = (model: string | undefined) => fetch(`${API_BASE}/v1/audio/speech`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}) },
-      body: JSON.stringify({ model: speechModel === 'auto' ? undefined : speechModel, input: text, voice, response_format: 'mp3' }),
+      body: JSON.stringify({ model, input: text, voice, response_format: 'mp3' }),
       signal,
     })
+    const routed = speechModel === 'auto' ? undefined : speechModel
+    const pinned = pinnedSpeechModel()
+    let res = await request(pinned ?? routed)
+    // The pinned model stopped answering (quota, key removed): a different
+    // voice is better than silence, so route again and pin whatever answers.
+    if (!res.ok && pinned) res = await request(routed)
+    const served = res.ok ? res.headers.get('X-Model') : null
+    if (served) pinnedSpeechRef.current = { key: `${speechModel}\n${voice}`, model: served }
     if (!res.ok) {
       const body = await res.json().catch(() => null) as { error?: { message?: string } } | null
       throw new Error(body?.error?.message || `speech HTTP ${res.status}`)
     }
     return res.blob()
-  }, [])
+  }, [pinnedSpeechModel])
 
   const transcribe = useCallback(async (blob: Blob): Promise<string> => {
     const { apiKey, transcriptionModel } = optsRef.current
@@ -140,13 +159,20 @@ export function useVoiceMode(options: UseVoiceOptions) {
     let sawFirstToken = false
     let buffer = ''
     let chain: Promise<void> = Promise.resolve()
+    let lastFetch: Promise<unknown> = Promise.resolve()
     let generated = false
 
     const speak = (sentence: string) => {
       const clean = speakable(sentence)
       if (!clean) return
       const requestedAt = performance.now()
-      const pending = fetchSpeech(clean, abort.signal)
+      // Until a model is pinned, each clip waits for the one before it, so
+      // they all go to the model the first one landed on. Once pinned, clips
+      // are generated in parallel again.
+      const pending = pinnedSpeechModel()
+        ? fetchSpeech(clean, abort.signal)
+        : lastFetch.catch(() => undefined).then(() => fetchSpeech(clean, abort.signal))
+      lastFetch = pending
       chain = chain.then(() => pending).then(blob => {
         if (turn !== turnRef.current) return
         if (timing.metrics.speechGenerationMs === undefined) {
@@ -207,7 +233,7 @@ export function useVoiceMode(options: UseVoiceOptions) {
         fail(err instanceof Error ? err.message : 'The reply failed')
       }
     }
-  }, [dispatch, fail, fetchSpeech])
+  }, [dispatch, fail, fetchSpeech, pinnedSpeechModel])
 
   /** Cut the assistant off now (tap-to-interrupt) and go back to listening. */
   const bargeIn = useCallback(() => {
@@ -310,6 +336,8 @@ export function useVoiceMode(options: UseVoiceOptions) {
     // Release the microphone: the indicator in the browser must go off.
     streamRef.current?.getTracks().forEach(tr => tr.stop())
     streamRef.current = null
+    // The next call routes afresh (a provider may have come back since).
+    pinnedSpeechRef.current = null
     stateRef.current = 'idle'
     setState('idle')
     setLevel(0)

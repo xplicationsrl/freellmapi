@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { BookOpen, ChevronRight, CircleAlert, Code, Download, FileText, Globe, Image as ImageIcon, Lightbulb, Mail, Pencil, Phone, RefreshCw, Square, ThumbsDown, ThumbsUp, Volume2, X } from 'lucide-react'
 import { apiFetch, API_BASE } from '@/lib/api'
 import { useVoiceMode, type VoiceSendHooks } from '@/features/agent/use-voice'
+import { VOICE_REPLY_STYLE } from '@/lib/voice'
 import { Button } from '@/components/ui/button'
 import { VoiceCallOverlay } from '@/components/playground/voice-call-overlay'
 import { buildModelOptions } from '@/lib/model-groups'
@@ -104,10 +105,6 @@ import {
 import { useI18n } from '@/i18n'
 
 const VOICE_NAME_KEY = 'playground.voiceName'
-const VOICE_STYLE_HINT =
-  'This is a spoken voice conversation: your reply is read aloud. Answer in short, natural sentences. '
-  + 'No Markdown, lists, tables, emoji or code blocks unless the user asks for them; spell out symbols and numbers as you would say them.'
-
 function isAbortError(err: unknown): boolean {
   return err instanceof Error && err.name === 'AbortError'
 }
@@ -1227,12 +1224,13 @@ export default function PlaygroundPage() {
       const body: Record<string, unknown> = {
         messages: [
           ...(sysPrompt ? [{ role: 'system', content: sysPrompt }] : []),
-          ...(voiceHooksRef.current ? [{ role: 'system', content: VOICE_STYLE_HINT }] : []),
           ...(projectContext ? [{ role: 'system', content: projectContext }] : []),
           ...(skillsContext ? [{ role: 'system', content: skillsContext }] : []),
           ...(recallContext ? [{ role: 'system', content: recallContext }] : []),
           ...(memoryContext ? [{ role: 'system', content: memoryContext }] : []),
           ...(searchContext ? [{ role: 'system', content: searchContext }] : []),
+          // Last, so no skill or context asking for long answers outweighs it.
+          ...(voiceHooksRef.current ? [{ role: 'system', content: VOICE_REPLY_STYLE }] : []),
           ...newMessages.map(m => ({ role: m.role, content: toMessageContent(m.content, m.images) })),
         ],
         // Only the knobs switched on in the settings rail: temperature, top_p
@@ -1539,7 +1537,10 @@ export default function PlaygroundPage() {
     onInterrupted: () => {},
   })
   const [callOpen, setCallOpen] = useState(false)
+  // Where the call began in the conversation: its transcript is what follows.
+  const [callStart, setCallStart] = useState(0)
   const startCall = async () => {
+    setCallStart(messages.length)
     setCallOpen(true)
     await voice.start()
   }
@@ -1547,8 +1548,9 @@ export default function PlaygroundPage() {
     voice.stop()
     setCallOpen(false)
   }
-  const lastMessage = messages[messages.length - 1]
-  const callReply = lastMessage?.role === 'assistant' && !lastMessage.isError ? lastMessage.content : ''
+  const callTurns = messages.slice(callStart)
+    .filter(m => !m.isError)
+    .map(m => ({ role: m.role, content: m.content }))
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Escape' && loading) {
@@ -2012,8 +2014,7 @@ export default function PlaygroundPage() {
           state={voice.state}
           level={voice.level}
           muted={voice.muted}
-          transcript={voice.transcript}
-          reply={callReply}
+          turns={callTurns}
           error={voice.error}
           voiceName={voiceName}
           onVoiceNameChange={setVoiceName}

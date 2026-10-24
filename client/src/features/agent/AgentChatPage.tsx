@@ -11,6 +11,7 @@ import { Markdown } from '@/components/markdown'
 import { Button } from '@/components/ui/button'
 import { ArtifactList, CitationList, ToolActivity } from './tool-activity'
 import { useVoiceMode, type VoiceSendHooks } from './use-voice'
+import { VOICE_REPLY_STYLE } from '@/lib/voice'
 
 // A chat that runs on the server: the model can call tools (MCP servers, the
 // code sandbox, document search) in a loop with approvals, and the same
@@ -219,6 +220,8 @@ export default function AgentChatPage() {
         conversationId: convoRef.current!,
         model: 'auto',
         messages: history.map(m => ({ role: m.role, content: m.content })),
+        // A spoken turn is read aloud: ask for a short answer.
+        ...(hooks ? { systemPrompt: VOICE_REPLY_STYLE } : {}),
         tools: [...active],
         knowledgeBases: [...bases],
         attachments,

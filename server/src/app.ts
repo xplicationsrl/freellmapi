@@ -189,6 +189,8 @@ export function createApp(config?: Config) {
     origin(origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) {
       callback(null, !origin || allowedCorsOrigins.has(origin));
     },
+    // Voice mode reads X-Model off /v1/audio/speech to pin one voice per call.
+    exposedHeaders: ['X-Provider', 'X-Model'],
   }));
   // Two-tier JSON body limits. The LLM wire surfaces carry vision payloads —
   // base64 images inline in the body (~33% inflation; google.ts forwards

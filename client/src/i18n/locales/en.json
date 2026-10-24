@@ -1032,7 +1032,13 @@
     "unmute": "Unmute microphone",
     "muted": "Muted",
     "end": "End call",
-    "interrupt": "Tap to interrupt"
+    "interrupt": "Tap to interrupt",
+    "transcript": "Call transcript",
+    "transcriptEmpty": "Start talking. What you and the assistant say will appear here.",
+    "showTranscript": "Show transcript",
+    "hideTranscript": "Hide transcript",
+    "you": "You",
+    "assistant": "Assistant"
   },
   "voiceChat": {
     "start": "Voice chat",

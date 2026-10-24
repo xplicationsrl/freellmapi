@@ -61,7 +61,13 @@ Create a base on the **Knowledge** page, add `.txt`, `.md`, `.pdf` (text layer o
 
 ## Voice mode
 
-Voice mode in the Agent page uses the existing routes: microphone, `/v1/audio/transcriptions`, a normal run, then `/v1/audio/speech` one sentence at a time, played in order. Speaking over the assistant interrupts it: queued audio is dropped, the run is cancelled, and the conversation keeps only the part you actually heard. Raw audio is not stored. The panel shows transcription, first-token, speech-generation and playback-start times for the last turn. It is not offline: transcription and speech use whichever providers your keys route to.
+Voice mode in the Agent page uses the existing routes: microphone, `/v1/audio/transcriptions`, a normal run, then `/v1/audio/speech` one sentence at a time, played in order. Speaking over the assistant interrupts it: queued audio is dropped, the run is cancelled, and the conversation keeps only the part you actually heard. Raw audio is not stored. The panel shows transcription, first-token, speech-generation and playback-start times for the last turn.
+
+One call keeps one voice. `/v1/audio/speech` returns the model that spoke in `X-Model`; the first clip of a call pins that model and every later sentence asks for it by id instead of `auto`, so failover cannot hand the next sentence to a provider with a different voice. Until the pin exists, the first reply's sentences are generated one after another rather than in parallel. If the pinned model stops answering, the call routes again and pins whatever answers (a voice change beats silence). Changing the voice name or ending the call clears the pin.
+
+Spoken turns carry a system instruction asking for one to three short sentences without Markdown; in the Playground it is placed after every other system message so a skill or project context cannot outweigh it. The Playground call screen shows a scrolling transcript of the call (both sides, the reply as it streams), which can be hidden.
+
+It is not offline: transcription and speech use whichever providers your keys route to.
 
 ## Deploying and upgrading
 

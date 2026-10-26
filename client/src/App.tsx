@@ -150,7 +150,11 @@ function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <SettingsUiProvider openSettings={() => setSettingsOpen(true)}>
-      <div className={`flex flex-col h-dvh overflow-hidden ${isMacDesktop ? 'desktop-backdrop' : 'bg-background'}`}>
+      {/* `relative` makes the shell the containing block for absolutely
+          positioned descendants (sr-only labels, etc.). Without it they escape
+          overflow-hidden, stretch the document, and the window scrolls the
+          whole shell, sidebar included. */}
+      <div className={`relative flex flex-col h-dvh overflow-hidden ${isMacDesktop ? 'desktop-backdrop' : 'bg-background'}`}>
         <DesktopDragBar />
         <ShellBody>{children}</ShellBody>
         <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />

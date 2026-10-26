@@ -151,6 +151,21 @@ analyticsRouter.get('/search', (req: Request, res: Response) => {
   res.json(searchAnalytics(range));
 });
 
+// Running "what this would have cost on paid APIs" counter. Accrued per
+// successful request in logRequest, so it survives the raw-row prune. Counts
+// only from est_savings_since onward (earlier traffic was never priced).
+analyticsRouter.get('/savings', (_req: Request, res: Response) => {
+  const db = getDb();
+  const read = (key: string): string | undefined =>
+    (db.prepare('SELECT value FROM settings WHERE key = ?').get(key) as { value?: string } | undefined)?.value;
+  const usd = (key: string) => Math.round((Number(read(key) ?? 0) || 0) / 10_000) / 100;
+  res.json({
+    lifetimeUsd: usd('total_est_savings_micro'),
+    monthToDateUsd: usd(`est_savings_micro:${new Date().toISOString().slice(0, 7)}`),
+    since: read('est_savings_since') ?? null,
+  });
+});
+
 analyticsRouter.get('/summary', (req: Request, res: Response) => {
   const range = (req.query.range as string) ?? '7d';
   const since = getSinceTimestamp(range);

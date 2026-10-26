@@ -42,6 +42,7 @@ import { GettingStarted } from '@/components/getting-started'
 import { GroupHeaderCells, ModelTableHead, SortableGroupRow } from '@/components/model-table'
 import { TableSkeleton } from '@/components/ui/skeleton'
 import { TokenUsageBar } from '@/components/token-usage-bar'
+import { SavingsCard } from '@/components/savings-card'
 import { PageHeader } from '@/components/page-header'
 import { FloatingBar } from '@/components/floating-bar'
 import { ModelsTabs } from '@/components/models-tabs'
@@ -349,6 +350,8 @@ export default function FallbackPage() {
 
         {/* Monthly token budget — moved to the top */}
         {tokenUsage && tokenUsage.totalBudget > 0 && <TokenUsageBar data={tokenUsage} />}
+
+        <SavingsCard />
 
         {/* Strategy selector */}
         <section className="rounded-3xl border bg-card p-5">

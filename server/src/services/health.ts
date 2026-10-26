@@ -13,6 +13,7 @@ import { providerLog } from '../lib/server-logs.js';
 import { triggerBuiltinModelDiscovery } from './builtin-model-discovery.js';
 import { errorMessage, errorProps } from '../lib/error-props.js';
 import type { ApiKeyRow } from '../db/rows.js';
+import { evaluateUsageAlerts } from './usage-alerts.js';
 
 const DEFAULT_CHECK_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
 // Floor of 60s: a misconfigured tiny interval turns the health pass into a
@@ -700,6 +701,11 @@ export function startHealthChecker(scheduler: Scheduler): void {
         await checkAllKeys();
       } catch (err) {
         console.error('[Health] Check failed:', err);
+      }
+      try {
+        evaluateUsageAlerts();
+      } catch (err) {
+        console.error('[Alerts] Evaluation failed:', err);
       }
       if (healthCheckerRunning) scheduleNext();
     });

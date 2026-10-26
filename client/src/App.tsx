@@ -7,6 +7,7 @@ import { CommandPalette } from '@/components/command-palette'
 import { ErrorBoundary } from '@/components/error-boundary'
 import { SettingsDialog } from '@/components/settings-dialog'
 import { Toaster } from '@/components/toaster'
+import { AlertsWatcher } from '@/components/alerts-watcher'
 import { NewBuildPrompt } from '@/components/new-build-prompt'
 import { I18nProvider } from '@/i18n'
 import { PlaygroundPrefsProvider } from '@/lib/playground-prefs'
@@ -205,6 +206,7 @@ function App() {
                     </PageBoundary>
                   </PageContainer>
                   <Toaster />
+                  <AlertsWatcher />
                   <CommandPalette />
                   <NewBuildPrompt />
                 </AppShell>

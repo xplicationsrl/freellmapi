@@ -2,6 +2,7 @@ import { getDb } from '../db/index.js';
 import { pruneRequestAnalytics } from '../services/request-retention.js';
 import { getClientContext } from './client-context.js';
 import { noteRequestRowId, type RequestTrace } from './attempt-trace.js';
+import { FALLBACK_INPUT_PER_M, FALLBACK_OUTPUT_PER_M } from '../db/model-pricing.js';
 
 type LogTx = ReturnType<typeof getDb>;
 
@@ -20,6 +21,25 @@ function incrementSetting(db: LogTx, key: string, delta: number): void {
     INSERT INTO settings (key, value) VALUES (?, ?)
     ON CONFLICT(key) DO UPDATE SET value = CAST(CAST(value AS INTEGER) + ? AS TEXT)
   `).run(key, String(delta), delta);
+}
+
+// Paid-equivalent value of a successful request, in micro-dollars so it fits
+// the integer settings counters. Same pricing the analytics "Est. savings"
+// stat uses: the model's paid_*_per_m, else the shared fallback rate.
+function estimatedSavingsMicro(
+  db: LogTx,
+  modelDbId: number | null,
+  inputTokens: number,
+  outputTokens: number,
+): number {
+  const price = modelDbId == null
+    ? undefined
+    : db.prepare('SELECT paid_input_per_m, paid_output_per_m FROM models WHERE id = ?')
+      .get(modelDbId) as { paid_input_per_m: number | null; paid_output_per_m: number | null } | undefined;
+  const inRate = price?.paid_input_per_m ?? FALLBACK_INPUT_PER_M;
+  const outRate = price?.paid_output_per_m ?? FALLBACK_OUTPUT_PER_M;
+  // $/M tokens * tokens = micro-dollars.
+  return Math.round(inputTokens * inRate + outputTokens * outRate);
 }
 
 function setSettingIfMissing(db: LogTx, key: string, value: string): void {
@@ -118,10 +138,11 @@ export function logRequest(
     // middleware); null when logging happens outside an HTTP request.
     const client = getClientContext();
     const tx = db.transaction(() => {
+      const modelDbId = resolveModelDbId(db, platform, modelId, keyId);
       const insert = db.prepare(`
         INSERT INTO requests (platform, model_id, key_id, status, input_tokens, output_tokens, latency_ms, error, ttfb_ms, requested_model, served_model, client_ip, client_user_agent, client_agent, caller, model_db_id, failure_attribution)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(platform, modelId, keyId, status, inputTokens, outputTokens, latencyMs, error, ttfbMs, requestedModel, servedModel, client.ip, client.userAgent, client.agent, caller, resolveModelDbId(db, platform, modelId, keyId), failureAttribution);
+      `).run(platform, modelId, keyId, status, inputTokens, outputTokens, latencyMs, error, ttfbMs, requestedModel, servedModel, client.ip, client.userAgent, client.agent, caller, modelDbId, failureAttribution);
 
       // Report the row id back to the fallback loop's attempt trace (if one is
       // active): the LAST id noted during a loop run is the terminal row the
@@ -147,6 +168,16 @@ export function logRequest(
       incrementSetting(db, 'total_requests', 1);
       incrementSetting(db, 'total_input_tokens', inputTokens);
       incrementSetting(db, 'total_output_tokens', outputTokens);
+      if (isSuccess) {
+        // Durable savings counters (raw rows get pruned): lifetime plus one
+        // bucket per UTC month, read back by GET /api/analytics/savings.
+        const micro = estimatedSavingsMicro(db, modelDbId, inputTokens, outputTokens);
+        if (micro > 0) {
+          incrementSetting(db, 'total_est_savings_micro', micro);
+          incrementSetting(db, `est_savings_micro:${hour.slice(0, 7)}`, micro);
+          setSettingIfMissing(db, 'est_savings_since', hour.slice(0, 10));
+        }
+      }
       if (createdAt?.created_at) {
         setSettingIfMissing(db, 'first_request_at', createdAt.created_at);
       }

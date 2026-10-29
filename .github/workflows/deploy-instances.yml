@@ -6,7 +6,7 @@ name: Deploy shared instance
 on:
   push:
     branches: [main]
-    paths: ['server/**', 'shared/**', 'deploy/**', 'package-lock.json']
+    paths: ['server/**', 'client/**', 'shared/**', 'deploy/**', 'package-lock.json']
   workflow_dispatch:
 
 concurrency:

@@ -955,6 +955,7 @@
     "attachUnsupported": "{name}은(는) 지원되지 않습니다. 이미지(PNG, JPEG, WebP, GIF) 또는 텍스트 파일(TXT, MD, CSV, JSON, LOG)을 첨부하세요.",
     "attachFailed": "{name}을(를) 읽을 수 없습니다.",
     "attachNoText": "No readable text found in {name}. A scanned PDF has no text layer.",
+    "attachScannedPartial": "{name} is a scanned PDF: only the first {count} of {total} pages were attached as images.",
     "attachTruncated": "{name} is long, so only the first part was attached.",
     "noVisionBadge": "이미지 불가",
     "visionWarning": "{model}은(는) 이미지를 지원하지 않습니다. 이미지 입력이 가능한 모델 또는 자동을 선택하세요.",

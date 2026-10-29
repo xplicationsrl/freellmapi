@@ -955,6 +955,7 @@
     "attachUnsupported": "{name} සඳහා සහාය නොදක්වයි. රූප (PNG, JPEG, WebP, GIF) හෝ පෙළ ගොනු (TXT, MD, CSV, JSON, LOG) අමුණන්න.",
     "attachFailed": "{name} කියවිය නොහැකි විය.",
     "attachNoText": "No readable text found in {name}. A scanned PDF has no text layer.",
+    "attachScannedPartial": "{name} is a scanned PDF: only the first {count} of {total} pages were attached as images.",
     "attachTruncated": "{name} is long, so only the first part was attached.",
     "noVisionBadge": "රූප නැත",
     "visionWarning": "{model} රූප පිළිගන්නේ නැත. රූප පිළිගන්නා ආකෘතියක් හෝ ස්වයංක්‍රීය තෝරන්න.",

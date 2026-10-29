@@ -955,6 +955,7 @@
     "attachUnsupported": "{name} સમર્થિત નથી. છબીઓ (PNG, JPEG, WebP, GIF) અથવા ટેક્સ્ટ ફાઇલો (TXT, MD, CSV, JSON, LOG) જોડો.",
     "attachFailed": "{name} વાંચી શકાયું નથી.",
     "attachNoText": "No readable text found in {name}. A scanned PDF has no text layer.",
+    "attachScannedPartial": "{name} is a scanned PDF: only the first {count} of {total} pages were attached as images.",
     "attachTruncated": "{name} is long, so only the first part was attached.",
     "noVisionBadge": "છબીઓ નહીં",
     "visionWarning": "{model} છબીઓ સ્વીકારતું નથી. ઇમેજ ઇનપુટ સ્વીકારતું મોડેલ અથવા ઓટો પસંદ કરો.",

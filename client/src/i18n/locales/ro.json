@@ -955,6 +955,7 @@
     "attachUnsupported": "{name} nu este acceptat. Atașează imagini (PNG, JPEG, WebP, GIF), fișiere text (TXT, MD, CSV, JSON, LOG) sau documente (PDF, DOCX).",
     "attachFailed": "Nu s-a putut citi {name}.",
     "attachNoText": "Nu s-a găsit text care să poată fi citit în {name}. Un PDF scanat nu are strat de text.",
+    "attachScannedPartial": "{name} is a scanned PDF: only the first {count} of {total} pages were attached as images.",
     "attachTruncated": "{name} este lung, așa că a fost atașată doar prima parte.",
     "noVisionBadge": "Fără imagini",
     "visionWarning": "{model} nu acceptă imagini. Alege un model cu suport pentru imagini sau Auto.",

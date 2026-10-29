@@ -955,6 +955,7 @@
     "attachUnsupported": "{name} არ არის მხარდაჭერილი. მიამაგრეთ სურათები (PNG, JPEG, WebP, GIF) ან ტექსტური ფაილები (TXT, MD, CSV, JSON, LOG).",
     "attachFailed": "{name} ვერ წაიკითხა.",
     "attachNoText": "No readable text found in {name}. A scanned PDF has no text layer.",
+    "attachScannedPartial": "{name} is a scanned PDF: only the first {count} of {total} pages were attached as images.",
     "attachTruncated": "{name} is long, so only the first part was attached.",
     "noVisionBadge": "სურათების გარეშე",
     "visionWarning": "{model} არ იღებს სურათებს. აირჩიეთ ხედვის მოდელი ან ავტომატური.",

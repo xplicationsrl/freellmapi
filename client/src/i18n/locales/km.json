@@ -955,6 +955,7 @@
     "attachUnsupported": "{name} មិនត្រូវបានគាំទ្រទេ។ ភ្ជាប់រូបភាព (PNG, JPEG, WebP, GIF) ឬឯកសារអត្ថបទ (TXT, MD, CSV, JSON, LOG)។",
     "attachFailed": "មិនអាចអានឯកសារ {name} បានទេ។",
     "attachNoText": "No readable text found in {name}. A scanned PDF has no text layer.",
+    "attachScannedPartial": "{name} is a scanned PDF: only the first {count} of {total} pages were attached as images.",
     "attachTruncated": "{name} is long, so only the first part was attached.",
     "noVisionBadge": "គ្មានរូបភាព",
     "visionWarning": "{model} មិនទទួលយករូបភាពទេ។ សូមជ្រើសរើសម៉ូដែលដែលទទួលរូបភាព ឬ Auto។",

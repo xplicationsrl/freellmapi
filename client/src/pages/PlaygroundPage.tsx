@@ -44,7 +44,7 @@ import {
 } from '@/lib/skills'
 import { conversationToMarkdown, downloadTextFile, exportDate, exportFilename } from '@/lib/conversation-export'
 import { canRegenerate, editedTranscript, lookupText, regenerationBase } from '@/lib/playground-retry'
-import { MAX_DOCUMENT_BYTES, extractDocxText, extractPdfText } from '@/lib/document-extract'
+import { MAX_DOCUMENT_BYTES, extractDocxText, extractPdfText, renderPdfPages } from '@/lib/document-extract'
 import { readChatStream } from '@/lib/playground-stream'
 import { ConversationSidebar } from '@/components/playground/conversation-sidebar'
 import { LiquidComposer } from '@/components/playground/liquid-composer'
@@ -1095,9 +1095,24 @@ export default function PlaygroundPage() {
           imageBytes += dataUrlBytes(dataUrl)
           accepted.push({ id: `${Date.now()}-${accepted.length}-${file.name}`, kind, name: file.name, dataUrl })
         } else if (kind === 'document') {
-          const extracted = fileExtension(file.name) === 'docx' || file.type.includes('wordprocessingml')
-            ? await extractDocxText(file)
-            : await extractPdfText(file)
+          const isDocx = fileExtension(file.name) === 'docx' || file.type.includes('wordprocessingml')
+          const extracted = isDocx ? await extractDocxText(file) : await extractPdfText(file)
+          if (!extracted && !isDocx) {
+            // Scanned PDF: no text layer, so send the pages as images instead.
+            // Each page takes an attachment slot and counts against the image budget.
+            const slots = MAX_ATTACHMENTS - attachments.length - accepted.length
+            const { images, totalPages } = await renderPdfPages(file, slots)
+            let added = 0
+            for (const dataUrl of images) {
+              if (imageBytes + dataUrlBytes(dataUrl) > MAX_TOTAL_IMAGE_BYTES) break
+              imageBytes += dataUrlBytes(dataUrl)
+              added++
+              accepted.push({ id: `${Date.now()}-${accepted.length}-${file.name}`, kind: 'image', name: `${file.name} (${added})`, dataUrl })
+            }
+            if (added === 0) toast.error(t('playground.attachNoText', { name: file.name }))
+            else if (added < totalPages) toast.info(t('playground.attachScannedPartial', { name: file.name, count: added, total: totalPages }))
+            continue
+          }
           if (!extracted) {
             toast.error(t('playground.attachNoText', { name: file.name }))
             continue

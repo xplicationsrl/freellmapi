@@ -955,6 +955,7 @@
     "attachUnsupported": "{name} не підтримується. Прикріпіть зображення (PNG, JPEG, WebP, GIF) або текстові файли (TXT, MD, CSV, JSON, LOG).",
     "attachFailed": "Не вдалося прочитати {name}.",
     "attachNoText": "No readable text found in {name}. A scanned PDF has no text layer.",
+    "attachScannedPartial": "{name} is a scanned PDF: only the first {count} of {total} pages were attached as images.",
     "attachTruncated": "{name} is long, so only the first part was attached.",
     "noVisionBadge": "Без зображень",
     "visionWarning": "{model} не приймає зображення. Виберіть модель із підтримкою зображень або «Авто».",

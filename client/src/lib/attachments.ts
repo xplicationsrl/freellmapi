@@ -166,7 +166,7 @@ export class AttachmentError extends Error {
   }
 }
 
-async function encode(canvas: HTMLCanvasElement, sourceType: string): Promise<string> {
+export async function encode(canvas: HTMLCanvasElement, sourceType: string): Promise<string> {
   // PNG/WebP sources keep an alpha-preserving encode first; if that lands over
   // the per-image cap we fall back to progressively cheaper JPEG (a flattened
   // screenshot is far better than a rejected attachment).

@@ -955,6 +955,7 @@
     "attachUnsupported": "{name} समर्थित नहीं है। छवियाँ (PNG, JPEG, WebP, GIF) या टेक्स्ट फ़ाइलें (TXT, MD, CSV, JSON, LOG) संलग्न करें।",
     "attachFailed": "{name} को पढ़ा नहीं जा सका।",
     "attachNoText": "No readable text found in {name}. A scanned PDF has no text layer.",
+    "attachScannedPartial": "{name} is a scanned PDF: only the first {count} of {total} pages were attached as images.",
     "attachTruncated": "{name} is long, so only the first part was attached.",
     "noVisionBadge": "छवि नहीं",
     "visionWarning": "{model} छवियाँ स्वीकार नहीं करता। कोई दृष्टि मॉडल या ऑटो चुनें।",

@@ -955,6 +955,7 @@
     "attachUnsupported": "{name} ကို မပံ့ပိုးပါ။ ပုံများ (PNG, JPEG, WebP, GIF) သို့မဟုတ် စာသားဖိုင်များ (TXT, MD, CSV, JSON, LOG) ကို ပူးတွဲပါ။",
     "attachFailed": "{name} ကို ဖတ်၍မရပါ။",
     "attachNoText": "No readable text found in {name}. A scanned PDF has no text layer.",
+    "attachScannedPartial": "{name} is a scanned PDF: only the first {count} of {total} pages were attached as images.",
     "attachTruncated": "{name} is long, so only the first part was attached.",
     "noVisionBadge": "ပုံမရ",
     "visionWarning": "{model} သည် ပုံများကို လက်မခံပါ။ ပုံရိပ်ထည့်သွင်းမှုကို လက်ခံသော မော်ဒယ် သို့မဟုတ် အော်တို ကို ရွေးပါ။",

@@ -7,14 +7,14 @@
 //
 //   - PDF: pdf.js, loaded on first use so it costs nothing until someone
 //     attaches a PDF. Only the embedded text layer is read — a scanned PDF has
-//     none, which is reported rather than silently sent as an empty block.
+//     none; renderPdfPages() turns its pages into images for a vision model.
 //   - DOCX: a .docx is a zip holding word/document.xml. The zip is read with
 //     the platform's DecompressionStream and the XML with DOMParser, so no
 //     parser library ships to the client.
 //
 // Legacy binary .doc is not supported (no standard-library way to read it).
 
-import { MAX_TEXT_BYTES, AttachmentError } from '@/lib/attachments'
+import { MAX_TEXT_BYTES, AttachmentError, encode, fitWithin } from '@/lib/attachments'
 
 /** Largest PDF/DOCX we will even try to open. */
 export const MAX_DOCUMENT_BYTES = 10_000_000
@@ -178,14 +178,19 @@ export async function extractDocxText(file: Blob): Promise<ExtractedDocument | n
 
 // ── PDF ─────────────────────────────────────────────────────────────────────
 
+async function loadPdfjs() {
+  const [pdfjs, worker] = await Promise.all([
+    import('pdfjs-dist'),
+    import('pdfjs-dist/build/pdf.worker.min.mjs?url'),
+  ])
+  pdfjs.GlobalWorkerOptions.workerSrc = worker.default
+  return pdfjs
+}
+
 export async function extractPdfText(file: Blob): Promise<ExtractedDocument | null> {
   if (file.size > MAX_DOCUMENT_BYTES) throw new AttachmentError('too-large')
   try {
-    const [pdfjs, worker] = await Promise.all([
-      import('pdfjs-dist'),
-      import('pdfjs-dist/build/pdf.worker.min.mjs?url'),
-    ])
-    pdfjs.GlobalWorkerOptions.workerSrc = worker.default
+    const pdfjs = await loadPdfjs()
     const loadingTask = pdfjs.getDocument({ data: new Uint8Array(await file.arrayBuffer()) })
     try {
       const pdf = await loadingTask.promise
@@ -205,6 +210,49 @@ export async function extractPdfText(file: Blob): Promise<ExtractedDocument | nu
         page.cleanup()
       }
       return finishExtracted(pages.join('\n\n'))
+    } finally {
+      void loadingTask.destroy()
+    }
+  } catch (err) {
+    throw err instanceof AttachmentError ? err : new AttachmentError('unreadable')
+  }
+}
+
+/**
+ * Render the first `maxPages` pages of a PDF to image data URIs, each fitted
+ * to MAX_IMAGE_EDGE. The fallback for scanned PDFs: with no text layer to
+ * extract, the pages travel as images and a vision model reads them.
+ */
+export async function renderPdfPages(file: Blob, maxPages: number): Promise<{ images: string[]; totalPages: number }> {
+  if (file.size > MAX_DOCUMENT_BYTES) throw new AttachmentError('too-large')
+  try {
+    const pdfjs = await loadPdfjs()
+    const loadingTask = pdfjs.getDocument({ data: new Uint8Array(await file.arrayBuffer()) })
+    try {
+      const pdf = await loadingTask.promise
+      const images: string[] = []
+      const lastPage = Math.min(pdf.numPages, maxPages)
+      for (let number = 1; number <= lastPage; number++) {
+        const page = await pdf.getPage(number)
+        const base = page.getViewport({ scale: 1 })
+        const { width } = fitWithin(base.width, base.height)
+        const viewport = page.getViewport({ scale: width / base.width })
+        const canvas = document.createElement('canvas')
+        canvas.width = Math.round(viewport.width)
+        canvas.height = Math.round(viewport.height)
+        const ctx = canvas.getContext('2d')
+        if (!ctx) throw new AttachmentError('unreadable')
+        // Scans are mostly transparent-free photos of paper; a white backdrop
+        // keeps any transparent regions from encoding as black in JPEG.
+        ctx.fillStyle = '#fff'
+        ctx.fillRect(0, 0, canvas.width, canvas.height)
+        // `canvas` is the newer render parameter, `canvasContext` the older one.
+        const params = { canvas, canvasContext: ctx, viewport }
+        await page.render(params as Parameters<typeof page.render>[0]).promise
+        images.push(await encode(canvas, 'image/jpeg'))
+        page.cleanup()
+      }
+      return { images, totalPages: pdf.numPages }
     } finally {
       void loadingTask.destroy()
     }

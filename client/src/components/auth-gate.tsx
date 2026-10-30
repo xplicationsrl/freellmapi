@@ -7,7 +7,7 @@ import { FieldError } from '@/components/ui/field-error'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { isEmail } from '@/lib/validate'
-import { APP_NAME } from '@/components/app-nav'
+import { APP_NAME, LOGO_FULL } from '@/components/app-nav'
 import { useI18n } from '@/i18n'
 import { toast } from '@/lib/toast'
 
@@ -129,14 +129,13 @@ function AuthForm({ mode, onAuthed }: { mode: 'setup' | 'login'; onAuthed: () =>
 
   return (
     <Centered>
-      <div className="mb-6 flex items-center gap-2">
+      <div className="mb-6 flex items-center">
         <img
-          src={`${import.meta.env.BASE_URL}brand/xplication-icon.png`}
-          alt=""
-          className="size-5 object-contain"
+          src={LOGO_FULL}
+          alt={APP_NAME}
+          className="h-9 w-auto max-w-full object-contain object-left brightness-0 dark:brightness-100"
           draggable={false}
         />
-        <span className="font-semibold tracking-tight text-sm">{APP_NAME}</span>
       </div>
       <div className="rounded-3xl border bg-card p-6">
         <h1 className="text-lg font-semibold tracking-tight">{isSetup ? t('auth.createYourAccount') : t('auth.signIn')}</h1>
@@ -279,14 +278,13 @@ function ForgotPasswordForm({ onBack, onAuthed }: { onBack: () => void; onAuthed
 
   return (
     <Centered>
-      <div className="mb-6 flex items-center gap-2">
+      <div className="mb-6 flex items-center">
         <img
-          src={`${import.meta.env.BASE_URL}brand/xplication-icon.png`}
-          alt=""
-          className="size-5 object-contain"
+          src={LOGO_FULL}
+          alt={APP_NAME}
+          className="h-9 w-auto max-w-full object-contain object-left brightness-0 dark:brightness-100"
           draggable={false}
         />
-        <span className="font-semibold tracking-tight text-sm">{APP_NAME}</span>
       </div>
       <div className="rounded-3xl border bg-card p-6">
         <h1 className="text-base font-medium">{t('auth.forgotPassword')}</h1>

@@ -10,7 +10,7 @@ import { logout } from '@/lib/api'
 import { useI18n } from '@/i18n'
 
 export const APP_NAME = 'AI Xplication'
-const LOGO_FULL = `${import.meta.env.BASE_URL}brand/xplication-logo.png`
+export const LOGO_FULL = `${import.meta.env.BASE_URL}brand/xplication-logo.png`
 
 // App pages behind the left-rail nav. Playground is the home surface (logo /
 // new chat), so it is not listed here.

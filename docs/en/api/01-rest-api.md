@@ -263,6 +263,16 @@ Anthropic's `document` content blocks are accepted on `/v1/messages` when their 
 
 `POST /v1/images/generations`, `POST /v1/videos/generations`, and `POST /v1/audio/speech` route across the providers that serve media models. Images and speech also accept custom OpenAI-compatible media endpoints; video does not. Browse and toggle them on the dashboard's **Models → Image / Video / Audio** tabs.
 
+`POST /v1/images/edits` takes OpenAI's multipart shape: one to four `image` files (20 MB each) and a `prompt`, plus optional `model`, `size`, and `response_format`. It routes only to models that accept an input image: Cloudflare FLUX.2 (`flux-2-dev`, `flux-2-klein-4b`, `flux-2-klein-9b`) and custom OpenAI-compatible endpoints. It returns one image. `mask` is refused with `400`, so describe the change in `prompt`. Cloudflare requires inputs smaller than 512x512, so the gateway shrinks them first; fine detail in a large photo will not survive the edit. Without `size`, the output keeps the first input's aspect ratio at 1024 px on the longest edge. The Playground uses this endpoint when **Create image** is on and a picture is attached.
+
+```bash
+curl http://localhost:3001/v1/images/edits \
+  -H "Authorization: Bearer freellmapi-your-unified-key" \
+  -F image=@photo.jpg \
+  -F prompt="make the sky a sunset" \
+  -F response_format=b64_json
+```
+
 Video generation is served by two platforms — **`pollinations`** and **`huggingface`** (`VIDEO_PLATFORMS`). It accepts a JSON body with `prompt`, optional `model` (`auto` by default), and provider-dependent `duration`, `aspect_ratio`, `image`, `seed`, and `audio` options. A video job runs for minutes, so the whole surface is **bounded to a 5-minute timeout** (`VIDEO_FETCH_TIMEOUT_MS`); if the provider hasn't finished by then the request returns `504`. A client that hangs up mid-generation is detected via the socket `close` event, which aborts the work so the gateway does not keep polling (and fail over to a second provider) for a response nobody is waiting for.
 
 HuggingFace models route through the **fal queue** (`router.huggingface.co/fal-ai/…`): the request is submitted as a queued job, polled every 500 ms until `COMPLETED`, and the resulting video URL is fetched and streamed back. Pollinations models are requested directly. Both return the generated video as binary MP4 data with `X-Provider` and `X-Model` response headers:

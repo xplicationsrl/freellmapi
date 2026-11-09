@@ -1,5 +1,6 @@
-// Image generation from the Playground: one request to /v1/images/generations,
-// and the result made small enough to live in a saved conversation.
+// Image generation and editing from the Playground: one request to
+// /v1/images/generations or /v1/images/edits, and the result made small enough
+// to live in a saved conversation.
 //
 // The server caps a stored conversation at 2 MB and the whole transcript is
 // saved after every exchange, so a 1024 px PNG (about 2 MB of base64 by itself)
@@ -60,10 +61,40 @@ export async function requestImage(opts: {
 }): Promise<ImageResult> {
   const res = await fetch(`${opts.base}/v1/images/generations`, {
     method: 'POST',
-    headers: opts.headers,
+    headers: { 'Content-Type': 'application/json', ...opts.headers },
     body: JSON.stringify({ prompt: opts.prompt, n: 1, response_format: 'b64_json' }),
     signal: opts.signal,
   })
+  return readImageResponse(res)
+}
+
+/** Edit attached pictures (data URIs). Resolves with the base64 payload; rejects with the server's message. */
+export async function requestImageEdit(opts: {
+  base: string
+  headers: Record<string, string>
+  prompt: string
+  images: string[]
+  signal?: AbortSignal
+}): Promise<ImageResult> {
+  const form = new FormData()
+  form.append('prompt', opts.prompt)
+  form.append('response_format', 'b64_json')
+  opts.images.forEach((dataUrl, n) => {
+    const b64 = dataUrl.slice(dataUrl.indexOf(',') + 1)
+    const type = sniffImageMime(b64)
+    form.append('image', b64ToBlob(b64, type), `image-${n + 1}.${type.split('/')[1]}`)
+  })
+  // No Content-Type here: the browser adds it with the multipart boundary.
+  const res = await fetch(`${opts.base}/v1/images/edits`, {
+    method: 'POST',
+    headers: opts.headers,
+    body: form,
+    signal: opts.signal,
+  })
+  return readImageResponse(res)
+}
+
+async function readImageResponse(res: Response): Promise<ImageResult> {
   const body = await res.json().catch(() => null)
   if (!res.ok) {
     const message = (body as { error?: { message?: string } } | null)?.error?.message

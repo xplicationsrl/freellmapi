@@ -79,7 +79,7 @@ export function cpuCanRunSharp(
   return /\bsse4_2\b/.test(flags);
 }
 
-async function loadSharp(): Promise<Sharp | null> {
+export async function loadSharp(): Promise<Sharp | null> {
   if (sharpModule !== undefined) return sharpModule;
   if (!cpuCanRunSharp()) {
     sharpModule = null;

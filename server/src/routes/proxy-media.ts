@@ -7,7 +7,8 @@ import { runEmbeddings, EmbeddingsError } from '../services/embeddings.js';
 import { runRerank, RerankError, rerankRetryAfterSec } from '../services/rerank.js';
 import { runSearch, SearchError, searchRetryAfterSec, listSearchEngines } from '../services/search.js';
 import { runDecision, DecisionError, decisionRetryAfterSec, listDecisionModels, DECISION_QUESTION_TYPES } from '../services/decision.js';
-import { runImageGeneration, runVideoGeneration, runSpeech, runTranscription, inlineImageUrls, MediaError, MAX_TRANSCRIPTION_BYTES } from '../services/media.js';
+import { runImageGeneration, runImageEdit, runVideoGeneration, runSpeech, runTranscription, inlineImageUrls, MediaError, MAX_TRANSCRIPTION_BYTES, MAX_IMAGE_EDIT_INPUTS } from '../services/media.js';
+import type { ImageResult } from '../services/media.js';
 import { retryAfterSeconds } from '../lib/retry-hint.js';
 import { safeHeaderValue } from '../lib/header-value.js';
 import { requireInferenceAuth } from '../lib/inference-auth.js';
@@ -289,21 +290,121 @@ mediaProxyRouter.post('/images/generations', async (req: Request, res: Response)
     const result = await runImageGeneration(parsed.data.model, {
       prompt: parsed.data.prompt, n: parsed.data.n, size: parsed.data.size,
     });
-    // `response_format: "b64_json"` means the caller wants the bytes, not a link.
-    const data = parsed.data.response_format === 'b64_json'
-      ? await inlineImageUrls(result.images, result.platform)
-      : result.images;
-    res.json({
-      created: Math.floor(Date.now() / 1000),
-      data,
-      model: result.modelId,
-      provider: result.platform,
-    });
+    await sendImageResult(res, result, parsed.data.response_format);
   } catch (err) {
-    const status = err instanceof MediaError ? err.status : 502;
-    const code = err instanceof MediaError ? inferenceBudgetCode(err, res) : {};
-    const httpStatus = status >= 400 && status < 600 ? status : 502;
-    res.status(httpStatus).json({ error: { message: `image generation error: ${errorMessage(err, 'unknown')}`, type: mediaErrorType(status), ...code } });
+    sendImageError(res, err, 'image generation');
+  }
+});
+
+async function sendImageResult(res: Response, result: ImageResult, responseFormat?: string): Promise<void> {
+  // `response_format: "b64_json"` means the caller wants the bytes, not a link.
+  const data = responseFormat === 'b64_json'
+    ? await inlineImageUrls(result.images, result.platform)
+    : result.images;
+  res.json({
+    created: Math.floor(Date.now() / 1000),
+    data,
+    model: result.modelId,
+    provider: result.platform,
+  });
+}
+
+function sendImageError(res: Response, err: unknown, operation: string): void {
+  const status = err instanceof MediaError ? err.status : 502;
+  const code = err instanceof MediaError ? inferenceBudgetCode(err, res) : {};
+  const httpStatus = status >= 400 && status < 600 ? status : 502;
+  res.status(httpStatus).json({ error: { message: `${operation} error: ${errorMessage(err, 'unknown')}`, type: mediaErrorType(status), ...code } });
+}
+
+// OpenAI-compatible image editing (/v1/images/edits). Multipart upload held in
+// memory only, one picture as `image` or several as repeated `image` / `image[]`
+// parts. Routed only to models that can take an input image. `mask` is refused
+// rather than ignored: no routed model inpaints, so honouring the form field
+// silently would repaint areas the caller asked to protect.
+const MAX_IMAGE_EDIT_BYTES = 20 * 1024 * 1024;
+
+const imageEditUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: MAX_IMAGE_EDIT_BYTES },
+}).fields([
+  { name: 'image', maxCount: MAX_IMAGE_EDIT_INPUTS },
+  { name: 'image[]', maxCount: MAX_IMAGE_EDIT_INPUTS },
+  { name: 'mask', maxCount: 1 },
+]);
+
+const IMAGE_EDIT_FORMATS = new Set(['url', 'b64_json']);
+
+function imageEditBadRequest(res: Response, message: string, code?: string): void {
+  res.status(400).json({ error: { message, type: 'invalid_request_error', ...(code ? { code } : {}) } });
+}
+
+mediaProxyRouter.post('/images/edits', (req: Request, res: Response, next) => {
+  // Auth before the multipart body is parsed: an unauthenticated caller's
+  // upload is never buffered.
+  if (!requireInferenceAuth(req, res)) return;
+  imageEditUpload(req, res, (err: unknown) => {
+    if (!err) {
+      next();
+      return;
+    }
+    if (err instanceof multer.MulterError && err.code === 'LIMIT_FILE_SIZE') {
+      res.status(413).json({
+        error: {
+          message: `Image too large: the maximum upload size is ${MAX_IMAGE_EDIT_BYTES / (1024 * 1024)} MB.`,
+          type: 'invalid_request_error',
+          code: 'file_too_large',
+        },
+      });
+      return;
+    }
+    if (err instanceof multer.MulterError && err.code === 'LIMIT_UNEXPECTED_FILE') {
+      imageEditBadRequest(res, `Invalid request: send at most ${MAX_IMAGE_EDIT_INPUTS} images, in the \`image\` field.`);
+      return;
+    }
+    imageEditBadRequest(res, 'Malformed multipart/form-data upload.');
+  });
+}, async (req: Request, res: Response) => {
+  const files = (req.files ?? {}) as Record<string, Express.Multer.File[]>;
+  if (files.mask?.length) {
+    imageEditBadRequest(res, 'Invalid request: `mask` is not supported; describe the change in `prompt`.', 'unsupported_mask');
+    return;
+  }
+  const images = [...(files.image ?? []), ...(files['image[]'] ?? [])].filter(file => file.buffer?.length);
+  if (images.length === 0) {
+    imageEditBadRequest(res, 'Invalid request: `image` is required (multipart/form-data upload).');
+    return;
+  }
+  if (images.length > MAX_IMAGE_EDIT_INPUTS) {
+    imageEditBadRequest(res, `Invalid request: send at most ${MAX_IMAGE_EDIT_INPUTS} images.`);
+    return;
+  }
+  const prompt = typeof req.body?.prompt === 'string' ? req.body.prompt.trim() : '';
+  if (!prompt) {
+    imageEditBadRequest(res, 'Invalid request: `prompt` is required');
+    return;
+  }
+  const size = typeof req.body?.size === 'string' && req.body.size.trim() ? req.body.size.trim() : undefined;
+  if (size && !/^(auto|\d+x\d+)$/.test(size)) {
+    imageEditBadRequest(res, "Invalid size: use 'auto' or WIDTHxHEIGHT.");
+    return;
+  }
+  const responseFormat = typeof req.body?.response_format === 'string' && req.body.response_format.trim()
+    ? req.body.response_format.trim()
+    : undefined;
+  if (responseFormat && !IMAGE_EDIT_FORMATS.has(responseFormat)) {
+    imageEditBadRequest(res, "Invalid response_format: use 'url' or 'b64_json'.");
+    return;
+  }
+  const model = typeof req.body?.model === 'string' ? req.body.model.trim() : '';
+  try {
+    const result = await runImageEdit(model || undefined, {
+      prompt,
+      size,
+      images: images.map(file => ({ data: file.buffer, filename: file.originalname || 'image', mimeType: file.mimetype })),
+    });
+    await sendImageResult(res, result, responseFormat);
+  } catch (err) {
+    sendImageError(res, err, 'image edit');
   }
 });
 

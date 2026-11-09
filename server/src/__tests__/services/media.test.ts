@@ -1,7 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { initDb, getDb } from '../../db/index.js';
 import { encrypt } from '../../lib/crypto.js';
-import { runImageGeneration, runVideoGeneration, runSpeech } from '../../services/media.js';
+import sharp from 'sharp';
+import { runImageGeneration, runImageEdit, runVideoGeneration, runSpeech } from '../../services/media.js';
 
 const realFetch = globalThis.fetch;
 
@@ -215,6 +216,83 @@ describe('media service', () => {
       expect(form.get('height')).toBe('512');
       // Content-Type must stay unset so fetch supplies the multipart boundary.
       expect((init.headers as Record<string, string>)['Content-Type']).toBeUndefined();
+    });
+
+    describe('runImageEdit', () => {
+      const KLEIN = '@cf/black-forest-labs/flux-2-klein-4b';
+      const png = (width: number, height: number) => sharp({
+        create: { width, height, channels: 3, background: '#336699' },
+      }).png().toBuffer();
+      const source = (data: Buffer) => ({ data, filename: 'photo.png', mimeType: 'image/png' });
+
+      it('Cloudflare FLUX.2: shrinks the input under 512px and keeps its shape', async () => {
+        addMedia('cloudflare', KLEIN, 'image');
+        addKey('cloudflare', 'acct123:token456');
+        const fetchMock = vi.fn(async () => jsonResponse({ result: { image: 'EDITB64' }, success: true }));
+        globalThis.fetch = fetchMock as any;
+
+        const r = await runImageEdit('auto', { prompt: 'make it blue', images: [source(await png(1000, 500))] });
+
+        expect(r.images[0].b64_json).toBe('EDITB64');
+        const form = (fetchMock.mock.calls[0][1] as RequestInit).body as FormData;
+        expect(form.get('width')).toBe('1024');
+        expect(form.get('height')).toBe('512');
+        const sent = Buffer.from(await (form.get('input_image_0') as File).arrayBuffer());
+        const meta = await sharp(sent).metadata();
+        expect(Math.max(meta.width!, meta.height!)).toBeLessThan(512);
+      });
+
+      it('auto skips image models that cannot edit', async () => {
+        addMedia('cloudflare', '@cf/black-forest-labs/flux-1-schnell', 'image', 1);
+        addMedia('cloudflare', KLEIN, 'image', 2);
+        addKey('cloudflare', 'acct123:token456');
+        const fetchMock = vi.fn(async () => jsonResponse({ result: { image: 'EDITB64' }, success: true }));
+        globalThis.fetch = fetchMock as any;
+
+        await runImageEdit('auto', { prompt: 'x', images: [source(await png(64, 64))] });
+
+        expect(fetchMock).toHaveBeenCalledTimes(1);
+        expect(String(fetchMock.mock.calls[0][0])).toContain('flux-2-klein-4b');
+      });
+
+      it('refuses a pinned model that cannot edit, before any upstream call', async () => {
+        addMedia('cloudflare', '@cf/black-forest-labs/flux-1-schnell', 'image');
+        const fetchMock = vi.fn();
+        globalThis.fetch = fetchMock as any;
+
+        await expect(runImageEdit('@cf/black-forest-labs/flux-1-schnell', {
+          prompt: 'x', images: [source(await png(64, 64))],
+        })).rejects.toMatchObject({ status: 400 });
+        expect(fetchMock).not.toHaveBeenCalled();
+      });
+
+      it('rejects bytes that are not an image with a 400', async () => {
+        addMedia('cloudflare', KLEIN, 'image');
+        addKey('cloudflare', 'acct123:token456');
+        const fetchMock = vi.fn();
+        globalThis.fetch = fetchMock as any;
+
+        await expect(runImageEdit('auto', {
+          prompt: 'x', images: [source(Buffer.from('not an image'))],
+        })).rejects.toMatchObject({ status: 400 });
+        expect(fetchMock).not.toHaveBeenCalled();
+      });
+
+      it('custom endpoint: forwards the upload to /images/edits', async () => {
+        const keyId = addCustomKey('http://127.0.0.1:8282/v1', 'custom-image-key');
+        addMedia('custom', 'local-edit', 'image', 1, keyId);
+        const fetchMock = vi.fn(async () => jsonResponse({ data: [{ b64_json: 'CUSTOMB64' }] }));
+        globalThis.fetch = fetchMock as any;
+
+        const r = await runImageEdit('local-edit', { prompt: 'x', size: '512x512', images: [source(Buffer.from('raw'))] });
+
+        expect(r.images[0].b64_json).toBe('CUSTOMB64');
+        expect(String(fetchMock.mock.calls[0][0])).toBe('http://127.0.0.1:8282/v1/images/edits');
+        const form = (fetchMock.mock.calls[0][1] as RequestInit).body as FormData;
+        expect(form.get('model')).toBe('local-edit');
+        expect(form.get('size')).toBe('512x512');
+        expect(form.get('image')).toBeInstanceOf(File);
+      });
     });
 
     it('Cloudflare: binary SDXL response → b64_json', async () => {

@@ -36,7 +36,7 @@ import {
 import { MessageActionButton, MessageEditor } from '@/components/playground/message-actions'
 import { StarterPrompts } from '@/components/playground/starter-prompts'
 import { createSpeaker, speechSupported, type Speaker } from '@/lib/speech'
-import { downloadDataUrl, requestImage, shrinkGeneratedImage } from '@/lib/chat-image'
+import { downloadDataUrl, requestImage, requestImageEdit, shrinkGeneratedImage } from '@/lib/chat-image'
 import { SkillsDialog } from '@/components/playground/skills-dialog'
 import {
   MAX_ACTIVE_SKILLS, loadSkillBody, loadSkillIndex, readActiveSkills, sanitizeActive, skillsSystemMessage,
@@ -678,6 +678,7 @@ export default function PlaygroundPage() {
   // chooses a vision-capable member for an image request, so the hint would be
   // guesswork about a model that has not been picked yet.
   const modelBlindToImages = pendingImages.length > 0
+    && !imageOn
     && selectedModel !== 'auto' && selectedModel !== 'fusion'
     && !selectedModel.startsWith('auto:')
     && !visionValues.has(selectedModel)
@@ -1359,7 +1360,9 @@ export default function PlaygroundPage() {
     }
   }
 
-  // Draw an image for `prompt` and answer with it. The picture is shrunk to fit
+  // Draw an image for `prompt` and answer with it, editing the pictures on the
+  // last user message when it has any, so Try again and edit-and-resend redo the
+  // edit. The picture is shrunk to fit
   // a saved conversation (see lib/chat-image.ts). `generatedImages` is set even
   // on a failure (to an empty list) so Try again knows this was an image reply
   // and does not ask a chat model instead.
@@ -1374,14 +1377,17 @@ export default function PlaygroundPage() {
     void conversationIdFor(newMessages)
 
     try {
-      const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+      const headers: Record<string, string> = {}
       if (keyData?.apiKey) headers['Authorization'] = `Bearer ${keyData.apiKey}`
       abortRef.current?.abort()
       const controller = new AbortController()
       abortRef.current = controller
 
       const start = Date.now()
-      const generated = await requestImage({ base: API_BASE, headers, prompt, signal: controller.signal })
+      const sources = newMessages[newMessages.length - 1]?.images ?? []
+      const generated = sources.length > 0
+        ? await requestImageEdit({ base: API_BASE, headers, prompt, images: sources, signal: controller.signal })
+        : await requestImage({ base: API_BASE, headers, prompt, signal: controller.signal })
       const picture = await shrinkGeneratedImage(generated.b64)
       const answered: ChatMessage[] = [...newMessages, {
         role: 'assistant',
@@ -1413,11 +1419,15 @@ export default function PlaygroundPage() {
     if ((!text && attachments.length === 0) || loading) return
 
     if (imageOn) {
-      // An image prompt is text only; attachments stay staged for the next normal message.
+      // Attached pictures are what gets edited; other files stay staged for the next normal message.
       if (!text) return
-      if (attachments.length > 0) toast.info(t('playground.imageIgnoresAttachments'))
+      if (attachments.some(a => a.kind !== 'image')) toast.info(t('playground.imageIgnoresAttachments'))
       setInput('')
-      await runImageReply([...messages, { role: 'user', content: text }], text)
+      setAttachments(prev => prev.filter(a => a.kind !== 'image'))
+      await runImageReply([
+        ...messages,
+        { role: 'user', content: text, ...(pendingImages.length > 0 ? { images: pendingImages } : {}) },
+      ], text)
       return
     }
 

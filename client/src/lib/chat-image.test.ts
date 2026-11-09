@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { parseImageResponse, requestImage, sniffImageMime, toDataUrl } from '@/lib/chat-image'
+import { parseImageResponse, requestImage, requestImageEdit, sniffImageMime, toDataUrl } from '@/lib/chat-image'
 
 describe('sniffImageMime / toDataUrl', () => {
   it('names the type from the first bytes and defaults to PNG', () => {
@@ -48,5 +48,28 @@ describe('requestImage', () => {
     await expect(requestImage({ base: '', headers: {}, prompt: 'x' })).rejects.toThrow('no image providers')
     vi.stubGlobal('fetch', vi.fn(async () => new Response('<html>', { status: 503 })))
     await expect(requestImage({ base: '', headers: {}, prompt: 'x' })).rejects.toThrow('HTTP 503')
+  })
+})
+
+describe('requestImageEdit', () => {
+  afterEach(() => vi.unstubAllGlobals())
+
+  it('uploads each picture as multipart and leaves Content-Type to the browser', async () => {
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ data: [{ b64_json: 'QUJD' }] }), { status: 200 }))
+    vi.stubGlobal('fetch', fetchMock)
+    const result = await requestImageEdit({
+      base: '',
+      headers: { Authorization: 'Bearer k' },
+      prompt: 'make it blue',
+      images: ['data:image/jpeg;base64,/9j/AAAA', 'data:image/png;base64,iVBORw0KGgo='],
+    })
+    expect(result.b64).toBe('QUJD')
+    const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit]
+    expect(url).toBe('/v1/images/edits')
+    const form = init.body as FormData
+    expect(form.get('prompt')).toBe('make it blue')
+    expect(form.get('response_format')).toBe('b64_json')
+    expect(form.getAll('image').map(file => (file as File).type)).toEqual(['image/jpeg', 'image/png'])
+    expect((init.headers as Record<string, string>)['Content-Type']).toBeUndefined()
   })
 })

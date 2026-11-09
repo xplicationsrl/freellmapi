@@ -173,6 +173,48 @@ export const openapiSpec = {
         },
       },
     },
+    '/v1/images/edits': {
+      post: {
+        tags: ['Media'],
+        operationId: 'editImage',
+        summary: 'Edit images',
+        description:
+          'OpenAI-compatible image editing, routed only to image models that accept an input image ' +
+          '(Cloudflare FLUX.2 and custom endpoints). `mask` is refused. Returns one image.',
+        requestBody: {
+          required: true,
+          content: {
+            'multipart/form-data': {
+              schema: {
+                type: 'object',
+                required: ['image', 'prompt'],
+                properties: {
+                  image: { type: 'array', maxItems: 4, items: { type: 'string', format: 'binary' } },
+                  prompt: { type: 'string', minLength: 1 },
+                  model: { type: 'string', default: 'auto' },
+                  size: { type: 'string', example: '1024x1024' },
+                  response_format: { type: 'string', enum: ['url', 'b64_json'] },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          '200': {
+            description: 'Edited image, as a URL or base64 depending on `response_format`.',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/ImageResponse' },
+              },
+            },
+          },
+          '400': { $ref: '#/components/responses/BadRequest' },
+          '401': { $ref: '#/components/responses/Unauthorized' },
+          '429': { $ref: '#/components/responses/RateLimited' },
+          '502': { $ref: '#/components/responses/UpstreamError' },
+        },
+      },
+    },
     '/v1/search': {
       post: {
         tags: ['Search'],

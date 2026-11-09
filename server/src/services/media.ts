@@ -22,6 +22,7 @@ import { TYPHOON_BASE_URL } from '../providers/typhoon.js';
 import { ELECTRONHUB_BASE_URL } from '../providers/electronhub.js';
 import { FREEAI_BASE_URL, freeAiAudioUrl } from '../providers/freeai.js';
 import { errorMessage } from '../lib/error-props.js';
+import { loadSharp } from '../lib/image-normalize.js';
 
 /** Platforms with a media adapter below. catalog-sync gates media rows on this
  *  (decoupled from the chat provider registry — e.g. SiliconFlow is media-only). */
@@ -94,6 +95,8 @@ export interface VideoResult {
   contentType: string;
 }
 export interface ImageParams { prompt: string; n?: number; size?: string }
+export interface ImageEditSource { data: Buffer; filename: string; mimeType: string }
+export interface ImageEditParams { prompt: string; images: ImageEditSource[]; size?: string }
 export interface SpeechParams { input: string; voice?: string; format?: string }
 export interface VideoParams {
   prompt: string;
@@ -349,6 +352,129 @@ function wrapPcmAsWav(pcm: Buffer, sampleRate: number): Buffer {
   return Buffer.concat([header, pcm]);
 }
 
+/** FLUX returns JSON { result: { image: <b64> } }; SDXL returns raw PNG bytes. */
+async function readCloudflareImage(r: Response): Promise<Array<{ b64_json?: string; url?: string }>> {
+  const ct = r.headers.get('content-type') ?? '';
+  if (ct.includes('application/json')) {
+    const j = (await r.json()) as { result?: { image?: string } };
+    const b64 = j.result?.image;
+    if (!b64) throw new MediaError('cloudflare returned no image', 502);
+    return [{ b64_json: b64 }];
+  }
+  const buf = Buffer.from(await r.arrayBuffer());
+  return [{ b64_json: buf.toString('base64') }];
+}
+
+/** Most pictures one edit request can carry (FLUX.2's reference-image limit). */
+export const MAX_IMAGE_EDIT_INPUTS = 4;
+
+/** Cloudflare models that take reference images as `input_image_0`..`3`. */
+const CLOUDFLARE_IMAGE_EDIT_MODELS = new Set([
+  '@cf/black-forest-labs/flux-2-dev',
+  '@cf/black-forest-labs/flux-2-klein-4b',
+  '@cf/black-forest-labs/flux-2-klein-9b',
+]);
+/** FLUX.2 on Workers AI requires input images smaller than 512x512. */
+const CLOUDFLARE_EDIT_INPUT_MAX_EDGE = 511;
+/** Longest output edge when the caller names no size. */
+const CLOUDFLARE_EDIT_OUTPUT_EDGE = 1024;
+const CLOUDFLARE_EDIT_MIN_OUTPUT_EDGE = 256;
+/** Decode ceiling, so a small file cannot expand into gigabytes of pixels. */
+const MAX_EDIT_INPUT_PIXELS = 64_000_000;
+const EDITABLE_IMAGE_FORMATS = new Set(['jpeg', 'png', 'webp', 'gif']);
+
+/** Custom endpoints are tried too: one without /images/edits answers an error and the chain moves on. */
+function supportsImageEdit(row: MediaModelRow): boolean {
+  return row.platform === 'custom'
+    || (row.platform === 'cloudflare' && CLOUDFLARE_IMAGE_EDIT_MODELS.has(row.model_id));
+}
+
+/**
+ * Shrink each input under Cloudflare's limit and work out the output size. With
+ * no explicit size the output keeps the first picture's shape, snapped to 16 px
+ * steps, instead of squaring it. Upright PNGs go up so phone photos stay the
+ * right way round and transparency survives.
+ */
+async function prepareCloudflareEdit(p: ImageEditParams): Promise<{ references: Buffer[]; width: number; height: number }> {
+  const sharp = await loadSharp();
+  if (!sharp) throw new MediaError('cloudflare image editing needs the sharp library, which is unavailable on this server', 500);
+  const references: Buffer[] = [];
+  let shape: { width: number; height: number } | undefined;
+  for (const source of p.images) {
+    try {
+      const image = sharp(source.data, { limitInputPixels: MAX_EDIT_INPUT_PIXELS });
+      const { format } = await image.metadata();
+      if (!format || !EDITABLE_IMAGE_FORMATS.has(format)) throw new Error('unsupported format');
+      const { data, info } = await image
+        .rotate()
+        .resize({
+          width: CLOUDFLARE_EDIT_INPUT_MAX_EDGE,
+          height: CLOUDFLARE_EDIT_INPUT_MAX_EDGE,
+          fit: 'inside',
+          withoutEnlargement: true,
+        })
+        .png()
+        .toBuffer({ resolveWithObject: true });
+      references.push(data);
+      shape ??= { width: info.width, height: info.height };
+    } catch {
+      throw new MediaError(
+        `Every input must be a readable JPEG, PNG, WebP or GIF of at most ${MAX_EDIT_INPUT_PIXELS / 1_000_000} megapixels.`,
+        400,
+      );
+    }
+  }
+  if (p.size && /^\d+x\d+$/.test(p.size)) {
+    const [width, height] = parseSize(p.size);
+    return { references, width, height };
+  }
+  const { width, height } = shape!;
+  const scale = CLOUDFLARE_EDIT_OUTPUT_EDGE / Math.max(width, height);
+  const snap = (edge: number) => Math.max(CLOUDFLARE_EDIT_MIN_OUTPUT_EDGE, Math.round((edge * scale) / 16) * 16);
+  return { references, width: snap(width), height: snap(height) };
+}
+
+async function callImageEditProvider(
+  row: MediaModelRow,
+  credential: ProviderCredential,
+  p: ImageEditParams,
+): Promise<Array<{ b64_json?: string; url?: string }>> {
+  if (row.platform === 'custom') {
+    if (!credential.baseUrl) throw new MediaError('custom image provider is missing base_url', 500);
+    const form = new FormData();
+    form.append('model', row.model_id);
+    form.append('prompt', p.prompt);
+    if (p.size) form.append('size', p.size);
+    const field = p.images.length > 1 ? 'image[]' : 'image';
+    for (const source of p.images) {
+      form.append(field, new Blob([source.data], { type: source.mimeType || 'application/octet-stream' }), source.filename);
+    }
+    const r = await mediaFetch(`${credential.baseUrl}/images/edits`, 'custom', 'image', {
+      method: 'POST',
+      headers: bearerAuthHeader(credential.key),
+      body: form,
+    });
+    const j = (await r.json()) as { data?: { b64_json?: string; url?: string }[] };
+    return (j.data ?? []).map(i => ({ b64_json: i.b64_json, url: i.url }));
+  }
+  const { accountId, token } = parseCfKey(credential.key);
+  const { references, width, height } = await prepareCloudflareEdit(p);
+  // Never set Content-Type by hand — FormData supplies the boundary.
+  const form = new FormData();
+  form.append('prompt', p.prompt);
+  form.append('width', String(width));
+  form.append('height', String(height));
+  references.forEach((png, index) => {
+    form.append(`input_image_${index}`, new Blob([png], { type: 'image/png' }), `input_image_${index}.png`);
+  });
+  const url = `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/run/${row.model_id}`;
+  return readCloudflareImage(await mediaFetch(url, 'cloudflare', 'image', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: form,
+  }));
+}
+
 async function callImageProvider(
   row: MediaModelRow,
   credential: ProviderCredential,
@@ -435,17 +561,7 @@ async function callImageProvider(
           body: JSON.stringify(body),
         };
       }
-      const r = await mediaFetch(url, 'cloudflare', 'image', init);
-      // FLUX returns JSON { result: { image: <b64> } }; SDXL returns raw PNG bytes.
-      const ct = r.headers.get('content-type') ?? '';
-      if (ct.includes('application/json')) {
-        const j = (await r.json()) as { result?: { image?: string } };
-        const b64 = j.result?.image;
-        if (!b64) throw new MediaError('cloudflare returned no image', 502);
-        return [{ b64_json: b64 }];
-      }
-      const buf = Buffer.from(await r.arrayBuffer());
-      return [{ b64_json: buf.toString('base64') }];
+      return readCloudflareImage(await mediaFetch(url, 'cloudflare', 'image', init));
     }
     case 'siliconflow': {
       const r = await mediaFetch('https://api.siliconflow.com/v1/images/generations', 'siliconflow', 'image', {
@@ -848,7 +964,31 @@ function chainError(modality: MediaModality, lastError: MediaError | null, hints
 
 /** Generate image(s), failing over across providers serving the modality. */
 export async function runImageGeneration(model: string | undefined, params: ImageParams): Promise<ImageResult> {
-  const chain = resolveMediaChain(model, 'image');
+  return runImageChain(
+    resolveMediaChain(model, 'image'),
+    (row, credential) => callImageProvider(row, credential, params),
+  );
+}
+
+/** Edit caller-supplied image(s), failing over across the models able to edit. */
+export async function runImageEdit(model: string | undefined, params: ImageEditParams): Promise<ImageResult> {
+  const chain = resolveMediaChain(model, 'image').filter(supportsImageEdit);
+  if (chain.length === 0) {
+    const pinned = model && model !== 'auto';
+    throw new MediaError(
+      pinned
+        ? `Image model '${model}' cannot edit images.`
+        : 'No enabled image model can edit images. Add a Cloudflare key and enable a FLUX.2 model, or add a custom image endpoint.',
+      pinned ? 400 : 503,
+    );
+  }
+  return runImageChain(chain, (row, credential) => callImageEditProvider(row, credential, params));
+}
+
+async function runImageChain(
+  chain: MediaModelRow[],
+  call: (row: MediaModelRow, credential: ProviderCredential) => Promise<Array<{ b64_json?: string; url?: string }>>,
+): Promise<ImageResult> {
   let lastError: MediaError | null = null;
   // Only a chain rate limited end to end earns a Retry-After (the soonest).
   const hints = new RetryHintTracker();
@@ -865,7 +1005,7 @@ export async function runImageGeneration(model: string | undefined, params: Imag
     }
     const started = Date.now();
     try {
-      const images = await callImageProvider(row, credential, params);
+      const images = await call(row, credential);
       if (!images.length || images.every(i => !i.b64_json && !i.url)) {
         throw new MediaError('upstream returned no image', 502);
       }
